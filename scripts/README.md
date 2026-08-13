@@ -12,6 +12,8 @@ tenant IDs, credentials, or private keys.
    existing user-managed identity, and sets non-secret configuration.
 5. `Publish-NsoAuditApi.ps1` — builds a clean API ZIP with production dependencies and publishes
    it to an existing Function App. Temporary deployment files are deleted afterward.
+6. `New-NsoAuditStaticWebApp.ps1` — checks name availability and creates a Free Static Web App
+   without connecting GitHub or retrieving a deployment token.
 
 Every script accepts `SubscriptionId` and `ResourceGroupName` as parameters. If
 `SubscriptionId` is omitted, the current Cloud Shell subscription is used. Scripts confirm
