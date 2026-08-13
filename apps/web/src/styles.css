@@ -19,10 +19,11 @@ main {
     linear-gradient(180deg, #071016 0%, #0a141a 100%);
 }
 
-.nav, .hero, .process, .trust { width: min(1120px, calc(100% - 40px)); margin-inline: auto; }
+.nav, .hero, .process, .brand-story, .trust, .footer-inner { width: min(1120px, calc(100% - 40px)); margin-inline: auto; }
 .nav { height: 82px; display: flex; align-items: center; justify-content: space-between; }
 .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; font-weight: 700; letter-spacing: -.02em; }
-.brand-mark { display: grid; place-items: center; width: 34px; height: 34px; color: #06110d; background: #57e6b4; border-radius: 9px; }
+.brand-mark { display: block; width: 40px; height: 40px; border-radius: 10px; box-shadow: 0 8px 24px rgba(255, 95, 21, .16); }
+.brand-name { font-size: 1rem; }
 .nav-link { color: #9dafb9; font-size: .9rem; text-decoration: none; }
 .nav-link:hover { color: #e8edf3; }
 .nav-actions { display: flex; align-items: center; gap: 18px; }
@@ -60,12 +61,37 @@ h2 { max-width: 700px; margin: 12px 0 44px; font-size: clamp(2.2rem, 4vw, 3.8rem
 .steps article > span { color: #57e6b4; font-family: ui-monospace, monospace; font-size: .78rem; }
 h3 { margin-top: 58px; font-size: 1.3rem; }
 .steps p, .trust > p:last-child { color: #91a2ac; line-height: 1.65; }
+.brand-story { position: relative; min-height: 430px; overflow: hidden; border: 1px solid #26363e; border-radius: 20px; background: #0c181e; }
+.brand-story::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4, 11, 15, .94) 0%, rgba(4, 11, 15, .76) 34%, rgba(4, 11, 15, .08) 68%); }
+.brand-story > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center bottom; }
+.brand-story-overlay { position: relative; z-index: 1; width: min(520px, 70%); padding: 76px 64px; }
+.brand-story-overlay h2 { margin-bottom: 22px; font-size: clamp(2.3rem, 4.5vw, 4.1rem); }
+.brand-story-overlay > p:last-child { color: #c1ccd2; line-height: 1.7; }
 .trust { padding: 96px 0 120px; }
 .trust > p:last-child { max-width: 700px; font-size: 1.1rem; }
+.footer { border-top: 1px solid #1c2a31; background: #f7f5ef; color: #09212d; }
+.footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 40px; min-height: 190px; padding-block: 30px; }
+.footer-inner > div { display: flex; align-items: center; gap: 22px; }
+.footer-label { margin: 0; color: #66747b; font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.footer img { display: block; width: 220px; height: auto; mix-blend-mode: multiply; }
+.footer-inner > p { max-width: 330px; color: #53656e; line-height: 1.55; text-align: right; }
 
 @media (max-width: 800px) {
   .hero { grid-template-columns: 1fr; padding: 64px 0 90px; gap: 44px; }
   .steps { grid-template-columns: 1fr; }
   .steps article { min-height: auto; }
   h3 { margin-top: 34px; }
+  .brand-story { min-height: 560px; }
+  .brand-story::after { background: linear-gradient(180deg, rgba(4, 11, 15, .88) 0%, rgba(4, 11, 15, .58) 60%, rgba(4, 11, 15, .2) 100%); }
+  .brand-story-overlay { width: auto; padding: 54px 28px; }
+  .footer-inner, .footer-inner > div { align-items: flex-start; flex-direction: column; }
+  .footer-inner { padding-block: 48px; }
+  .footer-inner > p { text-align: left; }
+}
+
+@media (max-width: 520px) {
+  .brand-name { display: none; }
+  .nav-actions { gap: 12px; }
+  .nav-link { font-size: .8rem; }
+  .footer-inner > div { gap: 12px; }
 }

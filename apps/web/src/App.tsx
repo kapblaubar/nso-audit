@@ -34,8 +34,8 @@ export function App() {
     <main>
       <nav className="nav" aria-label="Primary navigation">
         <a className="brand" href="#top" aria-label="NSO Audit home">
-          <span className="brand-mark">N</span>
-          <span>NSO Audit</span>
+          <img className="brand-mark" src="/brand/nsosquare.png" alt="" width="40" height="40" />
+          <span className="brand-name">NSO Audit</span>
         </a>
         <div className="nav-actions">
           <a className="nav-link" href="#trust">Security & privacy</a>
@@ -91,6 +91,23 @@ export function App() {
         </div>
       </section>
 
+      <section className="brand-story" aria-labelledby="brand-story-title">
+        <img
+          src="/images/nso-cover.png"
+          alt="Mountain landscape representing NewSommer's technology and cloud services"
+          loading="lazy"
+          decoding="async"
+        />
+        <div className="brand-story-overlay">
+          <p className="eyebrow">Built by NewSommer</p>
+          <h2 id="brand-story-title">A clearer route to stronger security.</h2>
+          <p>
+            Purpose-built cloud engineering turns a complex Microsoft tenant into a focused,
+            understandable path forward.
+          </p>
+        </div>
+      </section>
+
       <section className="trust" id="trust">
         <p className="eyebrow">Designed for trust</p>
         <h2>Your credentials stay yours.</h2>
@@ -99,10 +116,26 @@ export function App() {
           Access is explicit, reviewable, and removable from Microsoft Entra at any time.
         </p>
       </section>
+
+      <footer className="footer">
+        <div className="footer-inner">
+          <div>
+            <p className="footer-label">A NewSommer product</p>
+            <img
+              src="/brand/newsommer.png"
+              alt="NewSommer"
+              width="220"
+              height="110"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+          <p>Read-only by design. Built for Microsoft cloud environments.</p>
+        </div>
+      </footer>
     </main>
   );
 }
 import { useEffect, useState } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
 import { initializeAuth, signIn, signOut } from "./auth";
-
