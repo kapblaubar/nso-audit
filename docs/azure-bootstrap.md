@@ -46,3 +46,11 @@ The Entra multi-tenant App Registration is intentionally not created by this fir
 template. Its publisher identity, redirect URIs, verified domain, and exact Phase 1 Graph
 permission manifest must be reviewed before creation.
 
+## Development endpoints
+
+- Static Web App: `https://blue-mushroom-0b2666c1e.7.azurestaticapps.net`
+- Function API: `https://nso-audit-dev-api.azurewebsites.net`
+- Health check: `https://nso-audit-dev-api.azurewebsites.net/api/health`
+
+These hostnames are public identifiers. Deployment tokens and application credentials must not
+be committed to the repository.
