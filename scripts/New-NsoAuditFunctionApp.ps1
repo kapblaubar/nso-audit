@@ -89,6 +89,10 @@ elseif ($PSCmdlet.ShouldProcess(
 
     Write-Host "Created Function App: $FunctionAppName" -ForegroundColor Green
 }
+else {
+    Write-Host "Creation was skipped; dependent identity and configuration steps were not evaluated." -ForegroundColor Cyan
+    return
+}
 
 $currentIdentity = az functionapp identity show `
     --name $FunctionAppName `
@@ -133,4 +137,3 @@ if ($PSCmdlet.ShouldProcess($FunctionAppName, "Set non-secret application config
 
 Write-Host "Function App setup complete." -ForegroundColor Cyan
 Write-Host "Application Insights is intentionally disabled for the low-cost development environment." -ForegroundColor Cyan
-
