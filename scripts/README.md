@@ -14,6 +14,8 @@ tenant IDs, credentials, or private keys.
    it to an existing Function App. Temporary deployment files are deleted afterward.
 6. `New-NsoAuditStaticWebApp.ps1` — creates a Free Static Web App without connecting GitHub or
    retrieving a deployment token. It is idempotent within the selected resource group.
+7. `Set-NsoAuditAppRedirect.ps1` — adds an HTTPS SPA callback to an App Registration while
+   preserving existing SPA redirect URIs.
 
 Every script accepts `SubscriptionId` and `ResourceGroupName` as parameters. If
 `SubscriptionId` is omitted, the current Cloud Shell subscription is used. Scripts confirm
