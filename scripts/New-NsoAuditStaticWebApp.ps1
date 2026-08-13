@@ -52,26 +52,6 @@ if ($LASTEXITCODE -eq 0 -and $existingJson) {
     return
 }
 
-$nameRequest = @{
-    name = $StaticWebAppName
-    type = "Microsoft.Web/staticSites"
-} | ConvertTo-Json -Compress
-
-$availabilityJson = az rest `
-    --method post `
-    --url "https://management.azure.com/subscriptions/$($context.Subscription.Id)/providers/Microsoft.Web/checknameavailability?api-version=2024-04-01" `
-    --body $nameRequest `
-    --output json
-
-if ($LASTEXITCODE -ne 0 -or -not $availabilityJson) {
-    throw "Static Web App name availability request failed."
-}
-
-$availability = $availabilityJson | ConvertFrom-Json
-if (-not $availability.nameAvailable) {
-    throw "Static Web App name '$StaticWebAppName' is unavailable: $($availability.message)"
-}
-
 if (-not $PSCmdlet.ShouldProcess(
     "$StaticWebAppName in $ResourceGroupName",
     "Create Free Azure Static Web App without a deployment source"
