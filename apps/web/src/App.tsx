@@ -5,6 +5,31 @@ const checks = [
 ];
 
 export function App() {
+  const [account, setAccount] = useState<AccountInfo>();
+  const [authReady, setAuthReady] = useState(false);
+  const [authError, setAuthError] = useState<string>();
+
+  useEffect(() => {
+    void initializeAuth().then((state) => {
+      setAccount(state.account);
+      setAuthError(state.error);
+      setAuthReady(true);
+    });
+  }, []);
+
+  const beginSignIn = () => {
+    setAuthError(undefined);
+    void signIn().catch((error: unknown) => {
+      setAuthError(error instanceof Error ? error.message : "Microsoft sign-in failed.");
+    });
+  };
+
+  const beginSignOut = () => {
+    void signOut().catch((error: unknown) => {
+      setAuthError(error instanceof Error ? error.message : "Microsoft sign-out failed.");
+    });
+  };
+
   return (
     <main>
       <nav className="nav" aria-label="Primary navigation">
@@ -12,7 +37,10 @@ export function App() {
           <span className="brand-mark">N</span>
           <span>NSO Audit</span>
         </a>
-        <a className="nav-link" href="#trust">Security & privacy</a>
+        <div className="nav-actions">
+          <a className="nav-link" href="#trust">Security & privacy</a>
+          {account ? <button className="text-button" type="button" onClick={beginSignOut}>Sign out</button> : null}
+        </div>
       </nav>
 
       <section className="hero" id="top">
@@ -24,11 +52,18 @@ export function App() {
             translated into findings your team can act on.
           </p>
           <div className="actions">
-            <button type="button" disabled title="Microsoft sign-in will be enabled after app registration">
-              Run my free tenant check
-            </button>
-            <span>Phase 1 setup in progress</span>
+            {account ? (
+              <div className="signed-in" aria-live="polite">
+                <strong>Signed in as {account.name ?? account.username}</strong>
+                <span>Tenant verified. Admin consent is the next step.</span>
+              </div>
+            ) : (
+              <button type="button" onClick={beginSignIn} disabled={!authReady}>
+                {authReady ? "Sign in with Microsoft" : "Preparing secure sign-in…"}
+              </button>
+            )}
           </div>
+          {authError ? <p className="auth-error" role="alert">{authError}</p> : null}
         </div>
         <div className="score-card" aria-label="Example security score card">
           <div className="score-heading"><span>Tenant posture</span><span className="live-dot">Read-only</span></div>
@@ -67,4 +102,7 @@ export function App() {
     </main>
   );
 }
+import { useEffect, useState } from "react";
+import type { AccountInfo } from "@azure/msal-browser";
+import { initializeAuth, signIn, signOut } from "./auth";
 

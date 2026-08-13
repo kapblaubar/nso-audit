@@ -25,14 +25,21 @@ main {
 .brand-mark { display: grid; place-items: center; width: 34px; height: 34px; color: #06110d; background: #57e6b4; border-radius: 9px; }
 .nav-link { color: #9dafb9; font-size: .9rem; text-decoration: none; }
 .nav-link:hover { color: #e8edf3; }
+.nav-actions { display: flex; align-items: center; gap: 18px; }
+.text-button { padding: 0; border: 0; color: #9dafb9; background: transparent; cursor: pointer; }
+.text-button:hover { color: #e8edf3; }
 
 .hero { display: grid; grid-template-columns: 1.3fr .7fr; align-items: center; gap: 72px; padding: 100px 0 132px; }
 .eyebrow { color: #57e6b4; font-size: .75rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
 h1 { max-width: 780px; margin: 18px 0 24px; font-size: clamp(3rem, 6.7vw, 6rem); line-height: .98; letter-spacing: -.065em; }
 .lede { max-width: 650px; color: #a9b7c0; font-size: 1.18rem; line-height: 1.7; }
 .actions { display: flex; align-items: center; gap: 18px; margin-top: 38px; }
-.actions button { padding: 15px 22px; border: 0; border-radius: 8px; color: #06110d; background: #57e6b4; font-weight: 800; cursor: not-allowed; opacity: .78; }
+.actions button { padding: 15px 22px; border: 0; border-radius: 8px; color: #06110d; background: #57e6b4; font-weight: 800; cursor: pointer; }
+.actions button:disabled { cursor: wait; opacity: .65; }
 .actions span { color: #788b96; font-size: .82rem; }
+.signed-in { display: flex; flex-direction: column; gap: 7px; padding: 14px 18px; border-left: 3px solid #57e6b4; background: rgba(87, 230, 180, .06); }
+.signed-in strong { font-size: .95rem; }
+.auth-error { max-width: 620px; margin-top: 16px; color: #ff9f9f; font-size: .9rem; }
 
 .score-card { padding: 28px; border: 1px solid #26363e; border-radius: 18px; background: rgba(13, 27, 34, .82); box-shadow: 0 30px 80px rgba(0,0,0,.3); }
 .score-heading { display: flex; justify-content: space-between; color: #9dafb9; font-size: .82rem; }
@@ -62,4 +69,3 @@ h3 { margin-top: 58px; font-size: 1.3rem; }
   .steps article { min-height: auto; }
   h3 { margin-top: 34px; }
 }
-
