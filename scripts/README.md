@@ -8,6 +8,8 @@ tenant IDs, credentials, or private keys.
 1. `Test-NsoAuditResources.ps1` — read-only resource and application verification.
 2. `Set-NsoAuditDataRoles.ps1` — assigns the managed identity's required data-plane roles.
 3. `Test-NsoAuditFunctionName.ps1` — read-only Function App name availability check.
+4. `New-NsoAuditFunctionApp.ps1` — creates the low-cost development Function App, assigns the
+   existing user-managed identity, and sets non-secret configuration.
 
 Every script accepts `SubscriptionId` and `ResourceGroupName` as parameters. If
 `SubscriptionId` is omitted, the current Cloud Shell subscription is used. Scripts confirm
@@ -26,4 +28,3 @@ Example:
 
 The application client ID is a public identifier. Never add secrets, access tokens, storage
 keys, certificate private keys, or passwords to these files.
-
