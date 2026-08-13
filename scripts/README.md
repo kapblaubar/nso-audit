@@ -10,6 +10,8 @@ tenant IDs, credentials, or private keys.
 3. `Test-NsoAuditFunctionName.ps1` — read-only Function App name availability check.
 4. `New-NsoAuditFunctionApp.ps1` — creates the low-cost development Function App, assigns the
    existing user-managed identity, and sets non-secret configuration.
+5. `Publish-NsoAuditApi.ps1` — builds a clean API ZIP with production dependencies and publishes
+   it to an existing Function App. Temporary deployment files are deleted afterward.
 
 Every script accepts `SubscriptionId` and `ResourceGroupName` as parameters. If
 `SubscriptionId` is omitted, the current Cloud Shell subscription is used. Scripts confirm
