@@ -57,16 +57,17 @@ $nameRequest = @{
     type = "Microsoft.Web/staticSites"
 } | ConvertTo-Json -Compress
 
-$availabilityResponse = Invoke-AzRestMethod `
-    -Method POST `
-    -Path "/subscriptions/$($context.Subscription.Id)/providers/Microsoft.Web/checknameavailability?api-version=2024-04-01" `
-    -Payload $nameRequest
+$availabilityJson = az rest `
+    --method post `
+    --url "https://management.azure.com/subscriptions/$($context.Subscription.Id)/providers/Microsoft.Web/checknameavailability?api-version=2024-04-01" `
+    --body $nameRequest `
+    --output json
 
-if ($availabilityResponse.StatusCode -notin 200, 201) {
-    throw "Static Web App name availability request failed with HTTP status $($availabilityResponse.StatusCode)."
+if ($LASTEXITCODE -ne 0 -or -not $availabilityJson) {
+    throw "Static Web App name availability request failed."
 }
 
-$availability = $availabilityResponse.Content | ConvertFrom-Json
+$availability = $availabilityJson | ConvertFrom-Json
 if (-not $availability.nameAvailable) {
     throw "Static Web App name '$StaticWebAppName' is unavailable: $($availability.message)"
 }
@@ -132,4 +133,3 @@ if (-not $site -or -not $site.defaultHostname) {
 } | Format-Table -AutoSize
 
 Write-Host "No GitHub connection or deployment token was created by this script." -ForegroundColor Cyan
-
