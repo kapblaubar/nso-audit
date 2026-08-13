@@ -54,3 +54,7 @@ permission manifest must be reviewed before creation.
 
 These hostnames are public identifiers. Deployment tokens and application credentials must not
 be committed to the repository.
+
+The frontend workflow expects the Static Web App deployment token in the GitHub development
+environment as the secret `AZURE_STATIC_WEB_APPS_API_TOKEN`. The token must be copied directly
+from Azure into GitHub and never placed in a shell transcript or repository file.

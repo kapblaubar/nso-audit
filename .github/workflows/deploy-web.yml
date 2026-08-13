@@ -1,0 +1,55 @@
+name: Deploy web
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/deploy-web.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.base.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-web-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build static frontend
+        run: npm run build --workspace @nso-audit/web
+        env:
+          VITE_ENTRA_CLIENT_ID: f293a122-bf49-44a7-bfc9-48cfae6f8376
+          VITE_AUTH_REDIRECT_URI: https://blue-mushroom-0b2666c1e.7.azurestaticapps.net/auth/callback
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: upload
+          app_location: apps/web/dist
+          api_location: ""
+          output_location: ""
+          skip_app_build: true
+          skip_api_build: true
+
