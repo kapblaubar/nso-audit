@@ -103,12 +103,12 @@ export function App() {
               <p className="step-state">{account ? "Complete" : "Start here"}</p>
               <h3>Sign in to identify your organization</h3>
               <p>
-                Use a Microsoft organizational account. Because tenant-wide consent is required
-                later, using an authorized administrator account now avoids switching accounts.
+                Use your normal Microsoft organizational account to identify your home tenant
+                and access its dashboard. This sign-in does not grant the scanner access.
               </p>
               <p className="admin-note">
-                Global Administrator can complete the full flow. Other Entra roles may be able
-                to grant consent depending on the final permissions and tenant policy.
+                Do not use a privileged administrator account for routine NSO Audit access. A
+                separate authorized administrator can approve access later on Microsoft's page.
               </p>
               {!account ? (
                 <button className="step-action" type="button" onClick={beginSignIn} disabled={!authReady}>
@@ -123,18 +123,32 @@ export function App() {
           <article className={`onboarding-step ${account ? "is-current" : "is-locked"}`}>
             <div className="step-rail"><span>2</span><i /></div>
             <div className="step-content">
-              <p className="step-state">Understand the connection</p>
-              <h3>Why an Enterprise Application?</h3>
+              <p className="step-state">Review requested access</p>
+              <h3>Enterprise Application permissions</h3>
               <p>
-                Admin consent creates an Enterprise Application—a service principal—in your
-                tenant. It is the tenant-local record of NSO Audit and shows exactly which
-                read-only Microsoft Graph permissions your administrator approved.
+                Approval creates an Enterprise Application—a service principal—in your tenant.
+                It is visible and revocable in Microsoft Entra. The core assessment requests
+                only these read permissions:
               </p>
-              <ul className="permission-facts">
-                <li>No administrator password is shared with NSO Audit.</li>
-                <li>Access is visible and revocable in Microsoft Entra.</li>
-                <li>The assessment receives no write or remediation permissions.</li>
-              </ul>
+              <div className="permission-list" role="list" aria-label="Core Enterprise Application permissions">
+                <div role="listitem"><code>Policy.Read.All</code><span>Conditional Access policies</span></div>
+                <div role="listitem"><code>AuditLog.Read.All</code><span>Authentication registration reporting</span></div>
+                <div role="listitem"><code>RoleManagement.Read.Directory</code><span>Entra roles and assignments</span></div>
+                <div role="listitem"><code>SecurityEvents.Read.All</code><span>Microsoft 365 Secure Score and recommendations</span></div>
+              </div>
+              <details className="optional-permissions">
+                <summary>Permissions added only when optional scorecard modules are enabled</summary>
+                <div className="permission-list compact" role="list">
+                  <div role="listitem"><code>DeviceManagementConfiguration.Read.All</code><span>Intune compliance, configuration, and security policies</span></div>
+                  <div role="listitem"><code>DeviceManagementApps.Read.All</code><span>Intune app configuration and app-protection policies</span></div>
+                  <div role="listitem"><code>Score.Read.All</code><span>Defender Vulnerability Management score</span></div>
+                  <div role="listitem"><code>SecurityRecommendation.Read.All</code><span>Defender vulnerability recommendations</span></div>
+                </div>
+              </details>
+              <div className="permission-exclusions">
+                <strong>Explicitly excluded</strong>
+                <span>No write access, mail, passwords, group management, or remediation permissions.</span>
+              </div>
             </div>
           </article>
 
@@ -146,7 +160,8 @@ export function App() {
               <p>
                 Follow the Microsoft consent link and authenticate with an account authorized to
                 grant tenant-wide admin consent. Microsoft will display every requested
-                permission before anything is approved.
+                permission before anything is approved. This administrator may be different from
+                the dashboard user and authenticates directly with Microsoft.
               </p>
               <button className="step-action" type="button" disabled>
                 Consent link available after permission review
@@ -158,6 +173,18 @@ export function App() {
             </div>
           </article>
         </div>
+        <aside className="azure-access-note">
+          <div>
+            <p className="step-state">Separate optional setup</p>
+            <h3>Azure subscription roles are not Graph permissions</h3>
+          </div>
+          <p>
+            Azure resource, Defender for Cloud, Recovery Services, Log Analytics, and Sentinel
+            checks use separately scoped Azure roles. Customers assign only the selected roles
+            later, manually or with an inspectable PowerShell script. They are not required for
+            the core Graph assessment.
+          </p>
+        </aside>
       </section>
 
       <section className="brand-story" aria-labelledby="brand-story-title">
