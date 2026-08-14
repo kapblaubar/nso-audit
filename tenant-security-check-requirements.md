@@ -2,13 +2,12 @@
 
 ## 1. Purpose
 
-A self-service web product that lets a Microsoft 365 / Azure tenant admin run a free,
-read-only security posture assessment of their own tenant. A static frontend explains the
-service and hosts the authenticated onboarding and results experience. The admin consents via
-a multi-tenant Enterprise Application, a one-time onboarding script grants any additional
-Azure RBAC read access needed, a protected API orchestrates scans, and a central Function App
-pulls posture data from supported Microsoft services and stores normalized results for the
-dashboard.
+A self-service web product that lets an authorized Microsoft 365 / Azure tenant user run a
+free, read-only security posture assessment of their organization. A normal organizational
+account signs in to the dashboard. A separate, Microsoft-hosted admin-consent flow lets an
+authorized administrator approve the Enterprise Application without using that privileged
+account as the ordinary NSO Audit dashboard session. Optional Azure RBAC read access is granted
+separately and only when Azure-resource modules are enabled.
 
 This is a **single central multi-tenant SaaS**: one App Registration, one Function App, one
 storage account, serving many customer tenants. Every stored record and every dashboard query
@@ -18,7 +17,8 @@ is partitioned and scoped by `tenantId`.
 
 **Goals**
 - Read-only assessment. No writes to the customer tenant at any point.
-- Self-service: admin clicks a link, consents, runs one onboarding script, gets a dashboard.
+- Self-service: a normal organizational user signs in, reviews the exact requested access, an
+  authorized administrator grants tenant-wide consent at Microsoft, and the user runs a scan.
 - Clear, scoped permissions — request the minimum needed per data source.
 - Tenant data isolation — one customer can never see another's data.
 - Results are actionable (scored findings, not a raw data dump).
@@ -34,16 +34,23 @@ is partitioned and scoped by `tenantId`.
 
 ## 3. End-to-End User Flow
 
-1. Admin visits the marketing/landing page and clicks **"Run my free tenant check."**
-2. Admin signs in to the site and the backend establishes their home `tenantId`; the site then
-   opens the Microsoft admin-consent URL for the Enterprise App
+1. User visits the marketing/landing page and signs in with a normal, non-privileged Microsoft
+   organizational account. The backend establishes the user's home `tenantId`. The UI must
+   explicitly discourage using Global Administrator for the ordinary dashboard session.
+2. The onboarding page lists every requested Microsoft Graph application permission, its
+   purpose, and the explicit exclusions (no write, mail, or remediation access).
+3. User opens the Microsoft-hosted admin-consent URL for the Enterprise App
    (`https://login.microsoftonline.com/{tenant}/adminconsent?client_id={appId}&...`).
-3. Admin reviews the requested Graph API permissions and approves (this creates a Service
-   Principal for our app in their tenant, and grants our app the Graph scopes below).
-4. Admin is redirected back to our site, now authenticated to *our* app (not a bare admin
-   consent dead-end) — they land on an **Onboarding** page.
-5. Onboarding page gives the admin a versioned, downloadable PowerShell script and a copyable
-   Azure Cloud Shell command. The admin can inspect the script before running it. This script:
+   An authorized administrator may authenticate with a different account on Microsoft's page;
+   that privileged account is not used to establish or replace the NSO Audit dashboard session.
+4. Administrator reviews the requested permissions and approves. This creates a Service
+   Principal (Enterprise Application) in the customer tenant and grants the listed Graph
+   application permissions.
+5. Microsoft redirects to the onboarding callback. The API verifies the consent result
+   independently and records consent status for the tenant.
+6. For later Azure-resource modules only, the onboarding page provides a versioned,
+   downloadable PowerShell script and copyable Azure Cloud Shell command. The administrator can
+   inspect the script before running it. This script:
    - Confirms the Service Principal exists in the tenant.
    - Assigns the Azure RBAC roles the app needs for Log Analytics / Sentinel / subscription-level
      data (Graph admin consent alone does **not** grant ARM/subscription access — this is a
@@ -52,14 +59,15 @@ is partitioned and scoped by `tenantId`.
    - Supports a validation/dry-run mode and prints every role assignment it will create.
    - Reports completion either through a short-lived, single-use callback token or through a
      confirmation value the admin pastes into the onboarding page. It never sends credentials.
-6. The API independently verifies Graph consent and, when Azure modules are selected, the
-   expected RBAC assignments. The admin then clicks **"Start scan."**
-7. Function App authenticates as the app (client credentials flow) against the customer's
+7. The API independently verifies Graph consent and, when optional Azure modules are selected,
+   the expected Azure RBAC assignments. The user then clicks **"Start scan."** A Phase 1
+   Graph-only scan must not require Azure subscription RBAC.
+8. Function App authenticates as the app (client credentials flow) against the customer's
    tenant, and pulls data from each in-scope data source (see §6).
-8. Results are normalized, scored, and written to the storage account under that tenant's
+9. Results are normalized, scored, and written to the storage account under that tenant's
    partition.
-9. Dashboard polls/loads and renders the scored results per tenant, with drill-down detail.
-10. Admin can re-run the scan on demand; each run is versioned (see §7.3).
+10. Dashboard polls/loads and renders the scored results per tenant, with drill-down detail.
+11. Authorized users can re-run the scan on demand; each run is versioned (see §7.3).
 
 ## 4. High-Level Architecture
 
@@ -96,8 +104,8 @@ is partitioned and scoped by `tenantId`.
                                                           |
                                                           v
                                                     [Dashboard]
-                                       (per-tenant scoped view, auth'd to the
-                                        admin who owns that tenant)
+                                       (per-tenant scoped view, authenticated
+                                        with a normal organizational account)
 ```
 
 ## 5. Components
@@ -107,7 +115,8 @@ is partitioned and scoped by `tenantId`.
   permissions it needs, that it's read-only, and links to a privacy policy / terms of use
   (**required** for Microsoft's admin consent screen to look trustworthy and, eventually, for
   publisher verification).
-- Primary CTA: "Run my free tenant check" → admin consent URL.
+- Primary CTA: "Sign in with Microsoft" → normal organizational sign-in. Admin consent is a
+  separate action shown only after the permission review.
 
 The static frontend may be hosted on Azure Static Web Apps or equivalent static hosting, but
 it must not contain confidential credentials or enforce tenant isolation by itself. All
@@ -118,22 +127,23 @@ authorization and tenant-scoped data access are server-side responsibilities of 
   creates a Service Principal (shown as an Enterprise Application) in each customer tenant;
   v1 does not create a separate customer-owned App Registration or Key Vault.
 - Type: multi-tenant.
-- Auth: supports both delegated (for the admin's login to our site) and application permissions
+- Auth: supports both delegated (for normal user login to the site) and application permissions
   (for the Function App's unattended data pulls) — see §6 for exact scopes.
 - **Publisher verification** should be completed before public launch or the consent screen will
   show an "unverified" warning that will scare off admins.
 - Redirect URI(s) point back to the onboarding page on our site.
 
 ### 5.3 Web API / App Service (orchestration layer)
-- Handles: admin login (OIDC), tenant registration record (tenantId, display name, consent
+- Handles: organizational user login (OIDC), tenant registration record (tenantId, display name, consent
   timestamp, RBAC-onboarding status, subscription/RG scope selected), triggering scans, exposing
   scan status/results to the dashboard.
-- Enforces tenant isolation: a logged-in admin can only ever query data for their own
+- Enforces tenant isolation: a logged-in user can only ever query data for their own
   `tenantId`.
 
-### 5.4 Onboarding Script
-- Idempotent PowerShell (or Az CLI) script, tenant admin runs it themselves (least-privilege —
-  we never hold their credentials).
+### 5.4 Optional Azure RBAC Onboarding Script
+- Not required for the Phase 1 Graph-only scan. When Azure-resource modules are enabled, an
+  authorized subscription administrator runs an idempotent PowerShell (or Az CLI) script
+  themselves; we never hold their credentials.
 - Responsibilities:
   - Verify our Service Principal exists (from admin consent).
   - `New-AzRoleAssignment` (or `az role assignment create`) to grant our SP the roles in §6.2,
@@ -184,7 +194,7 @@ and Key Vault access should use managed identity rather than account keys in con
   licensing/embedding complexity for a v1 free tool — probably overkill unless there's a reason
   to reuse existing BI infrastructure.
 - Auth: same OIDC login as onboarding; dashboard queries are always scoped server-side by the
-  logged-in admin's `tenantId`.
+  logged-in user's `tenantId`.
 
 ## 6. Data Sources & Required Permissions
 
@@ -227,10 +237,10 @@ operation when its module is implemented.
 |---|---|---|
 | Log Analytics workspaces | Whether diagnostic logging is enabled/retained, workspace configuration | `Log Analytics Reader` |
 | Microsoft Sentinel (if present) | Analytics rules enabled, data connector status | `Sentinel Reader` (or `Log Analytics Reader` if Sentinel isn't in scope for v1) |
-| General resource visibility (for scoping) | Which subscriptions/RGs exist, so the admin can pick scan scope | `Reader` at subscription level |
+| General resource visibility (for scoping) | Which subscriptions/RGs exist, so the customer can pick scan scope | `Reader` at subscription level |
 
-Call out explicitly in the onboarding UI: **admin consent (step 3) only grants Graph API
-access. Azure RBAC roles (step 5) are a separate, explicit grant the admin controls and scopes
+Call out explicitly in the onboarding UI: **admin consent (step 4) only grants Graph API
+access. Azure RBAC roles (step 6) are a separate, explicit grant the customer controls and scopes
 themselves.** Don't blur these into one "approve everything" step — it undermines the
 least-privilege story that makes this tool trustworthy.
 
@@ -258,9 +268,13 @@ recommend 90 days default) so score-over-time trending is possible later without
   automated check in CI (lint the permission manifest) not just a code review convention.
 - **Certificate-based auth** for the Function App's client-credential flow in production, not a
   long-lived client secret. Store the cert in Key Vault, accessed via managed identity.
-- **No customer credentials ever held by us** — the entire model relies on delegated admin
-  consent + the admin running their own RBAC script. Don't design any flow that asks the admin
-  for a password or a long-lived key.
+- **No customer credentials ever held by us** — normal users authenticate through Microsoft,
+  authorized administrators grant consent on Microsoft's page, and subscription administrators
+  run any optional RBAC script in their own Azure session. Never ask for a password or
+  long-lived customer credential.
+- **Privileged-account separation**: do not instruct customers to use Global Administrator as
+  their routine NSO Audit dashboard identity. The admin-consent action must support a different
+  authorized account and must not replace the normal user's dashboard session.
 - **Tenant isolation** enforced at every layer: storage partition key, API query scoping, and
   dashboard auth — not just one of these.
 - **Data retention & deletion**: publish a clear retention period and an admin-triggered "delete
@@ -298,8 +312,10 @@ recommend 90 days default) so score-over-time trending is possible later without
 
 ### 10.1 Phase 1 acceptance criteria
 
-- An admin can sign in, grant consent, return to the correct tenant-scoped onboarding session,
-  and see consent status without manual operator intervention.
+- A normal organizational user can sign in and establish tenant context without administrator
+  privileges.
+- A different authorized administrator can grant consent on Microsoft's page, return to the
+  correct tenant-scoped onboarding flow, and leave the normal dashboard session unchanged.
 - The application requests only the read-only Graph application permissions used by the
   Phase 1 checks.
 - The onboarding page provides the versioned PowerShell script, but a Graph-only scan does not
@@ -312,7 +328,7 @@ recommend 90 days default) so score-over-time trending is possible later without
   or deletion operation by changing a client-supplied identifier.
 - No secret, private key, storage key, or privileged token is shipped to the static frontend or
   written to application logs.
-- The admin can delete stored tenant scan data and is shown instructions for removing the
+- An authorized tenant user can delete stored tenant scan data and is shown instructions for removing the
   Enterprise Application and Azure RBAC assignments.
 - Automated tests cover tenant authorization, scan state transitions, permission-manifest
   validation, normalization, and representative API failure/throttling behavior.
@@ -323,10 +339,14 @@ recommend 90 days default) so score-over-time trending is possible later without
   status, and results; all privileged operations go through the protected API.
 - **Identity topology**: one vendor-owned multi-tenant App Registration and one Service
   Principal per consenting customer tenant.
+- **User identity**: ordinary dashboard sign-in uses a normal organizational account; Global
+  Administrator is neither requested nor recommended for routine site access.
+- **Consent identity**: tenant-wide Graph consent occurs separately on Microsoft's endpoint and
+  may use a different authorized administrator account.
 - **Workload authentication**: certificate-based client credentials; the private key is stored
   in the vendor Key Vault and read by the Function App through managed identity.
-- **Customer setup**: downloadable PowerShell/Azure Cloud Shell onboarding, not an embedded
-  terminal.
+- **Customer setup**: Azure RBAC onboarding is optional, begins after the Graph-only Phase 1
+  flow, and uses downloadable PowerShell/Azure Cloud Shell rather than an embedded terminal.
 - **Phase 1 sources**: Entra ID and Secure Score. Intune, Azure resource data, Sentinel, and
   Purview follow after the core flow is proven.
 - **Credential boundary**: customer administrator credentials are never requested, proxied, or

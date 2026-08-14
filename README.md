@@ -11,6 +11,9 @@ Low-cost, multi-tenant Microsoft 365 and Azure security posture assessment.
 - `scripts` — sanitized Azure setup and, later, customer onboarding scripts
 - `docs` — architecture and deployment notes
 
+The separation between routine dashboard identity, Microsoft-hosted tenant admin consent, and
+optional Azure subscription RBAC is documented in `docs/identity-consent-model.md`.
+
 ## Local setup
 
 Requirements: Node.js 22 and npm 10 or later.
