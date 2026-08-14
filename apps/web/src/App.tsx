@@ -1,8 +1,6 @@
-const checks = [
-  { number: "01", title: "Connect securely", text: "Sign in with Microsoft and review every read-only permission before consent." },
-  { number: "02", title: "Run the assessment", text: "We inspect identity controls and Microsoft Secure Score without changing your tenant." },
-  { number: "03", title: "Act on findings", text: "Receive prioritized findings with evidence and practical remediation guidance." },
-];
+import { useEffect, useState } from "react";
+import type { AccountInfo } from "@azure/msal-browser";
+import { initializeAuth, signIn, signOut } from "./auth";
 
 export function App() {
   const [account, setAccount] = useState<AccountInfo>();
@@ -39,7 +37,16 @@ export function App() {
         </a>
         <div className="nav-actions">
           <a className="nav-link" href="#trust">Security & privacy</a>
-          {account ? <button className="text-button" type="button" onClick={beginSignOut}>Sign out</button> : null}
+          {account ? (
+            <div className="account-menu">
+              <span>{account.name ?? account.username}</span>
+              <button className="text-button" type="button" onClick={beginSignOut}>Sign out</button>
+            </div>
+          ) : (
+            <button className="nav-sign-in" type="button" onClick={beginSignIn} disabled={!authReady}>
+              {authReady ? "Sign in" : "Loading…"}
+            </button>
+          )}
         </div>
       </nav>
 
@@ -55,7 +62,7 @@ export function App() {
             {account ? (
               <div className="signed-in" aria-live="polite">
                 <strong>Signed in as {account.name ?? account.username}</strong>
-                <span>Tenant verified. Admin consent is the next step.</span>
+                <span>Organization identified. Read-only audit consent is the next step.</span>
               </div>
             ) : (
               <button type="button" onClick={beginSignIn} disabled={!authReady}>
@@ -77,17 +84,79 @@ export function App() {
         </div>
       </section>
 
-      <section className="process" aria-labelledby="process-title">
-        <p className="eyebrow">How it works</p>
-        <h2 id="process-title">Clear at every step.</h2>
-        <div className="steps">
-          {checks.map((check) => (
-            <article key={check.number}>
-              <span>{check.number}</span>
-              <h3>{check.title}</h3>
-              <p>{check.text}</p>
-            </article>
-          ))}
+      <section className="process" id="onboarding" aria-labelledby="process-title">
+        <div className="process-heading">
+          <div>
+            <p className="eyebrow">Connect your organization</p>
+            <h2 id="process-title">Three deliberate steps. No hidden access.</h2>
+          </div>
+          <p>
+            Website authentication and audit authorization are separate. You can review the
+            complete permission list before granting the Enterprise Application any access.
+          </p>
+        </div>
+
+        <div className="onboarding-steps">
+          <article className={account ? "onboarding-step is-complete" : "onboarding-step is-current"}>
+            <div className="step-rail"><span>1</span><i /></div>
+            <div className="step-content">
+              <p className="step-state">{account ? "Complete" : "Start here"}</p>
+              <h3>Sign in to identify your organization</h3>
+              <p>
+                Use a Microsoft organizational account. Because tenant-wide consent is required
+                later, using an authorized administrator account now avoids switching accounts.
+              </p>
+              <p className="admin-note">
+                Global Administrator can complete the full flow. Other Entra roles may be able
+                to grant consent depending on the final permissions and tenant policy.
+              </p>
+              {!account ? (
+                <button className="step-action" type="button" onClick={beginSignIn} disabled={!authReady}>
+                  Sign in with Microsoft
+                </button>
+              ) : (
+                <div className="step-confirmation">Signed in as {account.username}</div>
+              )}
+            </div>
+          </article>
+
+          <article className={`onboarding-step ${account ? "is-current" : "is-locked"}`}>
+            <div className="step-rail"><span>2</span><i /></div>
+            <div className="step-content">
+              <p className="step-state">Understand the connection</p>
+              <h3>Why an Enterprise Application?</h3>
+              <p>
+                Admin consent creates an Enterprise Application—a service principal—in your
+                tenant. It is the tenant-local record of NSO Audit and shows exactly which
+                read-only Microsoft Graph permissions your administrator approved.
+              </p>
+              <ul className="permission-facts">
+                <li>No administrator password is shared with NSO Audit.</li>
+                <li>Access is visible and revocable in Microsoft Entra.</li>
+                <li>The assessment receives no write or remediation permissions.</li>
+              </ul>
+            </div>
+          </article>
+
+          <article className="onboarding-step is-locked">
+            <div className="step-rail"><span>3</span></div>
+            <div className="step-content">
+              <p className="step-state">Administrator approval</p>
+              <h3>Grant read-only audit access</h3>
+              <p>
+                Follow the Microsoft consent link and authenticate with an account authorized to
+                grant tenant-wide admin consent. Microsoft will display every requested
+                permission before anything is approved.
+              </p>
+              <button className="step-action" type="button" disabled>
+                Consent link available after permission review
+              </button>
+              <p className="pending-note">
+                We are intentionally keeping this disabled until the Phase 1 Graph permission
+                manifest is finalized and configured.
+              </p>
+            </div>
+          </article>
         </div>
       </section>
 
@@ -136,6 +205,3 @@ export function App() {
     </main>
   );
 }
-import { useEffect, useState } from "react";
-import type { AccountInfo } from "@azure/msal-browser";
-import { initializeAuth, signIn, signOut } from "./auth";
