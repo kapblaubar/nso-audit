@@ -39,7 +39,11 @@ export function App() {
           <a className="nav-link" href="#trust">Security & privacy</a>
           {account ? (
             <div className="account-menu">
-              <span>{account.name ?? account.username}</span>
+              <div className="account-details" aria-label="Signed-in account details">
+                <strong>{account.name ?? "Microsoft user"}</strong>
+                <span>{account.username}</span>
+                <span>Tenant ID: {account.tenantId}</span>
+              </div>
               <button className="text-button" type="button" onClick={beginSignOut}>Sign out</button>
             </div>
           ) : (
@@ -169,7 +173,11 @@ export function App() {
                   Sign in with Microsoft
                 </button>
               ) : (
-                <div className="step-confirmation">Signed in as {account.username}</div>
+                <div className="step-confirmation">
+                  <strong>{account.name ?? "Microsoft user"}</strong>
+                  <span>{account.username}</span>
+                  <span>Tenant ID: {account.tenantId}</span>
+                </div>
               )}
             </div>
           </article>

@@ -32,7 +32,9 @@ main {
 .nav-sign-in { padding: 10px 16px; border: 1px solid #57e6b4; border-radius: 7px; color: #06110d; background: #57e6b4; font-weight: 800; cursor: pointer; }
 .nav-sign-in:disabled { cursor: wait; opacity: .65; }
 .account-menu { display: flex; align-items: center; gap: 14px; }
-.account-menu > span { max-width: 180px; overflow: hidden; color: #dce5e9; font-size: .84rem; text-overflow: ellipsis; white-space: nowrap; }
+.account-details { display: flex; align-items: flex-end; flex-direction: column; max-width: 320px; }
+.account-details strong { color: #dce5e9; font-size: .82rem; }
+.account-details span { max-width: 320px; overflow: hidden; color: #82949e; font-size: .67rem; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 
 .hero { display: grid; grid-template-columns: 1.3fr .7fr; align-items: center; gap: 72px; padding: 66px 0 78px; }
 .eyebrow { color: #57e6b4; font-size: .75rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
@@ -113,7 +115,8 @@ h2 { max-width: 700px; margin: 12px 0 44px; font-size: clamp(2.2rem, 4vw, 3.8rem
 .permission-exclusions strong { flex: 0 0 auto; color: #57e6b4; }
 .step-action { margin-top: 12px; padding: 13px 18px; border: 0; border-radius: 7px; color: #06110d; background: #57e6b4; font-weight: 800; cursor: pointer; }
 .step-action:disabled { color: #788b96; background: #1b2a31; cursor: not-allowed; }
-.step-confirmation { display: inline-block; margin-top: 10px; padding: 10px 14px; border-radius: 7px; color: #57e6b4; background: rgba(87, 230, 180, .08); font-size: .86rem; }
+.step-confirmation { display: inline-flex; align-items: flex-start; flex-direction: column; gap: 3px; margin-top: 10px; padding: 10px 14px; border-radius: 7px; color: #57e6b4; background: rgba(87, 230, 180, .08); font-size: .86rem; }
+.step-confirmation span { color: #8fa3ad; font-size: .75rem; }
 .pending-note { margin: 12px 0 0; color: #70838e; font-size: .8rem; line-height: 1.55; }
 .screenshot-placeholder { display: grid; place-items: center; min-height: 180px; max-width: 780px; margin-top: 22px; border: 1px dashed #3a4e57; border-radius: 10px; color: #70838e; background: repeating-linear-gradient(-45deg, #101e25, #101e25 12px, #0d1a20 12px, #0d1a20 24px); text-align: center; }
 .screenshot-placeholder span, .screenshot-placeholder strong { grid-area: 1 / 1; }
@@ -161,6 +164,6 @@ h2 { max-width: 700px; margin: 12px 0 44px; font-size: clamp(2.2rem, 4vw, 3.8rem
 @media (max-width: 520px) {
   .brand-name { display: none; }
   .nav-actions { gap: 12px; }
-  .nav-link, .account-menu > span { display: none; }
+  .nav-link, .account-details { display: none; }
   .footer-inner > div { gap: 12px; }
 }
