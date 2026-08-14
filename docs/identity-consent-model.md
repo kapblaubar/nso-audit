@@ -34,7 +34,8 @@ Phase 1 application permissions are limited to:
 | `SecurityEvents.Read.All` | Read Microsoft Secure Score |
 
 No mail, group, Exchange, Intune, Defender machine/vulnerability, directory-wide profile, or
-`ReadWrite` access is requested in Phase 1.
+`ReadWrite` access is requested in the core phase. Later scorecard modules add only the
+permissions listed in `docs/permission-matrix.md` after each module is implemented.
 
 ## 3. Azure subscription administrator
 
@@ -48,6 +49,8 @@ must be limited to the subscriptions or resource groups selected by the customer
 Candidate roles are:
 
 - `Reader`
+- `Security Reader`
+- `Backup Reader`, scoped to selected Recovery Services vaults
 - `Log Analytics Reader`
 - `Microsoft Sentinel Reader`, only when Sentinel checks are enabled
 

@@ -18,10 +18,18 @@ tenant IDs, credentials, or private keys.
    preserving existing SPA redirect URIs.
 8. `Set-NsoAuditPhase1GraphPermissions.ps1` — replaces the dedicated App Registration's API
    permissions with the reviewed Phase 1 Microsoft Graph allowlist. It does not grant consent.
+9. `Set-NsoAuditApiPermissions.ps1` — replaces the dedicated App Registration's requested API
+   permissions with the core allowlist plus explicitly selected Intune and Defender scorecard
+   modules. It does not grant consent or Azure RBAC. This supersedes the Phase 1-only script for
+   future configuration changes.
+10. `Set-NsoAuditCustomerReaderRoles.ps1` — customer-side, opt-in assignment of Azure `Reader`,
+    `Security Reader`, `Backup Reader`, `Log Analytics Reader`, and `Microsoft Sentinel Reader`
+    at explicit subscription, workspace, and vault scopes. It assigns nothing without selected
+    switches/resource IDs and supports `-WhatIf`.
 
-Every script accepts `SubscriptionId` and `ResourceGroupName` as parameters. If
-`SubscriptionId` is omitted, the current Cloud Shell subscription is used. Scripts confirm
-the active subscription before continuing and never store credentials.
+Azure-facing scripts accept `SubscriptionId`; resource-scoped scripts also accept
+`ResourceGroupName`. If `SubscriptionId` is omitted, the current Cloud Shell subscription is
+used. Scripts confirm the active subscription before continuing and never store credentials.
 
 Example:
 

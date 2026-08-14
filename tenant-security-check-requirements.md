@@ -200,9 +200,9 @@ and Key Vault access should use managed identity rather than account keys in con
 
 ### 6.1 Microsoft Graph (application permissions, admin-consented)
 
-#### Phase 1 permission allowlist
+#### Core permission allowlist
 
-| Phase 1 check | Microsoft Graph application permission | Why it is required |
+| Core check | Microsoft Graph application permission | Why it is required |
 |---|---|---|
 | Conditional Access policy coverage | `Policy.Read.All` | Read Conditional Access policies; no policy modification |
 | Authentication-method registration | `AuditLog.Read.All` | Read the authentication methods user-registration report |
@@ -210,10 +210,22 @@ and Key Vault access should use managed identity rather than account keys in con
 | Microsoft Secure Score | `SecurityEvents.Read.All` | Read Secure Score and control-profile data |
 
 The frontend also uses delegated `User.Read` for basic organizational sign-in. It is not used
-by the unattended scanner. Phase 1 must not request `Directory.Read.All`, mail access, group
-access, Intune permissions, Defender machine/vulnerability permissions, Exchange management,
-or any `ReadWrite` permission. Permissions for later modules are added only when that module is
+by the unattended scanner. Permissions for scorecard modules are added only when the module is
 implemented and enabled.
+
+#### Scorecard Graph and Defender API permissions
+
+| Scorecard capability | API | Application permission | Condition |
+|---|---|---|---|
+| Intune device compliance, configuration policies, and security baselines | Microsoft Graph | `DeviceManagementConfiguration.Read.All` | Add when the Intune configuration module ships |
+| Intune app configuration and app-protection policies | Microsoft Graph | `DeviceManagementApps.Read.All` | Add only if app-policy checks ship |
+| Defender Vulnerability Management score | WindowsDefenderATP | `Score.Read.All` | Optional; requires applicable Defender licensing |
+| Defender Vulnerability Management recommendations | WindowsDefenderATP | `SecurityRecommendation.Read.All` | Optional; requires applicable Defender licensing |
+
+Do not request `Directory.Read.All`, mail access, group access, Exchange management, Intune
+managed-device inventory, Defender machine/software/vulnerability inventory, or any `ReadWrite`
+permission unless an implemented check is separately reviewed and requires it. The complete
+authorization catalog and staging rules are maintained in `docs/permission-matrix.md`.
 
 #### Later-phase permission candidates
 
@@ -223,9 +235,9 @@ operation when its module is implemented.
 | Data source | Example later signals | Candidate Graph permission(s) |
 |---|---|---|
 | Entra risk | Risk detections and risky sign-ins | Identity Protection read permissions, selected against the implemented endpoint |
-| Intune / Devices | Device compliance state, configuration policy coverage | `DeviceManagementManagedDevices.Read.All`, `DeviceManagementConfiguration.Read.All` |
+| Intune / Devices | Managed-device inventory or device-level compliance state | `DeviceManagementManagedDevices.Read.All`, only if a device-inventory check is implemented |
 | Purview / Compliance | DLP policy coverage, sensitivity label usage, retention policies | `InformationProtectionPolicy.Read.All`, and/or Purview/Compliance-specific Graph beta endpoints — confirm current API surface at build time, this area changes |
-| Defender signals (optional, stretch) | Alerts, recommendations, software, and vulnerability summaries | Select only the read permission for each implemented Microsoft Defender endpoint |
+| Defender signals (optional, stretch) | Alerts, software, and vulnerability inventory beyond the approved score/recommendation checks | Select only the read permission for each implemented Microsoft Defender endpoint |
 
 > Note: exact Purview/Compliance Graph endpoints are still evolving (some require the beta
 > endpoint or the separate Microsoft Purview compliance APIs / Office 365 Management Activity
@@ -233,16 +245,43 @@ operation when its module is implemented.
 
 ### 6.2 Azure Resource Manager (RBAC role assignment, granted by the onboarding script — separate from Graph admin consent)
 
-| Data source | Example signals pulled | Required Azure RBAC role |
+| Data source | Example signals pulled | Required Azure RBAC role and scope |
 |---|---|---|
-| Log Analytics workspaces | Whether diagnostic logging is enabled/retained, workspace configuration | `Log Analytics Reader` |
-| Microsoft Sentinel (if present) | Analytics rules enabled, data connector status | `Sentinel Reader` (or `Log Analytics Reader` if Sentinel isn't in scope for v1) |
-| General resource visibility (for scoping) | Which subscriptions/RGs exist, so the customer can pick scan scope | `Reader` at subscription level |
+| General Azure resources | Resource inventory and configuration needed by implemented checks | `Reader` at selected subscription or resource-group scope |
+| Defender for Cloud | Azure secure score and security recommendations | `Security Reader` at selected subscription scope |
+| Recovery Services vaults | Vault settings, backup policies, protected-item posture | `Backup Reader` at each selected vault scope |
+| Log Analytics workspaces | Workspace configuration and presence/freshness of required logs | `Log Analytics Reader` at each selected workspace scope |
+| Microsoft Sentinel | Data connectors and implemented Sentinel configuration checks | `Microsoft Sentinel Reader` at each selected Sentinel-enabled workspace scope |
 
 Call out explicitly in the onboarding UI: **admin consent (step 4) only grants Graph API
 access. Azure RBAC roles (step 6) are a separate, explicit grant the customer controls and scopes
 themselves.** Don't blur these into one "approve everything" step — it undermines the
 least-privilege story that makes this tool trustworthy.
+
+### 6.3 Purview DLP
+
+Full DLP policy inspection is deferred from the central unattended scanner until a suitably
+narrow, supported application API is approved. Do not add `Exchange.ManageAsApp` to the central
+Enterprise Application merely to run Security & Compliance PowerShell; its name and effective
+surface undermine the product's simple read-only consent promise and require separate service
+RBAC configuration.
+
+The interim design is a customer-run, read-only PowerShell export of selected DLP policy
+metadata. The customer reviews the exported data before uploading it. DLP contributes an
+`Incomplete`/customer-supplied scorecard state rather than silently receiving a zero score.
+
+### 6.4 Recommendation sources
+
+- Microsoft 365 recommendations come from Secure Score control profiles using
+  `SecurityEvents.Read.All`.
+- Azure recommendations and Azure secure score come from Defender for Cloud using the
+  subscription-scoped `Security Reader` role.
+- Optional Defender Vulnerability Management recommendations use
+  `SecurityRecommendation.Read.All`; its score uses `Score.Read.All`.
+- Azure Advisor recommendations may be read through the selected Azure `Reader` scope when an
+  implemented scorecard check consumes them.
+- Findings from missing permissions, licensing, unsupported APIs, or unavailable products are
+  marked `Incomplete` or `NotApplicable`, never scored as security failures.
 
 ## 7. Data Model & Scan Semantics
 
@@ -259,6 +298,32 @@ least-privilege story that makes this tool trustworthy.
 ### 7.3 Scan versioning
 Each "Start scan" click creates a new `scanId`. Old scans are retained (retention policy TBD,
 recommend 90 days default) so score-over-time trending is possible later without redesign.
+
+### 7.4 Scorecard semantics
+
+The client scorecard contains separate source scores rather than presenting an unexplained
+single number:
+
+- Identity: Entra roles, Conditional Access, and authentication-registration coverage.
+- Endpoint management: Intune policy/configuration coverage.
+- Microsoft 365 posture: Microsoft Secure Score and its control recommendations.
+- Azure posture: Defender for Cloud secure score, security recommendations, and relevant Azure
+  Advisor recommendations.
+- Resilience: Recovery Services vault configuration and protection posture.
+- Observability: Log Analytics configuration plus required-log presence and freshness.
+- Detection: Sentinel data-connector and implemented detection configuration posture.
+- Data protection: customer-supplied DLP posture until an approved narrow API is available.
+- Optional endpoint vulnerability posture: Defender Vulnerability Management score and critical
+  recommendations when licensed and explicitly enabled.
+
+Each category records `status` (`Complete` / `Incomplete` / `NotApplicable` / `Error`),
+`score`, `maxScore`, `source`, `collectedAt`, `licenseState`, and missing-permission details.
+Only `Complete` categories contribute to the combined score. The dashboard must show coverage
+next to the score so a high number from a partial scan cannot be mistaken for a complete audit.
+
+Recommendations are normalized into the finding schema and ranked using source severity,
+potential score impact, affected scope, and confidence. Vendor source scores remain separately
+visible; NSO Audit must not present a derived score as Microsoft's official score.
 
 ## 8. Security & Compliance Requirements
 
@@ -304,8 +369,11 @@ recommend 90 days default) so score-over-time trending is possible later without
    only, storage, scan status, minimal results dashboard, and tenant-data deletion. This proves
    the complete consent-to-results loop. Azure RBAC setup may be demonstrated but is not
    required to run the Graph-only scan.
-2. **Phase 2 — Add data sources**: Intune, Log Analytics/Sentinel, Purview, in that rough order
-   of API stability/simplicity.
+2. **Phase 2 — Scorecard sources**: Intune policy/configuration, Azure inventory, Defender for
+   Cloud score/recommendations, Recovery Services vaults, Log Analytics, and Sentinel data
+   connectors. Optional Defender Vulnerability Management score/recommendations follow when
+   licensing and API access are validated. Purview DLP remains customer-supplied until a narrow
+   unattended API is approved.
 3. **Phase 3 — Dashboard polish**: scoring model, remediation guidance content, scan history.
 4. **Phase 4 — Hardening**: publisher verification, retention-policy automation, deletion-flow
    validation, CI permission linting, and load testing.
