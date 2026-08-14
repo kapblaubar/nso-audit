@@ -190,13 +190,32 @@ and Key Vault access should use managed identity rather than account keys in con
 
 ### 6.1 Microsoft Graph (application permissions, admin-consented)
 
-| Data source | Example signals pulled | Required Graph permission(s) |
+#### Phase 1 permission allowlist
+
+| Phase 1 check | Microsoft Graph application permission | Why it is required |
 |---|---|---|
-| Entra ID / Identity | MFA registration state, Conditional Access policies, risky sign-ins, privileged role assignments | `Policy.Read.All`, `RoleManagement.Read.Directory`, `UserAuthenticationMethod.Read.All`, `IdentityRiskEvent.Read.All`, `Directory.Read.All` |
-| Secure Score | Microsoft's own secure score + control details | `SecurityEvents.Read.All` |
+| Conditional Access policy coverage | `Policy.Read.All` | Read Conditional Access policies; no policy modification |
+| Authentication-method registration | `AuditLog.Read.All` | Read the authentication methods user-registration report |
+| Directory role assignments | `RoleManagement.Read.Directory` | Read directory RBAC assignments and definitions |
+| Microsoft Secure Score | `SecurityEvents.Read.All` | Read Secure Score and control-profile data |
+
+The frontend also uses delegated `User.Read` for basic organizational sign-in. It is not used
+by the unattended scanner. Phase 1 must not request `Directory.Read.All`, mail access, group
+access, Intune permissions, Defender machine/vulnerability permissions, Exchange management,
+or any `ReadWrite` permission. Permissions for later modules are added only when that module is
+implemented and enabled.
+
+#### Later-phase permission candidates
+
+These permissions are not requested in Phase 1. Each must be revalidated against the exact API
+operation when its module is implemented.
+
+| Data source | Example later signals | Candidate Graph permission(s) |
+|---|---|---|
+| Entra risk | Risk detections and risky sign-ins | Identity Protection read permissions, selected against the implemented endpoint |
 | Intune / Devices | Device compliance state, configuration policy coverage | `DeviceManagementManagedDevices.Read.All`, `DeviceManagementConfiguration.Read.All` |
 | Purview / Compliance | DLP policy coverage, sensitivity label usage, retention policies | `InformationProtectionPolicy.Read.All`, and/or Purview/Compliance-specific Graph beta endpoints — confirm current API surface at build time, this area changes |
-| Threat/Defender signals (optional, stretch) | Alerts summary | `ThreatIndicators.Read.All` / `SecurityAlert.Read.All` |
+| Defender signals (optional, stretch) | Alerts, recommendations, software, and vulnerability summaries | Select only the read permission for each implemented Microsoft Defender endpoint |
 
 > Note: exact Purview/Compliance Graph endpoints are still evolving (some require the beta
 > endpoint or the separate Microsoft Purview compliance APIs / Office 365 Management Activity

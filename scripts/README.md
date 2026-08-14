@@ -16,6 +16,8 @@ tenant IDs, credentials, or private keys.
    retrieving a deployment token. It is idempotent within the selected resource group.
 7. `Set-NsoAuditAppRedirect.ps1` — adds an HTTPS SPA callback to an App Registration while
    preserving existing SPA redirect URIs.
+8. `Set-NsoAuditPhase1GraphPermissions.ps1` — replaces the dedicated App Registration's API
+   permissions with the reviewed Phase 1 Microsoft Graph allowlist. It does not grant consent.
 
 Every script accepts `SubscriptionId` and `ResourceGroupName` as parameters. If
 `SubscriptionId` is omitted, the current Cloud Shell subscription is used. Scripts confirm
