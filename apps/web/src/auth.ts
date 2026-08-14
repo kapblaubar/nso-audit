@@ -1,11 +1,12 @@
 import {
+  InteractionRequiredAuthError,
   PublicClientApplication,
   type AccountInfo,
   type AuthenticationResult,
 } from "@azure/msal-browser";
 import { appConfig } from "./config";
 
-const scopes = ["openid", "profile", "email"];
+const signInScopes = ["openid", "profile", "email", ...(appConfig.apiScope ? [appConfig.apiScope] : [])];
 
 let client: PublicClientApplication | undefined;
 
@@ -60,9 +61,32 @@ export async function initializeAuth(): Promise<AuthState> {
 export async function signIn(): Promise<void> {
   const authClient = getClient();
   await authClient.loginRedirect({
-    scopes,
+    scopes: signInScopes,
     prompt: "select_account",
   });
+}
+
+export async function getApiAccessToken(account: AccountInfo): Promise<string> {
+  if (!appConfig.apiScope) {
+    throw new Error("The NSO Audit API scope is not configured.");
+  }
+
+  const authClient = getClient();
+  try {
+    const result = await authClient.acquireTokenSilent({
+      account,
+      scopes: [appConfig.apiScope],
+    });
+    return result.accessToken;
+  } catch (error) {
+    if (error instanceof InteractionRequiredAuthError) {
+      await authClient.acquireTokenRedirect({
+        account,
+        scopes: [appConfig.apiScope],
+      });
+    }
+    throw error;
+  }
 }
 
 export async function signOut(): Promise<void> {

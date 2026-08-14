@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
 import { initializeAuth, signIn, signOut } from "./auth";
+import { loadTenantBootstrap, type TenantBootstrap } from "./api";
+import { LandingPage } from "./pages/LandingPage";
+import { ReportPage } from "./pages/ReportPage";
 
 export function App() {
   const [account, setAccount] = useState<AccountInfo>();
   const [authReady, setAuthReady] = useState(false);
   const [authError, setAuthError] = useState<string>();
+  const [bootstrap, setBootstrap] = useState<TenantBootstrap>();
+  const [bootstrapLoading, setBootstrapLoading] = useState(false);
+  const [bootstrapError, setBootstrapError] = useState<string>();
 
   useEffect(() => {
     void initializeAuth().then((state) => {
@@ -14,6 +20,28 @@ export function App() {
       setAuthReady(true);
     });
   }, []);
+
+  useEffect(() => {
+    if (!account) return;
+
+    setBootstrapLoading(true);
+    setBootstrapError(undefined);
+    void loadTenantBootstrap(account)
+      .then((result) => {
+        setBootstrap(result);
+        const destination = result.destination === "report" && result.latestScan
+          ? `/reports/${encodeURIComponent(result.latestScan.scanId)}`
+          : result.destination === "scan" && result.latestScan
+            ? `/scans/${encodeURIComponent(result.latestScan.scanId)}`
+            : "/onboarding";
+        window.history.replaceState({}, "", destination);
+      })
+      .catch((error: unknown) => {
+        setBootstrapError(error instanceof Error ? error.message : "Tenant setup could not be loaded.");
+        window.history.replaceState({}, "", "/onboarding");
+      })
+      .finally(() => setBootstrapLoading(false));
+  }, [account]);
 
   const beginSignIn = () => {
     setAuthError(undefined);
@@ -28,8 +56,30 @@ export function App() {
     });
   };
 
+  if (!authReady) {
+    return <main className="route-loading"><span>Preparing NSO Audit…</span></main>;
+  }
+
+  if (!account) {
+    return (
+      <LandingPage
+        authReady={authReady}
+        {...(authError ? { authError } : {})}
+        onSignIn={beginSignIn}
+      />
+    );
+  }
+
+  if (bootstrapLoading && !bootstrap) {
+    return <main className="route-loading"><span>Loading your tenant workspace…</span></main>;
+  }
+
+  if (bootstrap?.destination === "report" && bootstrap.latestScan) {
+    return <ReportPage account={account} bootstrap={bootstrap} onSignOut={beginSignOut} />;
+  }
+
   return (
-    <main>
+    <main className="onboarding-page">
       <nav className="nav" aria-label="Primary navigation">
         <a className="brand" href="#top" aria-label="NSO Audit home">
           <img className="brand-mark" src="/brand/nsosquare.png" alt="" width="40" height="40" />
@@ -53,6 +103,13 @@ export function App() {
           )}
         </div>
       </nav>
+
+      {bootstrapError ? (
+        <div className="bootstrap-notice" role="status">
+          <strong>Tenant routing is temporarily unavailable.</strong>
+          <span>{bootstrapError} You can still review the onboarding requirements below.</span>
+        </div>
+      ) : null}
 
       <section className="hero" id="top">
         <div className="hero-copy">

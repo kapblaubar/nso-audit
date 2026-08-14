@@ -196,6 +196,31 @@ and Key Vault access should use managed identity rather than account keys in con
 - Auth: same OIDC login as onboarding; dashboard queries are always scoped server-side by the
   logged-in user's `tenantId`.
 
+### 5.8 Frontend routes and tenant bootstrap
+
+The product has three user-facing routes plus a technical authentication callback:
+
+- `/` — public landing page with product overview, simple process, screenshot placeholders,
+  trust/privacy summary, and sign-in.
+- `/onboarding` — authenticated setup, permissions, consent, Azure RBAC, scan launch/progress,
+  deletion, and disconnect guidance for tenants without a completed scan.
+- `/reports/{scanId}` — authenticated scorecard and findings for a completed/partial scan.
+- `/auth/callback` — technical Microsoft authentication callback, not a product page.
+
+After sign-in, the SPA requests an `access_as_user` token for the NSO Audit API and calls
+`GET /api/me/bootstrap`. The API validates the token, derives `tenantId` from the signed claim,
+and queries Storage through managed identity. The browser must not supply an authoritative
+tenant ID or query Storage directly.
+
+Bootstrap routing uses the tenant registration record plus `lastScanId` and scan status:
+
+- no registration/completed scan → onboarding;
+- queued/running latest scan → scan-progress state;
+- complete/partial latest scan → report.
+
+The API returns `consentStatus`, `azureRbacStatus`, latest scan summary, and destination. It
+never returns another tenant's state, even if the caller changes a URL or request parameter.
+
 ## 6. Data Sources & Required Permissions
 
 ### 6.1 Microsoft Graph (application permissions, admin-consented)

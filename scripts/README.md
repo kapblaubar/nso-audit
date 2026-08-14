@@ -26,6 +26,10 @@ tenant IDs, credentials, or private keys.
     `Security Reader`, `Backup Reader`, `Log Analytics Reader`, and `Microsoft Sentinel Reader`
     at explicit subscription, workspace, and vault scopes. It assigns nothing without selected
     switches/resource IDs and supports `-WhatIf`.
+11. `Set-NsoAuditApiScope.ps1` — exposes the delegated `access_as_user` scope used by the SPA to
+    call the protected NSO Audit API. It preserves existing API scopes.
+12. `Set-NsoAuditApiRuntime.ps1` — sets the Function App's public Entra client ID and allows the
+    exact Static Web App origin through CORS. It stores no credentials.
 
 Azure-facing scripts accept `SubscriptionId`; resource-scoped scripts also accept
 `ResourceGroupName`. If `SubscriptionId` is omitted, the current Cloud Shell subscription is

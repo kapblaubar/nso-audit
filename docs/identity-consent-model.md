@@ -10,6 +10,8 @@ the home tenant and authorizes access to that tenant's NSO Audit dashboard data.
 
 - Do not recommend Global Administrator for routine dashboard access.
 - Delegated `User.Read` supports basic sign-in only.
+- Delegated `access_as_user` on the NSO Audit API authorizes tenant-scoped bootstrap, setup, and
+  report requests from the SPA.
 - Signing in does not grant the scanner access to Microsoft Graph tenant data.
 
 ## 2. Tenant consent administrator

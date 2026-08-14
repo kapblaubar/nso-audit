@@ -32,3 +32,15 @@ export interface ScanSummary {
   score?: number;
 }
 
+export type BootstrapDestination = "onboarding" | "scan" | "report";
+export type ConsentStatus = "notConfigured" | "pending" | "granted" | "error";
+export type AzureRbacStatus = "notConfigured" | "partial" | "configured";
+
+export interface TenantBootstrap {
+  tenantId: string;
+  registered: boolean;
+  consentStatus: ConsentStatus;
+  azureRbacStatus: AzureRbacStatus;
+  latestScan: ScanSummary | null;
+  destination: BootstrapDestination;
+}
