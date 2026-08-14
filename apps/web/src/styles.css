@@ -19,7 +19,7 @@ main {
     linear-gradient(180deg, #071016 0%, #0a141a 100%);
 }
 
-.nav, .hero, .process, .brand-story, .trust, .footer-inner { width: min(1120px, calc(100% - 40px)); margin-inline: auto; }
+.nav, .hero, .app-overview, .process, .brand-story, .trust, .footer-inner { width: min(1120px, calc(100% - 40px)); margin-inline: auto; }
 .nav { height: 82px; display: flex; align-items: center; justify-content: space-between; }
 .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; font-weight: 700; letter-spacing: -.02em; }
 .brand-mark { display: block; width: 40px; height: 40px; border-radius: 10px; box-shadow: 0 8px 24px rgba(255, 95, 21, .16); }
@@ -34,9 +34,9 @@ main {
 .account-menu { display: flex; align-items: center; gap: 14px; }
 .account-menu > span { max-width: 180px; overflow: hidden; color: #dce5e9; font-size: .84rem; text-overflow: ellipsis; white-space: nowrap; }
 
-.hero { display: grid; grid-template-columns: 1.3fr .7fr; align-items: center; gap: 72px; padding: 100px 0 132px; }
+.hero { display: grid; grid-template-columns: 1.3fr .7fr; align-items: center; gap: 72px; padding: 66px 0 78px; }
 .eyebrow { color: #57e6b4; font-size: .75rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
-h1 { max-width: 780px; margin: 18px 0 24px; font-size: clamp(3rem, 6.7vw, 6rem); line-height: .98; letter-spacing: -.065em; }
+h1 { max-width: 720px; margin: 16px 0 20px; font-size: clamp(2.6rem, 5vw, 4.7rem); line-height: 1; letter-spacing: -.058em; }
 .lede { max-width: 650px; color: #a9b7c0; font-size: 1.18rem; line-height: 1.7; }
 .actions { display: flex; align-items: center; gap: 18px; margin-top: 38px; }
 .actions button { padding: 15px 22px; border: 0; border-radius: 8px; color: #06110d; background: #57e6b4; font-weight: 800; cursor: pointer; }
@@ -57,6 +57,29 @@ h1 { max-width: 780px; margin: 18px 0 24px; font-size: clamp(3rem, 6.7vw, 6rem);
 dl { margin: 32px 0 0; }
 dl div { display: flex; justify-content: space-between; padding: 13px 0; border-top: 1px solid #223139; font-size: .85rem; }
 dt { color: #82949e; } dd { margin: 0; }
+.score-pending { min-height: 250px; }
+.pending-score-mark { margin: 24px 0 4px; color: #57e6b4; font-size: 4.5rem; line-height: .8; }
+.score-pending > strong { display: block; font-size: 1.05rem; }
+.score-pending > p { margin: 12px 0 0; color: #82949e; font-size: .86rem; line-height: 1.55; }
+
+.app-overview { padding: 96px 0; border-top: 1px solid #1c2a31; }
+.overview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 54px; }
+.overview-grid article { padding: 26px; border: 1px solid #223139; border-radius: 12px; background: #0c181e; }
+.overview-grid article > span { color: #ff6b35; font-family: ui-monospace, monospace; font-size: .76rem; }
+.overview-grid h3 { margin: 34px 0 12px; font-size: 1.2rem; }
+.overview-grid p { margin: 0; color: #91a2ac; font-size: .9rem; line-height: 1.65; }
+.full-permissions { padding: 34px; border: 1px solid #263840; border-radius: 16px; background: #0c181e; }
+.permission-intro { display: grid; grid-template-columns: .8fr 1.2fr; gap: 50px; align-items: end; }
+.permission-intro h3 { margin: 8px 0 0; font-size: 1.65rem; }
+.permission-intro > p { margin: 0; color: #91a2ac; line-height: 1.65; }
+.permission-columns { display: grid; grid-template-columns: 1.15fr .85fr; gap: 22px; margin-top: 30px; }
+.permission-columns h4, .azure-role-list h4 { margin: 0 0 10px; color: #c7d2d7; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; }
+.permission-columns > div > h4:not(:first-child) { margin-top: 22px; }
+.permission-columns .permission-list { margin: 0; }
+.permission-columns .permission-list > div { grid-template-columns: minmax(210px, .9fr) 1.1fr; }
+.azure-role-list { margin-top: 24px; padding: 20px; border-radius: 10px; background: #101f26; }
+.azure-role-list > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.azure-role-list code { padding: 7px 10px; border: 1px solid #30434c; border-radius: 6px; color: #9edbc7; background: #0a161c; font-size: .78rem; }
 
 .process { padding: 96px 0; border-top: 1px solid #1c2a31; }
 h2 { max-width: 700px; margin: 12px 0 44px; font-size: clamp(2.2rem, 4vw, 3.8rem); letter-spacing: -.045em; }
@@ -86,14 +109,19 @@ h2 { max-width: 700px; margin: 12px 0 44px; font-size: clamp(2.2rem, 4vw, 3.8rem
 .optional-permissions summary { padding: 10px 0; color: #c4d0d6; font-size: .86rem; cursor: pointer; }
 .permission-list.compact { margin-top: 8px; }
 .permission-exclusions { display: flex; align-items: flex-start; gap: 12px; max-width: 830px; margin-top: 18px; padding: 14px 16px; border-radius: 8px; color: #a7b5bd; background: rgba(87, 230, 180, .06); font-size: .86rem; line-height: 1.5; }
+.full-permissions .permission-exclusions { max-width: none; }
 .permission-exclusions strong { flex: 0 0 auto; color: #57e6b4; }
 .step-action { margin-top: 12px; padding: 13px 18px; border: 0; border-radius: 7px; color: #06110d; background: #57e6b4; font-weight: 800; cursor: pointer; }
 .step-action:disabled { color: #788b96; background: #1b2a31; cursor: not-allowed; }
 .step-confirmation { display: inline-block; margin-top: 10px; padding: 10px 14px; border-radius: 7px; color: #57e6b4; background: rgba(87, 230, 180, .08); font-size: .86rem; }
 .pending-note { margin: 12px 0 0; color: #70838e; font-size: .8rem; line-height: 1.55; }
-.azure-access-note { display: grid; grid-template-columns: .9fr 1.1fr; gap: 50px; margin-top: 22px; padding: 28px 34px; border: 1px dashed #31434b; border-radius: 12px; background: rgba(12, 24, 30, .6); }
-.azure-access-note h3 { margin: 8px 0 0; font-size: 1.15rem; }
-.azure-access-note > p { margin: 0; color: #91a2ac; line-height: 1.65; }
+.screenshot-placeholder { display: grid; place-items: center; min-height: 180px; max-width: 780px; margin-top: 22px; border: 1px dashed #3a4e57; border-radius: 10px; color: #70838e; background: repeating-linear-gradient(-45deg, #101e25, #101e25 12px, #0d1a20 12px, #0d1a20 24px); text-align: center; }
+.screenshot-placeholder span, .screenshot-placeholder strong { grid-area: 1 / 1; }
+.screenshot-placeholder span { align-self: start; margin-top: 48px; color: #8ca0aa; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; }
+.screenshot-placeholder strong { align-self: end; margin-bottom: 48px; color: #b6c3c9; }
+.disconnect-box { display: grid; grid-template-columns: .75fr 1.25fr; gap: 50px; margin-top: 22px; padding: 30px 34px; border: 1px solid #4d3b35; border-radius: 12px; background: rgba(255, 107, 53, .045); }
+.disconnect-box h3 { margin: 8px 0 0; font-size: 1.2rem; }
+.disconnect-box ol { display: grid; gap: 10px; margin: 0; padding-left: 20px; color: #9fafb7; line-height: 1.6; }
 .trust > p:last-child { color: #91a2ac; line-height: 1.65; }
 .brand-story { position: relative; min-height: 430px; overflow: hidden; border: 1px solid #26363e; border-radius: 20px; background: #0c181e; }
 .brand-story::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4, 11, 15, .94) 0%, rgba(4, 11, 15, .76) 34%, rgba(4, 11, 15, .08) 68%); }
@@ -112,12 +140,16 @@ h2 { max-width: 700px; margin: 12px 0 44px; font-size: clamp(2.2rem, 4vw, 3.8rem
 
 @media (max-width: 800px) {
   .hero { grid-template-columns: 1fr; padding: 64px 0 90px; gap: 44px; }
+  .overview-grid, .permission-intro, .permission-columns { grid-template-columns: 1fr; }
+  .permission-intro { gap: 16px; }
+  .full-permissions { padding: 24px; }
+  .permission-columns .permission-list > div { grid-template-columns: 1fr; }
   .process-heading { grid-template-columns: 1fr; gap: 22px; }
   .onboarding-step { grid-template-columns: 54px 1fr; padding: 0 20px; }
   .step-content { padding-left: 10px; }
   .permission-list > div { grid-template-columns: 1fr; gap: 6px; }
   .permission-exclusions { flex-direction: column; }
-  .azure-access-note { grid-template-columns: 1fr; gap: 16px; padding: 24px; }
+  .disconnect-box { grid-template-columns: 1fr; gap: 18px; padding: 24px; }
   .brand-story { min-height: 560px; }
   .brand-story::after { background: linear-gradient(180deg, rgba(4, 11, 15, .88) 0%, rgba(4, 11, 15, .58) 60%, rgba(4, 11, 15, .2) 100%); }
   .brand-story-overlay { width: auto; padding: 54px 28px; }
