@@ -37,3 +37,23 @@ export async function loadTenantBootstrap(account: AccountInfo): Promise<TenantB
 
   return await response.json() as TenantBootstrap;
 }
+
+export interface AccessCheckResult {
+  tenantAccess: { ok: boolean; message: string };
+  resourceReader: { ok: boolean; message: string };
+  securityReader: { ok: boolean; message: string };
+  ready: boolean;
+}
+
+export async function checkTenantAccess(account: AccountInfo, subscriptionId: string): Promise<AccessCheckResult> {
+  if (!appConfig.apiBaseUrl) throw new Error("The NSO Audit API URL is not configured.");
+  const accessToken = await getApiAccessToken(account);
+  const response = await fetch(`${appConfig.apiBaseUrl}/me/access-check`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ subscriptionId }),
+  });
+  const body = await response.json() as AccessCheckResult & { error?: string };
+  if (!response.ok) throw new Error(body.error ?? `Access check failed (HTTP ${response.status}).`);
+  return body;
+}

@@ -96,6 +96,15 @@ main {
 .script-checksum { margin: 10px 0 0 !important; color: #70838e !important; font-size: .68rem; overflow-wrap: anywhere; }
 .script-checksum code { color: #91a3ad; }
 .generated-command { max-width: 760px; margin: 18px 0 0; padding: 16px; overflow-x: auto; border: 1px solid #293b43; border-radius: 8px; color: #b9ead9; background: #071117; font-size: .78rem; line-height: 1.65; white-space: pre-wrap; }
+.access-check-panel { margin-top: 20px; padding-top: 18px; border-top: 1px solid #273840; }
+.access-check-panel .step-action { margin: 0; }
+.access-check-panel ul { display: grid; gap: 8px; margin: 16px 0 0; padding: 0; list-style: none; }
+.access-check-panel li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 7px; font-size: .82rem; }
+.access-check-panel li strong { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; }
+.check-pass { color: #a8ddca; background: rgba(87, 230, 180, .08); }
+.check-pass strong { color: #06110d; background: #57e6b4; }
+.check-fail { color: #e1b4a6; background: rgba(255, 107, 53, .08); }
+.check-fail strong { color: #fff; background: #b94e31; }
 .disconnect-details { margin-top: 18px; padding: 20px 24px; border: 1px solid #35434a; border-radius: 10px; color: #94a6af; background: rgba(12, 24, 30, .72); }
 .disconnect-details ol { display: grid; gap: 8px; margin: 18px 0 0; padding-left: 22px; line-height: 1.55; }
 

@@ -28,7 +28,9 @@ tenant IDs, credentials, or private keys.
     switches/resource IDs and supports `-WhatIf`.
 11. `Set-NsoAuditApiScope.ps1` — exposes the delegated `access_as_user` scope used by the SPA to
     call the protected NSO Audit API. It preserves existing API scopes.
-12. `Set-NsoAuditApiRuntime.ps1` — sets the Function App's public Entra client ID and allows the
+12. `Set-NsoAuditWorkloadFederation.ps1` — creates a secretless federated trust allowing the
+    Function App's user-assigned managed identity to act as the multitenant NSO Audit application.
+13. `Set-NsoAuditApiRuntime.ps1` — sets the Function App's public Entra client ID and allows the
     exact Static Web App origin through CORS. It stores no credentials.
 
 Azure-facing scripts accept `SubscriptionId`; resource-scoped scripts also accept

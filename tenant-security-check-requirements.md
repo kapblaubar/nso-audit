@@ -161,8 +161,9 @@ threat model, session isolation design, credential-handling review, and audit lo
 
 ### 5.5 Function App
 - One function/module per data source, orchestrated by a parent scan function.
-- Auth: client credentials flow (app ID + certificate, not a client secret, for production —
-  see §8) against the target `tenantId`.
+- Auth: client credentials flow against the target `tenantId`. The vendor Function's
+  user-assigned managed identity is trusted as a federated credential on the multitenant App
+  Registration, avoiding stored client secrets or certificate private keys.
 - Each module: calls its API, normalizes response into a common finding schema (see §7.2),
   computes a sub-score, handles pagination/throttling/partial failures gracefully (one data
   source failing must not fail the whole scan).
@@ -230,6 +231,12 @@ The onboarding route is a compact four-step wizard rather than a second marketin
 
 The current step and next action remain prominent. Removal instructions, detailed permissions,
 privacy explanations, and screenshots may be collapsed so they do not obscure the setup action.
+
+Before enabling an audit, the portal calls `POST /api/me/access-check`. The API independently
+uses the Enterprise Application identity to verify a permitted Microsoft Graph read, Azure
+resource enumeration, and Defender for Cloud secure-score access. It records the results under
+the signed-in tenant partition. The interface shows each check separately in green or displays a
+safe actionable failure; browser callback parameters alone never prove consent or RBAC.
 
 ## 6. Data Sources & Required Permissions
 

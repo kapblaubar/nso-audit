@@ -118,3 +118,19 @@ export async function getTenantBootstrap(tenantId: string): Promise<TenantBootst
   };
 }
 
+export async function saveAccessCheck(
+  tenantId: string,
+  subscriptionId: string,
+  consentGranted: boolean,
+  azureRbacConfigured: boolean,
+): Promise<void> {
+  tenantsClient ??= getTableClient("tenants");
+  await tenantsClient.upsertEntity({
+    partitionKey: tenantId,
+    rowKey: "registration",
+    subscriptionId,
+    consentStatus: consentGranted ? "granted" : "error",
+    azureRbacStatus: azureRbacConfigured ? "configured" : "partial",
+    accessCheckedAt: new Date().toISOString(),
+  }, "Merge");
+}

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
-import type { TenantBootstrap } from "../api";
+import { checkTenantAccess, type AccessCheckResult, type TenantBootstrap } from "../api";
 import { appConfig } from "../config";
 
 interface OnboardingPageProps {
@@ -22,10 +22,13 @@ const graphPermissions = [
 export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }: OnboardingPageProps) {
   const [copied, setCopied] = useState(false);
   const [subscriptionId, setSubscriptionId] = useState("");
+  const [accessResult, setAccessResult] = useState<AccessCheckResult>();
+  const [checkingAccess, setCheckingAccess] = useState(false);
+  const [accessError, setAccessError] = useState<string>();
   const tenantId = bootstrap?.tenantId ?? account.tenantId;
   const consentGranted = bootstrap?.consentStatus === "granted";
   const rbacConfigured = bootstrap?.azureRbacStatus === "configured";
-  const currentStep = !consentGranted ? 2 : !rbacConfigured ? 3 : 4;
+  const currentStep = accessResult?.ready ? 4 : !consentGranted ? 2 : !rbacConfigured ? 3 : 4;
 
   const consentUrl = useMemo(() => {
     const redirectUri = appConfig.authRedirectUri ?? `${window.location.origin}/auth/callback`;
@@ -51,6 +54,14 @@ export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }
     `  -IncludeDefenderForCloud ${continuation}`,
     "  -WhatIf",
   ].join("\n");
+
+  const runAccessCheck = async () => {
+    setCheckingAccess(true);
+    setAccessError(undefined);
+    try { setAccessResult(await checkTenantAccess(account, subscriptionId)); }
+    catch (error) { setAccessError(error instanceof Error ? error.message : "Access check failed."); }
+    finally { setCheckingAccess(false); }
+  };
 
   const stepClass = (step: number) => step < currentStep
     ? "setup-step is-complete"
@@ -163,6 +174,19 @@ export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }
             <p className="script-checksum">SHA-256: <code>9b843623409bdb3f9a65ec9c4541563ad4a3f7dbb68f7645e5c785bf90d08006</code></p>
             <pre className="generated-command"><code>{previewCommand}</code></pre>
             <p className="pending-note"><code>-WhatIf</code> previews the exact assignments without changing Azure. Remove it only after reviewing the output.</p>
+            <div className="access-check-panel">
+              <button className="step-action" type="button" onClick={runAccessCheck} disabled={!/^[0-9a-f-]{36}$/i.test(subscriptionId) || checkingAccess}>
+                {checkingAccess ? "Checking access…" : "Check access"}
+              </button>
+              {accessError ? <p className="auth-error" role="alert">{accessError}</p> : null}
+              {accessResult ? (
+                <ul>
+                  {[accessResult.tenantAccess, accessResult.resourceReader, accessResult.securityReader].map((check) => (
+                    <li className={check.ok ? "check-pass" : "check-fail"} key={check.message}><strong>{check.ok ? "✓" : "!"}</strong>{check.message}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           </div>
         </article>
 
