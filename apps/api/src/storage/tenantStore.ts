@@ -20,6 +20,7 @@ interface ScanEntity {
   createdAt: string;
   completedAt?: string;
   score?: number;
+  subscriptionId?: string;
 }
 
 export interface TenantBootstrapRecord {
@@ -153,5 +154,14 @@ export async function getStarterScan(tenantId: string, scanId: string) {
   if (!scan) return null;
   const findings = [];
   for await (const entity of findingsClient.listEntities<{ title: string; status: string; detail: string }>({ queryOptions: { filter: `PartitionKey eq '${tenantId}:${scanId}'` } })) findings.push({ checkId: entity.rowKey, title: entity.title, status: entity.status, detail: entity.detail });
-  return { scanId, tenantId, status: scan.status, createdAt: scan.createdAt, completedAt: scan.completedAt, score: scan.score, findings };
+  return { scanId, tenantId, status: scan.status, createdAt: scan.createdAt, completedAt: scan.completedAt, score: scan.score, subscriptionId: scan.subscriptionId, findings };
+}
+
+export async function listTenantScans(tenantId: string, limit = 25) {
+  scansClient ??= getTableClient("scans");
+  const scans = [];
+  for await (const entity of scansClient.listEntities<ScanEntity>({ queryOptions: { filter: `PartitionKey eq '${tenantId}'` } })) {
+    scans.push({ scanId: entity.rowKey, status: entity.status, createdAt: entity.createdAt, completedAt: entity.completedAt, score: entity.score });
+  }
+  return scans.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit);
 }

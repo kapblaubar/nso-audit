@@ -56,6 +56,14 @@ main {
 .starter-findings h2 { margin: 20px 0 10px; font-size: 1.2rem; }
 .starter-findings p { color: #91a2ac; font-size: .85rem; line-height: 1.55; }
 .starter-findings .finding-warning > span { color: #ff9b70; }
+.report-actions { margin-top: 24px; }
+.scan-history { margin-top: 70px; padding-top: 42px; border-top: 1px solid #26363e; }
+.scan-history h2 { margin-bottom: 24px; }
+.scan-history > div { display: grid; gap: 8px; }
+.scan-history a { display: grid; grid-template-columns: 1fr 70px 90px; align-items: center; gap: 18px; padding: 14px 16px; border: 1px solid #26363e; border-radius: 8px; color: #a8b6bd; background: #0c181e; text-decoration: none; }
+.scan-history a:hover { border-color: #4a655f; }
+.scan-history strong { color: #57e6b4; font-size: 1.25rem; }
+.scan-history small { color: #7f929c; text-transform: uppercase; }
 
 .compact-onboarding { padding-bottom: 90px; }
 .setup-header, .setup-wizard, .disconnect-details { width: min(920px, calc(100% - 40px)); margin-inline: auto; }

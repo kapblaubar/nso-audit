@@ -1,7 +1,7 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from "@azure/functions";
 import { requireTenantUser } from "../auth/requireTenantUser.js";
 import { runStarterCollection } from "../access/customerAccess.js";
-import { getStarterScan, saveStarterScan } from "../storage/tenantStore.js";
+import { getStarterScan, listTenantScans, saveStarterScan } from "../storage/tenantStore.js";
 
 export async function startScan(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   try {
@@ -26,5 +26,13 @@ export async function getScan(request: HttpRequest): Promise<HttpResponseInit> {
   } catch { return { status: 401, jsonBody: { error: "Authentication required." } }; }
 }
 
+export async function listScans(request: HttpRequest): Promise<HttpResponseInit> {
+  try {
+    const user = await requireTenantUser(request);
+    return { status: 200, jsonBody: { scans: await listTenantScans(user.tenantId) } };
+  } catch { return { status: 401, jsonBody: { error: "Authentication required." } }; }
+}
+
 app.http("startScan", { methods: ["POST"], authLevel: "anonymous", route: "me/scans", handler: startScan });
 app.http("getScan", { methods: ["GET"], authLevel: "anonymous", route: "me/scans/{scanId}", handler: getScan });
+app.http("listScans", { methods: ["GET"], authLevel: "anonymous", route: "me/scans", handler: listScans });

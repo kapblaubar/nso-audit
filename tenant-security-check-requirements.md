@@ -244,6 +244,18 @@ availability. It stores a tenant-partitioned scan and findings and displays a cl
 starter-check score. This score is collection coverage for the starter checks and must not be
 presented as the final tenant security score.
 
+The next assessment increment adds Conditional Access MFA-policy coverage, active Global
+Administrator assignment count, user MFA-registration coverage, and the latest Microsoft 365
+Secure Score. Unavailable or unlicensed sources produce explicit warnings and do not abort other
+modules. Initial pass thresholds are preview heuristics and must be reviewed before the score is
+marketed as a formal security rating.
+
+Every execution creates a new immutable scan ID. The report lists the latest 25 tenant-scoped
+scans, allows an authorized user to open an older snapshot, and can run the assessment again
+against the stored subscription. Historical reads remain constrained by the signed token's
+tenant partition. Before collection, Azure subscription metadata must confirm that its tenant ID
+matches the validated signed-in tenant ID; cross-tenant/Lighthouse access is rejected for v1.
+
 ## 6. Data Sources & Required Permissions
 
 ### 6.1 Microsoft Graph (application permissions, admin-consented)

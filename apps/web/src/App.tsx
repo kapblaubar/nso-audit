@@ -34,7 +34,7 @@ export function App() {
           : result.destination === "scan" && result.latestScan
             ? `/scans/${encodeURIComponent(result.latestScan.scanId)}`
             : "/onboarding";
-        window.history.replaceState({}, "", destination);
+        if (!window.location.pathname.startsWith("/reports/")) window.history.replaceState({}, "", destination);
       })
       .catch((error: unknown) => {
         setBootstrapError(error instanceof Error ? error.message : "Tenant setup could not be loaded.");
@@ -61,7 +61,8 @@ export function App() {
   }
 
   if (bootstrap?.destination === "report" && bootstrap.latestScan) {
-    return <ReportPage account={account} bootstrap={bootstrap} onSignOut={beginSignOut} />;
+    const requestedScanId = window.location.pathname.match(/^\/reports\/([^/]+)$/)?.[1];
+    return <ReportPage account={account} bootstrap={bootstrap} scanId={requestedScanId ? decodeURIComponent(requestedScanId) : bootstrap.latestScan.scanId} onSignOut={beginSignOut} />;
   }
 
   return <OnboardingPage account={account} {...(bootstrap ? { bootstrap } : {})} {...(bootstrapError ? { bootstrapError } : {})} onSignOut={beginSignOut} />;

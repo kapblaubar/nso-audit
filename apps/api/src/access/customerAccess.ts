@@ -57,20 +57,63 @@ async function getJson(url: string, token: string): Promise<Record<string, unkno
   return await response.json() as Record<string, unknown>;
 }
 
+async function optionalJson(url: string, token: string): Promise<Record<string, unknown> | null> {
+  try { return await getJson(url, token); } catch { return null; }
+}
+
 export async function runStarterCollection(tenantId: string, subscriptionId: string): Promise<StarterFinding[]> {
   const credential = customerCredential(tenantId);
   const graphToken = await credential.getToken("https://graph.microsoft.com/.default");
   const armToken = await credential.getToken("https://management.azure.com/.default");
-  const [policy, groups, scores] = await Promise.all([
+  const subscription = await getJson(`https://management.azure.com/subscriptions/${subscriptionId}?api-version=2022-12-01`, armToken.token);
+  if (String(subscription.tenantId ?? "").toLowerCase() !== tenantId.toLowerCase()) {
+    throw new Error("The Azure subscription belongs to a different Microsoft Entra tenant.");
+  }
+
+  const [policy, groups, azureScores, conditionalAccess, roleDefinitions, registrations, m365Scores] = await Promise.all([
     getJson("https://graph.microsoft.com/v1.0/policies/authorizationPolicy", graphToken.token),
     getJson(`https://management.azure.com/subscriptions/${subscriptionId}/resourcegroups?api-version=2021-04-01`, armToken.token),
     getJson(`https://management.azure.com/subscriptions/${subscriptionId}/providers/Microsoft.Security/secureScores?api-version=2020-01-01`, armToken.token),
+    optionalJson("https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies", graphToken.token),
+    optionalJson("https://graph.microsoft.com/v1.0/roleManagement/directory/roleDefinitions?$filter=displayName%20eq%20'Global%20Administrator'", graphToken.token),
+    optionalJson("https://graph.microsoft.com/v1.0/reports/authenticationMethods/userRegistrationDetails", graphToken.token),
+    optionalJson("https://graph.microsoft.com/v1.0/security/secureScores?$top=10", graphToken.token),
   ]);
   const groupCount = Array.isArray(groups.value) ? groups.value.length : 0;
-  const scoreCount = Array.isArray(scores.value) ? scores.value.length : 0;
-  return [
+  const scoreCount = Array.isArray(azureScores.value) ? azureScores.value.length : 0;
+  const findings: StarterFinding[] = [
     { checkId: "entra.authorization-policy", title: "Entra authorization policy", status: "pass", detail: `Policy ${String(policy.id ?? "default")} was read successfully.` },
     { checkId: "azure.resource-groups", title: "Azure resource inventory", status: "pass", detail: `${groupCount} resource group${groupCount === 1 ? "" : "s"} discovered.` },
     { checkId: "defender.secure-score", title: "Defender for Cloud secure score", status: scoreCount ? "pass" : "warning", detail: scoreCount ? `${scoreCount} secure-score record${scoreCount === 1 ? "" : "s"} available.` : "No secure-score record is currently available for this subscription." },
   ];
+
+  const caPolicies = conditionalAccess && Array.isArray(conditionalAccess.value) ? conditionalAccess.value as Array<Record<string, unknown>> : [];
+  const enabledPolicies = caPolicies.filter((item) => item.state === "enabled");
+  const mfaPolicies = enabledPolicies.filter((item) => {
+    const grant = item.grantControls as { builtInControls?: unknown } | undefined;
+    return Array.isArray(grant?.builtInControls) && grant.builtInControls.includes("mfa");
+  });
+  findings.push({ checkId: "entra.conditional-access", title: "Conditional Access coverage", status: mfaPolicies.length ? "pass" : "warning", detail: conditionalAccess ? `${enabledPolicies.length} enabled policies; ${mfaPolicies.length} explicitly require MFA.` : "Conditional Access data is unavailable or not licensed." });
+
+  const definitions = roleDefinitions && Array.isArray(roleDefinitions.value) ? roleDefinitions.value as Array<Record<string, unknown>> : [];
+  let globalAdminCount: number | null = null;
+  if (definitions[0]?.id) {
+    const assignments = await optionalJson(`https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignments?$filter=roleDefinitionId%20eq%20'${String(definitions[0].id)}'`, graphToken.token);
+    globalAdminCount = assignments && Array.isArray(assignments.value) ? assignments.value.length : null;
+  }
+  findings.push({ checkId: "entra.global-admins", title: "Global Administrator assignments", status: globalAdminCount !== null && globalAdminCount <= 5 ? "pass" : "warning", detail: globalAdminCount === null ? "Privileged-role assignments are unavailable." : `${globalAdminCount} active Global Administrator assignment${globalAdminCount === 1 ? "" : "s"} found; review necessity and emergency access coverage.` });
+
+  const users = registrations && Array.isArray(registrations.value) ? registrations.value as Array<Record<string, unknown>> : [];
+  const mfaUsers = users.filter((item) => item.isMfaRegistered === true).length;
+  const mfaPercent = users.length ? Math.round(mfaUsers / users.length * 100) : 0;
+  findings.push({ checkId: "entra.mfa-registration", title: "MFA registration", status: users.length > 0 && mfaPercent >= 95 ? "pass" : "warning", detail: registrations ? `${mfaUsers} of ${users.length} reported users are MFA registered (${mfaPercent}%).` : "Authentication-method registration data is unavailable." });
+
+  const scoreRows = m365Scores && Array.isArray(m365Scores.value) ? m365Scores.value as Array<Record<string, unknown>> : [];
+  scoreRows.sort((a, b) => String(b.createdDateTime ?? "").localeCompare(String(a.createdDateTime ?? "")));
+  const latest = scoreRows[0];
+  const current = Number(latest?.currentScore ?? 0);
+  const maximum = Number(latest?.maxScore ?? 0);
+  const percentage = maximum ? Math.round(current / maximum * 100) : 0;
+  findings.push({ checkId: "m365.secure-score", title: "Microsoft 365 Secure Score", status: maximum && percentage >= 60 ? "pass" : "warning", detail: maximum ? `${current} of ${maximum} points (${percentage}%) on ${String(latest?.createdDateTime ?? "the latest record")}.` : "Microsoft 365 Secure Score data is unavailable." });
+  return findings;
 }
