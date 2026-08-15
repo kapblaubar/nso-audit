@@ -14,7 +14,8 @@ $requiredApplicationPermissions = @(
     "AuditLog.Read.All",
     "Policy.Read.All",
     "RoleManagement.Read.Directory",
-    "SecurityEvents.Read.All"
+    "SecurityEvents.Read.All",
+    "User.ReadBasic.All"
 )
 $requiredDelegatedPermissions = @("User.Read")
 
@@ -107,4 +108,3 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Phase 1 permission manifest configured. Admin consent has not been granted." -ForegroundColor Green
-

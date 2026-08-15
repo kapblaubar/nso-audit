@@ -99,7 +99,8 @@ $graphApplicationPermissions = @(
     "AuditLog.Read.All",
     "Policy.Read.All",
     "RoleManagement.Read.Directory",
-    "SecurityEvents.Read.All"
+    "SecurityEvents.Read.All",
+    "User.ReadBasic.All"
 )
 
 if ($IncludeIntuneConfiguration) {
@@ -186,4 +187,3 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Requested API permission manifest configured. Tenant admin consent has not been granted." -ForegroundColor Green
-

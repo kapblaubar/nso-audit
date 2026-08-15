@@ -274,6 +274,7 @@ matches the validated signed-in tenant ID; cross-tenant/Lighthouse access is rej
 | Conditional Access policy coverage | `Policy.Read.All` | Read Conditional Access policies; no policy modification |
 | Authentication-method registration | `AuditLog.Read.All` | Read the authentication methods user-registration report |
 | Directory role assignments | `RoleManagement.Read.Directory` | Read directory RBAC assignments and definitions |
+| Privileged role assignee identity | `User.ReadBasic.All` | Resolve basic display names and email addresses for user role assignees |
 | Microsoft Secure Score | `SecurityEvents.Read.All` | Read Secure Score and control-profile data |
 
 The frontend also uses delegated `User.Read` for basic organizational sign-in. It is not used

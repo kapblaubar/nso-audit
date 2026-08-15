@@ -1,6 +1,7 @@
 import type { AccountInfo } from "@azure/msal-browser";
 import { useEffect, useState } from "react";
 import { loadScanHistory, loadStarterScan, startStarterScan, type ScanHistoryItem, type StarterScan, type TenantBootstrap } from "../api";
+import { FindingDetailsModal } from "../components/FindingDetailsModal";
 
 interface ReportPageProps {
   account: AccountInfo;
@@ -30,6 +31,7 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState<string>();
+  const [selectedFinding, setSelectedFinding] = useState<StarterScan["findings"][number]>();
   const m365Score = scoreEvidence(scan, "m365.secure-score");
   const defenderScore = scoreEvidence(scan, "defender.secure-score");
   const m365Categories = categoryScores(m365Score);
@@ -100,12 +102,7 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
               <span>{finding.status}</span>
               <h2>{finding.title}</h2>
               <p>{finding.detail}</p>
-              {finding.evidence !== undefined ? (
-                <details className="finding-evidence">
-                  <summary>View details</summary>
-                  <pre><code>{JSON.stringify(finding.evidence, null, 2)}</code></pre>
-                </details>
-              ) : null}
+              {finding.evidence !== undefined ? <button className="detail-button" type="button" onClick={() => setSelectedFinding(finding)}>View details</button> : null}
             </article>
           ))}
         </div>
@@ -119,6 +116,7 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
           <div>{history.map((item) => <a href={`/reports/${encodeURIComponent(item.scanId)}`} key={item.scanId}><span>{new Date(item.createdAt).toLocaleString()}</span><strong>{item.score ?? "—"}</strong><small>{item.status}</small></a>)}</div>
         </section>
       </section>
+      {selectedFinding ? <FindingDetailsModal finding={selectedFinding} onClose={() => setSelectedFinding(undefined)} /> : null}
     </main>
   );
 }

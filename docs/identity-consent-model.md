@@ -33,6 +33,7 @@ Phase 1 application permissions are limited to:
 | `Policy.Read.All` | Read Conditional Access policies |
 | `AuditLog.Read.All` | Read authentication-method registration reports |
 | `RoleManagement.Read.Directory` | Read directory roles and assignments |
+| `User.ReadBasic.All` | Resolve basic names and email addresses for user role assignees |
 | `SecurityEvents.Read.All` | Read Microsoft Secure Score |
 
 No mail, group, Exchange, Intune, Defender machine/vulnerability, directory-wide profile, or

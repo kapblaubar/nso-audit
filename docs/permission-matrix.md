@@ -9,6 +9,7 @@ the target catalog, not permission to enable every entry immediately.
 | Assessment capability | API | Application permission | Stage | Notes |
 |---|---|---|---|---|
 | Entra directory roles and assignments | Microsoft Graph | `RoleManagement.Read.Directory` | Core | No write access; avoid `Directory.Read.All` unless a future implemented check proves it necessary |
+| Privileged assignee names and email addresses | Microsoft Graph | `User.ReadBasic.All` | Core | Resolves the basic profile of user principals returned by role assignments without full-directory profile access |
 | Conditional Access policies | Microsoft Graph | `Policy.Read.All` | Core | Read policies only |
 | Authentication registration coverage | Microsoft Graph | `AuditLog.Read.All` | Core | Reads the authentication-method registration report |
 | Microsoft 365 Secure Score and control recommendations | Microsoft Graph | `SecurityEvents.Read.All` | Core | Reads score history and control profiles |
@@ -76,4 +77,3 @@ The scorecard can combine:
 Every score must retain its source, collection timestamp, completion state, licensing status,
 and permission status. Missing permissions, missing licenses, unsupported APIs, and collection
 errors must produce `Incomplete` or `NotApplicable`, never a failing security score of zero.
-

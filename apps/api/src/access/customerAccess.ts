@@ -114,7 +114,13 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
     if (assignments && Array.isArray(assignments.value)) {
       const administrators = (assignments.value as Array<Record<string, unknown>>).map((item) => {
         const principal = item.principal as Record<string, unknown> | undefined;
-        return { id: item.principalId, displayName: principal?.displayName, userPrincipalName: principal?.userPrincipalName, principalType: principal?.["@odata.type"] };
+        return {
+          id: item.principalId,
+          displayName: principal?.displayName,
+          email: principal?.mail ?? principal?.userPrincipalName,
+          userPrincipalName: principal?.userPrincipalName,
+          principalType: principal?.["@odata.type"],
+        };
       });
       const administratorCount = administrators.length;
       findings.push({ checkId: "entra.global-admins", title: "Global Administrator assignments", status: administratorCount <= 5 ? "pass" : "warning", detail: `${administratorCount} active Global Administrator assignment${administratorCount === 1 ? "" : "s"} found; review necessity and emergency access coverage.`, evidence: { administrators } });

@@ -14,6 +14,7 @@ const graphPermissions = [
   ["Policy.Read.All", "Conditional Access policies"],
   ["AuditLog.Read.All", "Authentication registration reporting"],
   ["RoleManagement.Read.Directory", "Entra roles and assignments"],
+  ["User.ReadBasic.All", "Names and email addresses for privileged role assignees"],
   ["SecurityEvents.Read.All", "Microsoft 365 Secure Score and recommendations"],
   ["DeviceManagementConfiguration.Read.All", "Intune policies and configuration"],
   ["DeviceManagementApps.Read.All", "Intune app protection policies"],
