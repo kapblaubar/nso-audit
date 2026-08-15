@@ -121,6 +121,9 @@ main {
 .recommendation-list dt { color: #71858e; font-size: .66rem; text-transform: uppercase; }
 .recommendation-list dd { margin: 5px 0 0; color: #bdc9ce; font-size: .78rem; line-height: 1.5; overflow-wrap: anywhere; }
 .recommendation-list .recommendation-remediation { grid-column: 1 / -1; }
+.resource-list { display: grid; gap: 6px; margin: 7px 0 0; padding: 0; list-style: none; }
+.resource-list li { padding: 8px 10px; border-radius: 5px; background: #0d1c22; }
+.resource-list + small { display: block; margin-top: 8px; color: #71858e; }
 .safe-rich-text { color: #c2cdd1; line-height: 1.65; }
 .safe-rich-text p { margin: 0 0 10px; }
 .safe-rich-text p:last-child { margin-bottom: 0; }
@@ -396,6 +399,7 @@ html[data-theme="light"] .safe-rich-text b { color: #14242b; }
 html[data-theme="light"] .safe-rich-text em,
 html[data-theme="light"] .safe-rich-text i,
 html[data-theme="light"] .safe-rich-text code { color: #08694f; background: #eaf3f0; }
+html[data-theme="light"] .resource-list li { background: #edf3f1; }
 html[data-theme="light"] .fallback-evidence { border-color: #cedbd7; color: #31484f; background: #eef4f2; }
 html[data-theme="light"] .footer { border-color: #d5dfdc; }
 

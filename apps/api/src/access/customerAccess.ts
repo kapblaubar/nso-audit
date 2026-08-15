@@ -75,11 +75,12 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
     throw new Error("The Azure subscription belongs to a different Microsoft Entra tenant.");
   }
 
-  const [policy, groups, azureScores, azureAssessments, conditionalAccess, namedLocations, roleDefinitions, registrations, m365Scores, compliancePolicies, deviceConfigurations, appPolicies, controlProfiles] = await Promise.all([
+  const [policy, groups, azureScores, azureAssessments, azureAssessmentMetadata, conditionalAccess, namedLocations, roleDefinitions, registrations, m365Scores, compliancePolicies, deviceConfigurations, appPolicies, controlProfiles] = await Promise.all([
     getJson("https://graph.microsoft.com/v1.0/policies/authorizationPolicy", graphToken.token),
     getJson(`https://management.azure.com/subscriptions/${subscriptionId}/resourcegroups?api-version=2021-04-01`, armToken.token),
     getJson(`https://management.azure.com/subscriptions/${subscriptionId}/providers/Microsoft.Security/secureScores?api-version=2020-01-01`, armToken.token),
     optionalJson(`https://management.azure.com/subscriptions/${subscriptionId}/providers/Microsoft.Security/assessments?api-version=2021-06-01`, armToken.token),
+    optionalJson(`https://management.azure.com/subscriptions/${subscriptionId}/providers/Microsoft.Security/assessmentMetadata?api-version=2021-06-01`, armToken.token),
     optionalJson("https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies", graphToken.token),
     optionalJson("https://graph.microsoft.com/v1.0/identity/conditionalAccess/namedLocations", graphToken.token),
     optionalJson("https://graph.microsoft.com/v1.0/roleManagement/directory/roleDefinitions?$filter=displayName%20eq%20'Global%20Administrator'", graphToken.token),
@@ -107,30 +108,57 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
 
   const severityRank: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
   const assessmentRows = azureAssessments && Array.isArray(azureAssessments.value) ? azureAssessments.value as Array<Record<string, unknown>> : [];
-  const defenderRecommendations = assessmentRows
-    .map((assessment) => {
+  const metadataRows = azureAssessmentMetadata && Array.isArray(azureAssessmentMetadata.value) ? azureAssessmentMetadata.value as Array<Record<string, unknown>> : [];
+  const metadataByKey = new Map(metadataRows.map((row) => [String(row.name ?? "").toLowerCase(), row.properties as Record<string, unknown> | undefined]));
+  const groupedAssessments = new Map<string, {
+    id: string; title: string; severity: string; status: string; causes: Set<string>;
+    remediation: string | undefined; description: string | undefined; affectedResources: Set<string>;
+  }>();
+  for (const assessment of assessmentRows) {
       const properties = assessment.properties as Record<string, unknown> | undefined;
-      const metadata = properties?.metadata as Record<string, unknown> | undefined;
       const status = properties?.status as Record<string, unknown> | undefined;
+      if (String(status?.code ?? "").toLowerCase() !== "unhealthy") continue;
+      const assessmentKey = String(assessment.name ?? "");
+      const inlineMetadata = properties?.metadata as Record<string, unknown> | undefined;
+      const metadata = metadataByKey.get(assessmentKey.toLowerCase()) ?? inlineMetadata;
       const resource = properties?.resourceDetails as Record<string, unknown> | undefined;
-      return {
-        id: assessment.name,
-        title: String(metadata?.displayName ?? assessment.name ?? "Defender recommendation"),
+      const assessmentResourceId = String(assessment.id ?? "");
+      const parentResourceId = assessmentResourceId.split(/\/providers\/Microsoft\.Security\/assessments\//i)[0] ?? assessmentResourceId;
+      const resourceId = String(resource?.id ?? resource?.resourceId ?? parentResourceId);
+      const existing = groupedAssessments.get(assessmentKey.toLowerCase()) ?? {
+        id: assessmentKey,
+        title: String((metadata?.displayName ?? assessmentKey) || "Defender recommendation"),
         severity: String(metadata?.severity ?? "Unknown"),
-        status: String(status?.code ?? "Unknown"),
-        cause: compactText(status?.cause, 300),
-        remediation: compactText(metadata?.remediationDescription ?? metadata?.description),
-        resourceId: resource?.id ?? assessment.id,
+        status: "Unhealthy",
+        causes: new Set<string>(),
+        remediation: compactText(metadata?.remediationDescription),
+        description: compactText(metadata?.description, 600),
+        affectedResources: new Set<string>(),
       };
-    })
-    .filter((item) => item.status.toLowerCase() === "unhealthy")
-    .sort((a, b) => (severityRank[b.severity.toLowerCase()] ?? 0) - (severityRank[a.severity.toLowerCase()] ?? 0))
+      const cause = compactText(status?.cause, 300);
+      if (cause) existing.causes.add(cause);
+      if (resourceId) existing.affectedResources.add(resourceId);
+      groupedAssessments.set(assessmentKey.toLowerCase(), existing);
+  }
+  const defenderRecommendations = Array.from(groupedAssessments.values())
+    .map((item) => ({
+      id: item.id,
+      title: item.title,
+      severity: item.severity,
+      status: item.status,
+      causes: Array.from(item.causes),
+      remediation: item.remediation,
+      description: item.description,
+      affectedResourceCount: item.affectedResources.size,
+      affectedResources: Array.from(item.affectedResources).slice(0, 10),
+    }))
+    .sort((a, b) => (severityRank[b.severity.toLowerCase()] ?? 0) - (severityRank[a.severity.toLowerCase()] ?? 0) || b.affectedResourceCount - a.affectedResourceCount)
     .slice(0, 25);
   findings.push({
     checkId: "defender.recommendations",
     title: "Defender for Cloud recommendations",
     status: defenderRecommendations.length ? "warning" : "pass",
-    detail: azureAssessments ? `${defenderRecommendations.length} highest-priority unhealthy assessment${defenderRecommendations.length === 1 ? "" : "s"} shown (maximum 25).` : "Defender for Cloud recommendations are unavailable.",
+    detail: azureAssessments ? `${defenderRecommendations.length} highest-priority recommendation${defenderRecommendations.length === 1 ? "" : "s"} grouped across affected resources (maximum 25).` : "Defender for Cloud recommendations are unavailable.",
     evidence: azureAssessments ? { recommendations: defenderRecommendations, limit: 25 } : undefined,
   });
 

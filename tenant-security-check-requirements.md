@@ -404,7 +404,10 @@ The report presents recommendation summary cards for each Microsoft 365 Secure S
 (Identity, Data, Device, Apps, and Infrastructure) plus a separate Defender for Cloud card.
 Microsoft 365 recommendations are ordered by potential score gain and limited to 25 per category.
 Defender for Cloud recommendations are ordered by source severity and limited to the 25 highest
-priority unhealthy assessments. Selecting a card opens normalized details rather than raw JSON.
+priority unhealthy recommendation groups. Resource-level assessments with the same assessment
+key are joined to the Defender assessment-metadata catalog and displayed once with severity,
+remediation guidance, and an affected-resource count. Selecting a card opens normalized details
+rather than raw JSON.
 
 The report header presents three separate score cards: the preview NSO Assessment Score,
 Microsoft 365 Secure Score, and Defender for Cloud Secure Score. Each Microsoft card uses the
