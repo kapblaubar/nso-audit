@@ -7,7 +7,7 @@ export interface AccessCheckResult {
   ready: boolean;
 }
 
-export interface StarterFinding { checkId: string; title: string; status: "pass" | "warning"; detail: string }
+export interface StarterFinding { checkId: string; title: string; status: "pass" | "warning"; detail: string; evidence?: unknown }
 
 function customerCredential(tenantId: string): ClientAssertionCredential {
   const appClientId = process.env.ENTRA_CLIENT_ID;
@@ -70,17 +70,18 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
     throw new Error("The Azure subscription belongs to a different Microsoft Entra tenant.");
   }
 
-  const [policy, groups, azureScores, conditionalAccess, roleDefinitions, registrations, m365Scores, compliancePolicies, deviceConfigurations, appPolicies, controlProfiles] = await Promise.all([
+  const [policy, groups, azureScores, conditionalAccess, namedLocations, roleDefinitions, registrations, m365Scores, compliancePolicies, deviceConfigurations, appPolicies, controlProfiles] = await Promise.all([
     getJson("https://graph.microsoft.com/v1.0/policies/authorizationPolicy", graphToken.token),
     getJson(`https://management.azure.com/subscriptions/${subscriptionId}/resourcegroups?api-version=2021-04-01`, armToken.token),
     getJson(`https://management.azure.com/subscriptions/${subscriptionId}/providers/Microsoft.Security/secureScores?api-version=2020-01-01`, armToken.token),
     optionalJson("https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies", graphToken.token),
+    optionalJson("https://graph.microsoft.com/v1.0/identity/conditionalAccess/namedLocations", graphToken.token),
     optionalJson("https://graph.microsoft.com/v1.0/roleManagement/directory/roleDefinitions?$filter=displayName%20eq%20'Global%20Administrator'", graphToken.token),
     optionalJson("https://graph.microsoft.com/v1.0/reports/authenticationMethods/userRegistrationDetails", graphToken.token),
     optionalJson("https://graph.microsoft.com/v1.0/security/secureScores?$top=10", graphToken.token),
-    optionalJson("https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies?$select=id,displayName,lastModifiedDateTime", graphToken.token),
-    optionalJson("https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations?$select=id,displayName,lastModifiedDateTime", graphToken.token),
-    optionalJson("https://graph.microsoft.com/v1.0/deviceAppManagement/managedAppPolicies?$select=id,displayName,lastModifiedDateTime", graphToken.token),
+    optionalJson("https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies", graphToken.token),
+    optionalJson("https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations", graphToken.token),
+    optionalJson("https://graph.microsoft.com/v1.0/deviceAppManagement/managedAppPolicies", graphToken.token),
     optionalJson("https://graph.microsoft.com/v1.0/security/secureScoreControlProfiles?$top=200", graphToken.token),
   ]);
   const groupCount = Array.isArray(groups.value) ? groups.value.length : 0;
@@ -97,15 +98,22 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
     const grant = item.grantControls as { builtInControls?: unknown } | undefined;
     return Array.isArray(grant?.builtInControls) && grant.builtInControls.includes("mfa");
   });
-  findings.push({ checkId: "entra.conditional-access", title: "Conditional Access coverage", status: mfaPolicies.length ? "pass" : "warning", detail: conditionalAccess ? `${enabledPolicies.length} enabled policies; ${mfaPolicies.length} explicitly require MFA.` : "Conditional Access data is unavailable or not licensed." });
+  const locations = namedLocations && Array.isArray(namedLocations.value) ? namedLocations.value : [];
+  findings.push({ checkId: "entra.conditional-access", title: "Conditional Access coverage", status: mfaPolicies.length ? "pass" : "warning", detail: conditionalAccess ? `${enabledPolicies.length} enabled policies; ${mfaPolicies.length} explicitly require MFA; ${locations.length} named locations.` : "Conditional Access data is unavailable or not licensed.", evidence: conditionalAccess ? { policies: caPolicies, namedLocations: locations } : undefined });
 
   const definitions = roleDefinitions && Array.isArray(roleDefinitions.value) ? roleDefinitions.value as Array<Record<string, unknown>> : [];
-  let globalAdminCount: number | null = null;
   if (definitions[0]?.id) {
-    const assignments = await optionalJson(`https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignments?$filter=roleDefinitionId%20eq%20'${String(definitions[0].id)}'`, graphToken.token);
-    globalAdminCount = assignments && Array.isArray(assignments.value) ? assignments.value.length : null;
+    const assignments = await optionalJson(`https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignments?$filter=roleDefinitionId%20eq%20'${String(definitions[0].id)}'&$expand=principal`, graphToken.token);
+    if (assignments && Array.isArray(assignments.value)) {
+      const administrators = (assignments.value as Array<Record<string, unknown>>).map((item) => {
+        const principal = item.principal as Record<string, unknown> | undefined;
+        return { id: item.principalId, displayName: principal?.displayName, userPrincipalName: principal?.userPrincipalName, principalType: principal?.["@odata.type"] };
+      });
+      const administratorCount = administrators.length;
+      findings.push({ checkId: "entra.global-admins", title: "Global Administrator assignments", status: administratorCount <= 5 ? "pass" : "warning", detail: `${administratorCount} active Global Administrator assignment${administratorCount === 1 ? "" : "s"} found; review necessity and emergency access coverage.`, evidence: { administrators } });
+    }
   }
-  findings.push({ checkId: "entra.global-admins", title: "Global Administrator assignments", status: globalAdminCount !== null && globalAdminCount <= 5 ? "pass" : "warning", detail: globalAdminCount === null ? "Privileged-role assignments are unavailable." : `${globalAdminCount} active Global Administrator assignment${globalAdminCount === 1 ? "" : "s"} found; review necessity and emergency access coverage.` });
+  if (!findings.some((finding) => finding.checkId === "entra.global-admins")) findings.push({ checkId: "entra.global-admins", title: "Global Administrator assignments", status: "warning", detail: "Privileged-role assignments are unavailable." });
 
   const users = registrations && Array.isArray(registrations.value) ? registrations.value as Array<Record<string, unknown>> : [];
   const mfaUsers = users.filter((item) => item.isMfaRegistered === true).length;
@@ -129,6 +137,7 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
     detail: complianceCount === null || configurationCount === null
       ? "Intune device policy data is unavailable or Intune is not licensed."
       : `${complianceCount} compliance policies and ${configurationCount} device configuration profiles discovered.`,
+    evidence: complianceCount !== null && configurationCount !== null ? { compliancePolicies: compliancePolicies?.value, deviceConfigurations: deviceConfigurations?.value } : undefined,
   });
 
   const appPolicyCount = appPolicies && Array.isArray(appPolicies.value) ? appPolicies.value.length : null;
@@ -137,6 +146,7 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
     title: "Intune app-protection policies",
     status: appPolicyCount !== null && appPolicyCount > 0 ? "pass" : "warning",
     detail: appPolicyCount === null ? "Intune app-protection policy data is unavailable or Intune is not licensed." : `${appPolicyCount} managed app polic${appPolicyCount === 1 ? "y" : "ies"} discovered.`,
+    evidence: appPolicyCount !== null ? { managedAppPolicies: appPolicies?.value } : undefined,
   });
 
   const profiles = controlProfiles && Array.isArray(controlProfiles.value) ? controlProfiles.value as Array<Record<string, unknown>> : [];

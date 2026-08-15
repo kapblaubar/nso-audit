@@ -56,6 +56,9 @@ main {
 .starter-findings h2 { margin: 20px 0 10px; font-size: 1.2rem; }
 .starter-findings p { color: #91a2ac; font-size: .85rem; line-height: 1.55; }
 .starter-findings .finding-warning > span { color: #ff9b70; }
+.finding-evidence { margin-top: 18px; padding-top: 14px; border-top: 1px solid #25363e; }
+.finding-evidence summary { color: #70dfb9; font-size: .78rem; font-weight: 750; cursor: pointer; }
+.finding-evidence pre { max-height: 460px; margin: 14px 0 0; padding: 14px; overflow: auto; border: 1px solid #293b43; border-radius: 7px; color: #bbcac3; background: #071117; font-size: .7rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
 .report-actions { margin-top: 24px; }
 .scan-history { margin-top: 70px; padding-top: 42px; border-top: 1px solid #26363e; }
 .scan-history h2 { margin-bottom: 24px; }

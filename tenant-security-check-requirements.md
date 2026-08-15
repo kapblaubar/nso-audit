@@ -362,6 +362,13 @@ metadata. The customer reviews the exported data before uploading it. DLP contri
 `status` (Pass/Fail/Warning/NotApplicable), `details` (free text or structured),
 `remediationGuidance`, `rawRef` (pointer to the blob with raw API response).
 
+Structured evidence may include Global Administrator display names/user principal names,
+normalized Conditional Access policies and named locations, and normalized Intune policy
+settings. This is tenant configuration evidence and can contain personal or security-sensitive
+information. It is shown only on demand, remains tenant-partitioned, must never enter diagnostic
+logs, and is covered by the same retention and tenant-deletion controls as findings. Table-backed
+evidence is capped; larger raw artifacts must use protected Blob Storage through `rawRef`.
+
 ### 7.3 Scan versioning
 Each "Start scan" click creates a new `scanId`. Old scans are retained (retention policy TBD,
 recommend 90 days default) so score-over-time trending is possible later without redesign.
@@ -398,8 +405,10 @@ visible; NSO Audit must not present a derived score as Microsoft's official scor
   request permissions "in case we need them later."
 - **Read-only, always**: no permission in §6 should ever be a write scope. This should be an
   automated check in CI (lint the permission manifest) not just a code review convention.
-- **Certificate-based auth** for the Function App's client-credential flow in production, not a
-  long-lived client secret. Store the cert in Key Vault, accessed via managed identity.
+- **Secretless workload federation** for the Function App's client-credential flow in
+  production. The user-assigned managed identity is the federated credential on the vendor App
+  Registration; do not introduce a long-lived client secret. A Key Vault certificate is an
+  acceptable fallback only if federation is unavailable and certificate rotation is automated.
 - **No customer credentials ever held by us** — normal users authenticate through Microsoft,
   authorized administrators grant consent on Microsoft's page, and subscription administrators
   run any optional RBAC script in their own Azure session. Never ask for a password or

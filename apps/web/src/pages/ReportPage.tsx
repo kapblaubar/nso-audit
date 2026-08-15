@@ -49,7 +49,19 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
           <p>Scan {scanId}</p>
         </div>
         <div className="starter-findings">
-          {scan?.findings.map((finding) => <article key={finding.checkId} className={finding.status === "pass" ? "finding-pass" : "finding-warning"}><span>{finding.status}</span><h2>{finding.title}</h2><p>{finding.detail}</p></article>)}
+          {scan?.findings.map((finding) => (
+            <article key={finding.checkId} className={finding.status === "pass" ? "finding-pass" : "finding-warning"}>
+              <span>{finding.status}</span>
+              <h2>{finding.title}</h2>
+              <p>{finding.detail}</p>
+              {finding.evidence !== undefined ? (
+                <details className="finding-evidence">
+                  <summary>View details</summary>
+                  <pre><code>{JSON.stringify(finding.evidence, null, 2)}</code></pre>
+                </details>
+              ) : null}
+            </article>
+          ))}
         </div>
         <div className="report-actions">
           <button className="step-action" type="button" onClick={runAgain} disabled={!scan?.subscriptionId || running}>{running ? "Running audit…" : "Run audit again"}</button>
