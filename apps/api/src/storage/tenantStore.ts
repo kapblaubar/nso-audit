@@ -40,6 +40,7 @@ export interface TenantBootstrapRecord {
 
 let tenantsClient: TableClient | undefined;
 let scansClient: TableClient | undefined;
+let findingsClient: TableClient | undefined;
 
 function getTableClient(tableName: string): TableClient {
   const accountName = process.env.STORAGE_ACCOUNT_NAME;
@@ -133,4 +134,24 @@ export async function saveAccessCheck(
     azureRbacStatus: azureRbacConfigured ? "configured" : "partial",
     accessCheckedAt: new Date().toISOString(),
   }, "Merge");
+}
+
+export async function saveStarterScan(tenantId: string, subscriptionId: string, findings: Array<{ checkId: string; title: string; status: string; detail: string }>) {
+  tenantsClient ??= getTableClient("tenants"); scansClient ??= getTableClient("scans"); findingsClient ??= getTableClient("findings");
+  const scanId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const score = Math.round(findings.filter((finding) => finding.status === "pass").length / findings.length * 100);
+  await scansClient.createEntity({ partitionKey: tenantId, rowKey: scanId, status: "complete", createdAt: now, completedAt: now, score, subscriptionId });
+  for (const finding of findings) await findingsClient.createEntity({ partitionKey: `${tenantId}:${scanId}`, rowKey: finding.checkId, ...finding });
+  await tenantsClient.upsertEntity({ partitionKey: tenantId, rowKey: "registration", lastScanId: scanId }, "Merge");
+  return { scanId, tenantId, status: "complete" as const, createdAt: now, completedAt: now, score, findings };
+}
+
+export async function getStarterScan(tenantId: string, scanId: string) {
+  scansClient ??= getTableClient("scans"); findingsClient ??= getTableClient("findings");
+  const scan = await getOptionalEntity<ScanEntity>(scansClient, tenantId, scanId);
+  if (!scan) return null;
+  const findings = [];
+  for await (const entity of findingsClient.listEntities<{ title: string; status: string; detail: string }>({ queryOptions: { filter: `PartitionKey eq '${tenantId}:${scanId}'` } })) findings.push({ checkId: entity.rowKey, title: entity.title, status: entity.status, detail: entity.detail });
+  return { scanId, tenantId, status: scan.status, createdAt: scan.createdAt, completedAt: scan.completedAt, score: scan.score, findings };
 }

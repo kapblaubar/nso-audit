@@ -57,3 +57,22 @@ export async function checkTenantAccess(account: AccountInfo, subscriptionId: st
   if (!response.ok) throw new Error(body.error ?? `Access check failed (HTTP ${response.status}).`);
   return body;
 }
+
+export interface StarterScan { scanId: string; score: number; findings: Array<{ checkId: string; title: string; status: string; detail: string }> }
+
+export async function startStarterScan(account: AccountInfo, subscriptionId: string): Promise<StarterScan> {
+  if (!appConfig.apiBaseUrl) throw new Error("The NSO Audit API URL is not configured.");
+  const token = await getApiAccessToken(account);
+  const response = await fetch(`${appConfig.apiBaseUrl}/me/scans`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ subscriptionId }) });
+  const body = await response.json() as StarterScan & { error?: string };
+  if (!response.ok) throw new Error(body.error ?? "The starter audit failed.");
+  return body;
+}
+
+export async function loadStarterScan(account: AccountInfo, scanId: string): Promise<StarterScan> {
+  if (!appConfig.apiBaseUrl) throw new Error("The NSO Audit API URL is not configured.");
+  const token = await getApiAccessToken(account);
+  const response = await fetch(`${appConfig.apiBaseUrl}/me/scans/${encodeURIComponent(scanId)}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!response.ok) throw new Error("The scan report could not be loaded.");
+  return await response.json() as StarterScan;
+}

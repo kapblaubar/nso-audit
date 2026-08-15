@@ -238,6 +238,12 @@ resource enumeration, and Defender for Cloud secure-score access. It records the
 the signed-in tenant partition. The interface shows each check separately in green or displays a
 safe actionable failure; browser callback parameters alone never prove consent or RBAC.
 
+The first vertical-slice audit may collect only three proof-of-path signals: the Entra
+authorization policy, Azure resource-group inventory count, and Defender for Cloud secure-score
+availability. It stores a tenant-partitioned scan and findings and displays a clearly labelled
+starter-check score. This score is collection coverage for the starter checks and must not be
+presented as the final tenant security score.
+
 ## 6. Data Sources & Required Permissions
 
 ### 6.1 Microsoft Graph (application permissions, admin-consented)

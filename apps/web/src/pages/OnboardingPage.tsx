@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
-import { checkTenantAccess, type AccessCheckResult, type TenantBootstrap } from "../api";
+import { checkTenantAccess, startStarterScan, type AccessCheckResult, type TenantBootstrap } from "../api";
 import { appConfig } from "../config";
 
 interface OnboardingPageProps {
@@ -25,6 +25,7 @@ export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }
   const [accessResult, setAccessResult] = useState<AccessCheckResult>();
   const [checkingAccess, setCheckingAccess] = useState(false);
   const [accessError, setAccessError] = useState<string>();
+  const [auditRunning, setAuditRunning] = useState(false);
   const tenantId = bootstrap?.tenantId ?? account.tenantId;
   const consentGranted = bootstrap?.consentStatus === "granted";
   const rbacConfigured = bootstrap?.azureRbacStatus === "configured";
@@ -62,6 +63,18 @@ export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }
     try { setAccessResult(await checkTenantAccess(account, subscriptionId)); }
     catch (error) { setAccessError(error instanceof Error ? error.message : "Access check failed."); }
     finally { setCheckingAccess(false); }
+  };
+
+  const runAudit = async () => {
+    setAuditRunning(true);
+    setAccessError(undefined);
+    try {
+      const scan = await startStarterScan(account, subscriptionId);
+      window.location.assign(`/reports/${encodeURIComponent(scan.scanId)}`);
+    } catch (error) {
+      setAccessError(error instanceof Error ? error.message : "The starter audit failed.");
+      setAuditRunning(false);
+    }
   };
 
   const stepClass = (step: number) => step < currentStep
@@ -205,7 +218,9 @@ export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }
             <p className="step-state">Assessment</p>
             <h2>Run the audit</h2>
             <p>Collect the configured signals, monitor progress, and open the scorecard when the first scan finishes.</p>
-            <button className="step-action" type="button" disabled>Run audit after setup</button>
+            <button className="step-action" type="button" onClick={runAudit} disabled={!accessResult?.ready || auditRunning}>
+              {auditRunning ? "Running starter audit…" : accessResult?.ready ? "Run starter audit" : "Run audit after access check"}
+            </button>
           </div>
         </article>
       </section>
