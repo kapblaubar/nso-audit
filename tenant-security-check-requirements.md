@@ -250,6 +250,13 @@ Secure Score. Unavailable or unlicensed sources produce explicit warnings and do
 modules. Initial pass thresholds are preview heuristics and must be reviewed before the score is
 marketed as a formal security rating.
 
+The following increment inventories Intune device compliance policies, device configuration
+profiles, and managed app-protection policies using the already-approved read-only permissions.
+It also correlates the latest Microsoft 365 Secure Score control results with control profiles
+and reports the three largest remaining point opportunities. Missing Intune licensing or
+unavailable recommendation data is reported explicitly rather than scored as a collection
+failure.
+
 Every execution creates a new immutable scan ID. The report lists the latest 25 tenant-scoped
 scans, allows an authorized user to open an older snapshot, and can run the assessment again
 against the stored subscription. Historical reads remain constrained by the signed token's

@@ -70,7 +70,7 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
     throw new Error("The Azure subscription belongs to a different Microsoft Entra tenant.");
   }
 
-  const [policy, groups, azureScores, conditionalAccess, roleDefinitions, registrations, m365Scores] = await Promise.all([
+  const [policy, groups, azureScores, conditionalAccess, roleDefinitions, registrations, m365Scores, compliancePolicies, deviceConfigurations, appPolicies, controlProfiles] = await Promise.all([
     getJson("https://graph.microsoft.com/v1.0/policies/authorizationPolicy", graphToken.token),
     getJson(`https://management.azure.com/subscriptions/${subscriptionId}/resourcegroups?api-version=2021-04-01`, armToken.token),
     getJson(`https://management.azure.com/subscriptions/${subscriptionId}/providers/Microsoft.Security/secureScores?api-version=2020-01-01`, armToken.token),
@@ -78,6 +78,10 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
     optionalJson("https://graph.microsoft.com/v1.0/roleManagement/directory/roleDefinitions?$filter=displayName%20eq%20'Global%20Administrator'", graphToken.token),
     optionalJson("https://graph.microsoft.com/v1.0/reports/authenticationMethods/userRegistrationDetails", graphToken.token),
     optionalJson("https://graph.microsoft.com/v1.0/security/secureScores?$top=10", graphToken.token),
+    optionalJson("https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies?$select=id,displayName,lastModifiedDateTime", graphToken.token),
+    optionalJson("https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations?$select=id,displayName,lastModifiedDateTime", graphToken.token),
+    optionalJson("https://graph.microsoft.com/v1.0/deviceAppManagement/managedAppPolicies?$select=id,displayName,lastModifiedDateTime", graphToken.token),
+    optionalJson("https://graph.microsoft.com/v1.0/security/secureScoreControlProfiles?$top=200", graphToken.token),
   ]);
   const groupCount = Array.isArray(groups.value) ? groups.value.length : 0;
   const scoreCount = Array.isArray(azureScores.value) ? azureScores.value.length : 0;
@@ -115,5 +119,45 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
   const maximum = Number(latest?.maxScore ?? 0);
   const percentage = maximum ? Math.round(current / maximum * 100) : 0;
   findings.push({ checkId: "m365.secure-score", title: "Microsoft 365 Secure Score", status: maximum && percentage >= 60 ? "pass" : "warning", detail: maximum ? `${current} of ${maximum} points (${percentage}%) on ${String(latest?.createdDateTime ?? "the latest record")}.` : "Microsoft 365 Secure Score data is unavailable." });
+
+  const complianceCount = compliancePolicies && Array.isArray(compliancePolicies.value) ? compliancePolicies.value.length : null;
+  const configurationCount = deviceConfigurations && Array.isArray(deviceConfigurations.value) ? deviceConfigurations.value.length : null;
+  findings.push({
+    checkId: "intune.device-policies",
+    title: "Intune device policy inventory",
+    status: complianceCount !== null && configurationCount !== null && complianceCount > 0 ? "pass" : "warning",
+    detail: complianceCount === null || configurationCount === null
+      ? "Intune device policy data is unavailable or Intune is not licensed."
+      : `${complianceCount} compliance policies and ${configurationCount} device configuration profiles discovered.`,
+  });
+
+  const appPolicyCount = appPolicies && Array.isArray(appPolicies.value) ? appPolicies.value.length : null;
+  findings.push({
+    checkId: "intune.app-protection",
+    title: "Intune app-protection policies",
+    status: appPolicyCount !== null && appPolicyCount > 0 ? "pass" : "warning",
+    detail: appPolicyCount === null ? "Intune app-protection policy data is unavailable or Intune is not licensed." : `${appPolicyCount} managed app polic${appPolicyCount === 1 ? "y" : "ies"} discovered.`,
+  });
+
+  const profiles = controlProfiles && Array.isArray(controlProfiles.value) ? controlProfiles.value as Array<Record<string, unknown>> : [];
+  const profileById = new Map(profiles.filter((item) => item.deprecated !== true).map((item) => [String(item.id ?? ""), item]));
+  const controlScores = latest && Array.isArray(latest.controlScores) ? latest.controlScores as Array<Record<string, unknown>> : [];
+  const opportunities = controlScores
+    .map((item) => {
+      const id = String(item.controlName ?? "");
+      const profile = profileById.get(id);
+      const percentage = Number(item.scoreInPercentage ?? 100);
+      return { id, title: String(profile?.title ?? id), gapPoints: Number(profile?.maxScore ?? 0) * (100 - percentage) / 100 };
+    })
+    .filter((item) => item.id && item.gapPoints > 0)
+    .sort((a, b) => b.gapPoints - a.gapPoints)
+    .slice(0, 3)
+    .map((item) => item.title);
+  findings.push({
+    checkId: "m365.priority-recommendations",
+    title: "Priority Microsoft 365 improvements",
+    status: opportunities.length ? "warning" : "pass",
+    detail: opportunities.length ? `Highest remaining opportunities: ${opportunities.join("; ")}.` : controlProfiles ? "No incomplete Secure Score controls were returned." : "Secure Score recommendation details are unavailable.",
+  });
   return findings;
 }
