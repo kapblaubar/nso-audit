@@ -21,6 +21,7 @@ const graphPermissions = [
 
 export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }: OnboardingPageProps) {
   const [copied, setCopied] = useState(false);
+  const [subscriptionId, setSubscriptionId] = useState("");
   const tenantId = bootstrap?.tenantId ?? account.tenantId;
   const consentGranted = bootstrap?.consentStatus === "granted";
   const rbacConfigured = bootstrap?.azureRbacStatus === "configured";
@@ -41,6 +42,15 @@ export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2500);
   };
+
+  const continuation = String.fromCharCode(96);
+  const previewCommand = [
+    `./Set-NsoAuditCustomerReaderRoles.ps1 ${continuation}`,
+    `  -SubscriptionId "${subscriptionId || "YOUR-SUBSCRIPTION-ID"}" ${continuation}`,
+    `  -IncludeAzureResourceReader ${continuation}`,
+    `  -IncludeDefenderForCloud ${continuation}`,
+    "  -WhatIf",
+  ].join("\n");
 
   const stepClass = (step: number) => step < currentStep
     ? "setup-step is-complete"
@@ -134,8 +144,25 @@ export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }
           <div className="setup-copy">
             <p className="step-state">Azure resource access</p>
             <h2>Assign reader roles</h2>
-            <p>Choose the subscriptions and resources to assess, then run a generated PowerShell script. Every role and scope will be shown before anything is applied.</p>
-            <button className="step-action" type="button" disabled>Scope selector coming next</button>
+            <p>Enter the client subscription ID, download the reviewed script, and run the generated preview in Azure Cloud Shell. It assigns roles only to the NSO Audit Enterprise Application created during consent.</p>
+            <label className="subscription-field">
+              <span>Azure Subscription ID</span>
+              <input
+                type="text"
+                value={subscriptionId}
+                onChange={(event) => setSubscriptionId(event.target.value.trim())}
+                placeholder="00000000-0000-0000-0000-000000000000"
+                inputMode="text"
+                autoComplete="off"
+              />
+            </label>
+            <div className="script-download-actions">
+              <a className="step-action" href="/downloads/Set-NsoAuditCustomerReaderRoles.ps1" download>Download PowerShell script</a>
+              <span>Version 1 · read-only Azure roles</span>
+            </div>
+            <p className="script-checksum">SHA-256: <code>9b843623409bdb3f9a65ec9c4541563ad4a3f7dbb68f7645e5c785bf90d08006</code></p>
+            <pre className="generated-command"><code>{previewCommand}</code></pre>
+            <p className="pending-note"><code>-WhatIf</code> previews the exact assignments without changing Azure. Remove it only after reviewing the output.</p>
           </div>
         </article>
 
