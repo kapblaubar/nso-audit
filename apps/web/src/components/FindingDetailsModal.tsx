@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { createElement, useEffect, type ReactNode } from "react";
 
 interface FindingDetailsModalProps {
   finding: { checkId: string; title: string; detail: string; evidence?: unknown };
@@ -16,6 +16,30 @@ const valueText = (value: unknown): string => {
 };
 const list = (value: unknown) => Array.isArray(value) && value.length ? value.map(valueText).join(", ") : "None";
 const label = (value: string) => value.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase());
+
+const allowedRichTags = new Set(["a", "b", "br", "code", "em", "i", "li", "ol", "p", "span", "strong", "ul"]);
+
+function safeRichNodes(node: Node, keyPrefix: string): ReactNode[] {
+  return Array.from(node.childNodes).flatMap((child, index): ReactNode[] => {
+    const key = `${keyPrefix}-${index}`;
+    if (child.nodeType === Node.TEXT_NODE) return [child.textContent ?? ""];
+    if (!(child instanceof HTMLElement)) return [];
+    const tag = child.tagName.toLowerCase();
+    const children = safeRichNodes(child, key);
+    if (!allowedRichTags.has(tag)) return children;
+    if (tag === "a") {
+      const href = child.getAttribute("href") ?? "";
+      return href.startsWith("https://") ? [createElement("a", { href, key, target: "_blank", rel: "noreferrer" }, children)] : children;
+    }
+    return [createElement(tag, { key }, children)];
+  });
+}
+
+function SafeRichText({ value }: { value: unknown }) {
+  if (typeof value !== "string" || !value.trim()) return <>Microsoft did not return remediation text for this item.</>;
+  const document = new DOMParser().parseFromString(value, "text/html");
+  return <div className="safe-rich-text">{safeRichNodes(document.body, "remediation")}</div>;
+}
 
 function GlobalAdminDetails({ evidence }: { evidence: JsonRecord }) {
   const administrators = asRecords(evidence.administrators);
@@ -44,7 +68,7 @@ function IntuneDetails({ evidence }: { evidence: JsonRecord }) {
 
 function RecommendationDetails({ evidence, defender = false }: { evidence: JsonRecord; defender?: boolean }) {
   const recommendations = asRecords(evidence.recommendations);
-  return <div className="recommendation-list">{recommendations.length ? recommendations.map((recommendation, index) => <article key={text(recommendation.id, String(index))}><header><span>{String(index + 1).padStart(2, "0")}</span><div><h3>{text(recommendation.title)}</h3><p>{defender ? `${text(recommendation.severity, "Unknown")} severity · ${text(recommendation.status)}` : `${text(recommendation.potentialGain, "0")} potential points · ${text(recommendation.scorePercentage, "0")}% complete`}</p></div></header><dl>{defender ? <><div><dt>Affected resource</dt><dd><code>{text(recommendation.resourceId)}</code></dd></div><div><dt>Cause</dt><dd>{text(recommendation.cause)}</dd></div></> : <><div><dt>Service</dt><dd>{text(recommendation.service)}</dd></div><div><dt>Implementation cost</dt><dd>{text(recommendation.implementationCost)}</dd></div><div><dt>User impact</dt><dd>{text(recommendation.userImpact)}</dd></div><div><dt>Threats addressed</dt><dd>{list(recommendation.threats)}</dd></div></>}<div className="recommendation-remediation"><dt>Recommended action</dt><dd>{text(recommendation.remediation ?? recommendation.description, "Microsoft did not return remediation text for this item.")}</dd></div></dl>{typeof recommendation.actionUrl === "string" && recommendation.actionUrl.startsWith("https://") ? <a href={recommendation.actionUrl} target="_blank" rel="noreferrer">Open Microsoft action page</a> : null}</article>) : <div className="empty-detail"><strong>No outstanding recommendations</strong><p>The source did not return an incomplete recommendation for this area.</p></div>}</div>;
+  return <div className="recommendation-list">{recommendations.length ? recommendations.map((recommendation, index) => <article key={text(recommendation.id, String(index))}><header><span>{String(index + 1).padStart(2, "0")}</span><div><h3>{text(recommendation.title)}</h3><p>{defender ? `${text(recommendation.severity, "Unknown")} severity · ${text(recommendation.status)}` : `${text(recommendation.potentialGain, "0")} potential points · ${text(recommendation.scorePercentage, "0")}% complete`}</p></div></header><dl>{defender ? <><div><dt>Affected resource</dt><dd><code>{text(recommendation.resourceId)}</code></dd></div><div><dt>Cause</dt><dd>{text(recommendation.cause)}</dd></div></> : <><div><dt>Service</dt><dd>{text(recommendation.service)}</dd></div><div><dt>Implementation cost</dt><dd>{text(recommendation.implementationCost)}</dd></div><div><dt>User impact</dt><dd>{text(recommendation.userImpact)}</dd></div><div><dt>Threats addressed</dt><dd>{list(recommendation.threats)}</dd></div></>}<div className="recommendation-remediation"><dt>Recommended action</dt><dd><SafeRichText value={recommendation.remediation ?? recommendation.description} /></dd></div></dl>{typeof recommendation.actionUrl === "string" && recommendation.actionUrl.startsWith("https://") ? <a href={recommendation.actionUrl} target="_blank" rel="noreferrer">Open Microsoft action page</a> : null}</article>) : <div className="empty-detail"><strong>No outstanding recommendations</strong><p>The source did not return an incomplete recommendation for this area.</p></div>}</div>;
 }
 
 export function FindingDetailsModal({ finding, onClose }: FindingDetailsModalProps) {

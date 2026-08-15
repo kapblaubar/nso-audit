@@ -121,6 +121,14 @@ main {
 .recommendation-list dt { color: #71858e; font-size: .66rem; text-transform: uppercase; }
 .recommendation-list dd { margin: 5px 0 0; color: #bdc9ce; font-size: .78rem; line-height: 1.5; overflow-wrap: anywhere; }
 .recommendation-list .recommendation-remediation { grid-column: 1 / -1; }
+.safe-rich-text { color: #c2cdd1; line-height: 1.65; }
+.safe-rich-text p { margin: 0 0 10px; }
+.safe-rich-text p:last-child { margin-bottom: 0; }
+.safe-rich-text ol, .safe-rich-text ul { display: grid; gap: 8px; margin: 8px 0 0; padding-left: 22px; }
+.safe-rich-text li { padding-left: 3px; }
+.safe-rich-text strong, .safe-rich-text b { color: #e8eef0; }
+.safe-rich-text em, .safe-rich-text i, .safe-rich-text code { padding: 2px 5px; border-radius: 4px; color: #8ce7c8; background: #101f24; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-style: normal; overflow-wrap: anywhere; }
+.safe-rich-text a { color: #72e4bd; text-underline-offset: 3px; }
 .recommendation-list > article > a { display: inline-block; margin: 12px 0 0 48px; color: #72e4bd; font-size: .76rem; }
 .empty-detail { padding: 40px; color: #a8b7bd; text-align: center; }
 .empty-detail p { color: #748891; }
