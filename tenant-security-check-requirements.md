@@ -399,6 +399,11 @@ Recommendations are normalized into the finding schema and ranked using source s
 potential score impact, affected scope, and confidence. Vendor source scores remain separately
 visible; NSO Audit must not present a derived score as Microsoft's official score.
 
+The report header presents three separate score cards: the preview NSO Assessment Score,
+Microsoft 365 Secure Score, and Defender for Cloud Secure Score. Each Microsoft card uses the
+vendor-returned current, maximum, and percentage values and is labelled with its source. Vendor
+scores are never blended into or relabelled as the NSO score.
+
 ## 8. Security & Compliance Requirements
 
 - **Least privilege**: request only the scopes/roles actually used by an active module; don't

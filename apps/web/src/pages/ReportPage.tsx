@@ -9,11 +9,18 @@ interface ReportPageProps {
   onSignOut: () => void;
 }
 
+function scoreEvidence(scan: StarterScan | undefined, checkId: string): Record<string, unknown> | undefined {
+  const evidence = scan?.findings.find((finding) => finding.checkId === checkId)?.evidence;
+  return typeof evidence === "object" && evidence !== null ? evidence as Record<string, unknown> : undefined;
+}
+
 export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPageProps) {
   const [scan, setScan] = useState<StarterScan>();
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState<string>();
+  const m365Score = scoreEvidence(scan, "m365.secure-score");
+  const defenderScore = scoreEvidence(scan, "defender.secure-score");
   useEffect(() => {
     void loadStarterScan(account, scanId).then(setScan);
     void loadScanHistory(account).then(setHistory);
@@ -43,11 +50,24 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
         <p className="eyebrow">Tenant scorecard</p>
         <h1>{account.name ?? account.username}</h1>
         <p>Tenant ID: {bootstrap.tenantId}</p>
-        <div className="report-score">
-          <span>Assessment score (preview)</span>
-          <strong>{scan?.score ?? "—"}</strong>
-          <p>Scan {scanId}</p>
+        <div className="score-grid" aria-label="Security scores">
+          <div className="report-score score-primary">
+            <span>NSO Assessment Score</span>
+            <strong>{scan?.score ?? "—"}<small>/100</small></strong>
+            <p>Preview scoring model</p>
+          </div>
+          <div className="report-score">
+            <span>Microsoft 365 Secure Score</span>
+            <strong>{String(m365Score?.percentage ?? "—")}<small>%</small></strong>
+            <p>{m365Score ? `${String(m365Score.current)} of ${String(m365Score.maximum)} points` : "Not available in this scan"}</p>
+          </div>
+          <div className="report-score">
+            <span>Defender for Cloud Secure Score</span>
+            <strong>{String(defenderScore?.percentage ?? "—")}<small>%</small></strong>
+            <p>{defenderScore ? `${String(defenderScore.current)} of ${String(defenderScore.maximum)} points` : "Not available in this scan"}</p>
+          </div>
         </div>
+        <p className="scan-reference">Scan {scanId}</p>
         <div className="starter-findings">
           {scan?.findings.map((finding) => (
             <article key={finding.checkId} className={finding.status === "pass" ? "finding-pass" : "finding-warning"}>

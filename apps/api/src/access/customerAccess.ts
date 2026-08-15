@@ -86,10 +86,17 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
   ]);
   const groupCount = Array.isArray(groups.value) ? groups.value.length : 0;
   const scoreCount = Array.isArray(azureScores.value) ? azureScores.value.length : 0;
+  const azureScoreRows = scoreCount ? azureScores.value as Array<Record<string, unknown>> : [];
+  const azureScoreRow = azureScoreRows.find((item) => item.name === "ascScore") ?? azureScoreRows[0];
+  const azureScoreProperties = azureScoreRow?.properties as Record<string, unknown> | undefined;
+  const azureScoreValues = azureScoreProperties?.score as Record<string, unknown> | undefined;
+  const azureScoreCurrent = Number(azureScoreValues?.current ?? 0);
+  const azureScoreMaximum = Number(azureScoreValues?.max ?? 0);
+  const azureScorePercentage = azureScoreMaximum ? Math.round(Number(azureScoreValues?.percentage ?? azureScoreCurrent / azureScoreMaximum) * 100) : 0;
   const findings: StarterFinding[] = [
     { checkId: "entra.authorization-policy", title: "Entra authorization policy", status: "pass", detail: `Policy ${String(policy.id ?? "default")} was read successfully.` },
     { checkId: "azure.resource-groups", title: "Azure resource inventory", status: "pass", detail: `${groupCount} resource group${groupCount === 1 ? "" : "s"} discovered.` },
-    { checkId: "defender.secure-score", title: "Defender for Cloud secure score", status: scoreCount ? "pass" : "warning", detail: scoreCount ? `${scoreCount} secure-score record${scoreCount === 1 ? "" : "s"} available.` : "No secure-score record is currently available for this subscription." },
+    { checkId: "defender.secure-score", title: "Defender for Cloud secure score", status: azureScoreMaximum && azureScorePercentage >= 60 ? "pass" : "warning", detail: azureScoreMaximum ? `${azureScoreCurrent} of ${azureScoreMaximum} points (${azureScorePercentage}%).` : "No secure-score record is currently available for this subscription.", evidence: azureScoreMaximum ? { current: azureScoreCurrent, maximum: azureScoreMaximum, percentage: azureScorePercentage, initiatives: azureScoreRows } : undefined },
   ];
 
   const caPolicies = conditionalAccess && Array.isArray(conditionalAccess.value) ? conditionalAccess.value as Array<Record<string, unknown>> : [];
@@ -126,7 +133,7 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
   const current = Number(latest?.currentScore ?? 0);
   const maximum = Number(latest?.maxScore ?? 0);
   const percentage = maximum ? Math.round(current / maximum * 100) : 0;
-  findings.push({ checkId: "m365.secure-score", title: "Microsoft 365 Secure Score", status: maximum && percentage >= 60 ? "pass" : "warning", detail: maximum ? `${current} of ${maximum} points (${percentage}%) on ${String(latest?.createdDateTime ?? "the latest record")}.` : "Microsoft 365 Secure Score data is unavailable." });
+  findings.push({ checkId: "m365.secure-score", title: "Microsoft 365 Secure Score", status: maximum && percentage >= 60 ? "pass" : "warning", detail: maximum ? `${current} of ${maximum} points (${percentage}%) on ${String(latest?.createdDateTime ?? "the latest record")}.` : "Microsoft 365 Secure Score data is unavailable.", evidence: maximum ? { current, maximum, percentage, createdDateTime: latest?.createdDateTime, activeUserCount: latest?.activeUserCount, licensedUserCount: latest?.licensedUserCount } : undefined });
 
   const complianceCount = compliancePolicies && Array.isArray(compliancePolicies.value) ? compliancePolicies.value.length : null;
   const configurationCount = deviceConfigurations && Array.isArray(deviceConfigurations.value) ? deviceConfigurations.value.length : null;
