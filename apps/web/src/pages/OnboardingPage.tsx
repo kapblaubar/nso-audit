@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
 import { checkTenantAccess, startStarterScan, type AccessCheckResult, type TenantBootstrap } from "../api";
 import { appConfig } from "../config";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 interface OnboardingPageProps {
   account: AccountInfo;
@@ -97,6 +98,7 @@ export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }
             <span>{account.username}</span>
             <span>Tenant ID: {tenantId}</span>
           </div>
+          <ThemeToggle />
           <button className="text-button" type="button" onClick={onSignOut}>Sign out</button>
         </div>
       </nav>

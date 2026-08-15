@@ -15,6 +15,7 @@ export function LandingPage({ authReady, authError, onSignIn }: LandingPageProps
         <div className="nav-actions">
           <a className="nav-link" href="#how-it-works">How it works</a>
           <a className="nav-link" href="#trust">Security & privacy</a>
+          <ThemeToggle />
           <button className="nav-sign-in" type="button" onClick={onSignIn} disabled={!authReady}>
             {authReady ? "Sign in" : "Loading…"}
           </button>
@@ -55,4 +56,5 @@ export function LandingPage({ authReady, authError, onSignIn }: LandingPageProps
     </main>
   );
 }
+import { ThemeToggle } from "../components/ThemeToggle";
 

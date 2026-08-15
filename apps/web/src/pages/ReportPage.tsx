@@ -2,6 +2,7 @@ import type { AccountInfo } from "@azure/msal-browser";
 import { useEffect, useState } from "react";
 import { loadScanHistory, loadStarterScan, startStarterScan, type ScanHistoryItem, type StarterScan, type TenantBootstrap } from "../api";
 import { FindingDetailsModal } from "../components/FindingDetailsModal";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 interface ReportPageProps {
   account: AccountInfo;
@@ -60,7 +61,7 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
           <img className="brand-mark" src="/brand/nsosquare.png" alt="" width="40" height="40" />
           <span className="brand-name">NSO Audit</span>
         </a>
-        <button className="text-button" type="button" onClick={onSignOut}>Sign out</button>
+        <div className="nav-actions"><ThemeToggle /><button className="text-button" type="button" onClick={onSignOut}>Sign out</button></div>
       </nav>
       <section className="report-shell">
         <p className="eyebrow">Tenant scorecard</p>
