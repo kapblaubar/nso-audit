@@ -28,6 +28,7 @@ export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }
   const tenantId = bootstrap?.tenantId ?? account.tenantId;
   const consentGranted = bootstrap?.consentStatus === "granted";
   const rbacConfigured = bootstrap?.azureRbacStatus === "configured";
+  const validSubscriptionId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(subscriptionId);
   const currentStep = accessResult?.ready ? 4 : !consentGranted ? 2 : !rbacConfigured ? 3 : 4;
 
   const consentUrl = useMemo(() => {
@@ -156,8 +157,12 @@ export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }
             <p className="step-state">Azure resource access</p>
             <h2>Assign reader roles</h2>
             <p>Enter the client subscription ID, download the reviewed script, and run the generated preview in Azure Cloud Shell. It assigns roles only to the NSO Audit Enterprise Application created during consent.</p>
+            <div className="subscription-required" role="note">
+              <strong>Required: add the Azure Subscription ID</strong>
+              <span>NSO Audit cannot verify Azure access or run the assessment until the subscription to assess is identified.</span>
+            </div>
             <label className="subscription-field">
-              <span>Azure Subscription ID</span>
+              <span>Azure Subscription ID <strong>Required</strong></span>
               <input
                 type="text"
                 value={subscriptionId}
@@ -165,8 +170,12 @@ export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }
                 placeholder="00000000-0000-0000-0000-000000000000"
                 inputMode="text"
                 autoComplete="off"
+                pattern="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+                required
               />
             </label>
+            <p className="subscription-help">Find it in Azure Portal → Subscriptions → select the subscription → Overview.</p>
+            {subscriptionId && !validSubscriptionId ? <p className="subscription-validation" role="alert">Enter the complete Subscription ID, including all five hyphen-separated sections.</p> : null}
             <div className="script-download-actions">
               <a className="step-action" href="/downloads/Set-NsoAuditCustomerReaderRoles.ps1" download>Download PowerShell script</a>
               <span>Version 1 · read-only Azure roles</span>
@@ -175,8 +184,8 @@ export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }
             <pre className="generated-command"><code>{previewCommand}</code></pre>
             <p className="pending-note"><code>-WhatIf</code> previews the exact assignments without changing Azure. Remove it only after reviewing the output.</p>
             <div className="access-check-panel">
-              <button className="step-action" type="button" onClick={runAccessCheck} disabled={!/^[0-9a-f-]{36}$/i.test(subscriptionId) || checkingAccess}>
-                {checkingAccess ? "Checking access…" : "Check access"}
+              <button className="step-action" type="button" onClick={runAccessCheck} disabled={!validSubscriptionId || checkingAccess}>
+                {checkingAccess ? "Checking access…" : subscriptionId ? "Check access" : "Enter Subscription ID to check access"}
               </button>
               {accessError ? <p className="auth-error" role="alert">{accessError}</p> : null}
               {accessResult ? (
