@@ -1,4 +1,4 @@
-import { createElement, useEffect, type ReactNode } from "react";
+import { useEffect } from "react";
 
 interface FindingDetailsModalProps {
   finding: { checkId: string; title: string; detail: string; evidence?: unknown };
@@ -17,28 +17,31 @@ const valueText = (value: unknown): string => {
 const list = (value: unknown) => Array.isArray(value) && value.length ? value.map(valueText).join(", ") : "None";
 const label = (value: string) => value.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase());
 
-const allowedRichTags = new Set(["a", "b", "br", "code", "em", "i", "li", "ol", "p", "span", "strong", "ul"]);
+const allowedRichTags = new Set(["A", "B", "BR", "CODE", "EM", "I", "LI", "OL", "P", "SPAN", "STRONG", "UL"]);
 
-function safeRichNodes(node: Node, keyPrefix: string): ReactNode[] {
-  return Array.from(node.childNodes).flatMap((child, index): ReactNode[] => {
-    const key = `${keyPrefix}-${index}`;
-    if (child.nodeType === Node.TEXT_NODE) return [child.textContent ?? ""];
-    if (!(child instanceof HTMLElement)) return [];
-    const tag = child.tagName.toLowerCase();
-    const children = safeRichNodes(child, key);
-    if (!allowedRichTags.has(tag)) return children;
-    if (tag === "a") {
-      const href = child.getAttribute("href") ?? "";
-      return href.startsWith("https://") ? [createElement("a", { href, key, target: "_blank", rel: "noreferrer" }, children)] : children;
+function sanitizedRichHtml(value: string): string {
+  const document = new DOMParser().parseFromString(value, "text/html");
+  for (const element of Array.from(document.body.querySelectorAll("*"))) {
+    if (!allowedRichTags.has(element.tagName)) {
+      element.replaceWith(...Array.from(element.childNodes));
+      continue;
     }
-    return [createElement(tag, { key }, children)];
-  });
+    const href = element.tagName === "A" ? element.getAttribute("href") ?? "" : "";
+    for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+    if (element.tagName === "A" && href.startsWith("https://")) {
+      element.setAttribute("href", href);
+      element.setAttribute("target", "_blank");
+      element.setAttribute("rel", "noreferrer");
+    } else if (element.tagName === "A") {
+      element.replaceWith(...Array.from(element.childNodes));
+    }
+  }
+  return document.body.innerHTML;
 }
 
 function SafeRichText({ value }: { value: unknown }) {
   if (typeof value !== "string" || !value.trim()) return <>Microsoft did not return remediation text for this item.</>;
-  const document = new DOMParser().parseFromString(value, "text/html");
-  return <div className="safe-rich-text">{safeRichNodes(document.body, "remediation")}</div>;
+  return <div className="safe-rich-text" dangerouslySetInnerHTML={{ __html: sanitizedRichHtml(value) }} />;
 }
 
 function GlobalAdminDetails({ evidence }: { evidence: JsonRecord }) {
