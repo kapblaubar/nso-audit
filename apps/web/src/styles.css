@@ -70,6 +70,14 @@ main {
 .starter-findings h2 { margin: 20px 0 10px; font-size: 1.2rem; }
 .starter-findings p { color: #91a2ac; font-size: .85rem; line-height: 1.55; }
 .starter-findings .finding-warning > span { color: #ff9b70; }
+.recommendation-section { margin-top: 64px; padding-top: 38px; border-top: 1px solid #26363e; }
+.recommendation-section > h2 { margin: 8px 0; font-size: 2rem; }
+.recommendation-section > p:not(.eyebrow) { margin: 0; color: #83959e; }
+.recommendation-card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 24px; }
+.recommendation-card-grid article { display: flex; align-items: flex-start; flex-direction: column; min-height: 210px; padding: 21px; border: 1px solid #263942; border-radius: 12px; background: #0c181e; }
+.recommendation-card-grid article > span { color: #66dcb5; font-size: .66rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.recommendation-card-grid h3 { margin: 20px 0 8px; font-size: 1.05rem; }
+.recommendation-card-grid article > p { flex: 1; color: #8799a2; font-size: .8rem; line-height: 1.5; }
 .detail-button { margin-top: 10px; padding: 8px 12px; border: 1px solid #345248; border-radius: 7px; color: #70dfb9; background: #0a171b; font-size: .76rem; font-weight: 750; cursor: pointer; }
 .detail-button:hover { border-color: #70dfb9; background: rgba(87, 230, 180, .06); }
 .modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 28px; background: rgba(1, 7, 10, .82); backdrop-filter: blur(6px); }
@@ -102,6 +110,20 @@ main {
 .policy-state { padding: 5px 8px; border-radius: 12px; color: #76e1bd !important; background: #143029; text-transform: capitalize; }
 .state-disabled { color: #9caab0 !important; background: #202b30; }
 .fallback-evidence { max-height: 620px; margin: 0; padding: 18px; overflow: auto; border: 1px solid #293b43; border-radius: 8px; color: #bbcac3; background: #071117; font-size: .72rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.recommendation-list { display: grid; gap: 12px; }
+.recommendation-list > article { padding: 20px; border: 1px solid #263942; border-radius: 10px; background: #09151b; }
+.recommendation-list > article > header { display: flex; align-items: flex-start; gap: 14px; }
+.recommendation-list > article > header > span { display: grid; place-items: center; flex: 0 0 34px; height: 34px; border-radius: 50%; color: #69dfb7; background: #143029; font-family: ui-monospace, monospace; font-size: .72rem; }
+.recommendation-list h3 { margin: 0; font-size: 1rem; }
+.recommendation-list header p { margin: 6px 0 0; color: #82949e; font-size: .74rem; }
+.recommendation-list dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 22px; margin: 18px 0 0 48px; }
+.recommendation-list dl > div { padding: 9px 0; border-top: 1px solid #203139; }
+.recommendation-list dt { color: #71858e; font-size: .66rem; text-transform: uppercase; }
+.recommendation-list dd { margin: 5px 0 0; color: #bdc9ce; font-size: .78rem; line-height: 1.5; overflow-wrap: anywhere; }
+.recommendation-list .recommendation-remediation { grid-column: 1 / -1; }
+.recommendation-list > article > a { display: inline-block; margin: 12px 0 0 48px; color: #72e4bd; font-size: .76rem; }
+.empty-detail { padding: 40px; color: #a8b7bd; text-align: center; }
+.empty-detail p { color: #748891; }
 .report-actions { margin-top: 24px; }
 .scan-history { margin-top: 70px; padding-top: 42px; border-top: 1px solid #26363e; }
 .scan-history h2 { margin-bottom: 24px; }
@@ -304,6 +326,9 @@ h2 { max-width: 700px; margin: 12px 0 44px; font-size: clamp(2.2rem, 4vw, 3.8rem
   .score-grid { grid-template-columns: 1fr; }
   .category-score-grid { grid-template-columns: repeat(2, 1fr); }
   .starter-findings { grid-template-columns: 1fr; }
+  .recommendation-card-grid { grid-template-columns: 1fr; }
+  .recommendation-list dl { grid-template-columns: 1fr; margin-left: 0; }
+  .recommendation-list > article > a { margin-left: 0; }
   .setup-header { grid-template-columns: 1fr; gap: 24px; }
   .setup-progress { width: 100%; }
   .permission-groups { grid-template-columns: 1fr; }

@@ -61,6 +61,11 @@ async function optionalJson(url: string, token: string): Promise<Record<string, 
   try { return await getJson(url, token); } catch { return null; }
 }
 
+function compactText(value: unknown, maximumLength = 1000): string | undefined {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  return value.length <= maximumLength ? value : `${value.slice(0, maximumLength - 1)}…`;
+}
+
 export async function runStarterCollection(tenantId: string, subscriptionId: string): Promise<StarterFinding[]> {
   const credential = customerCredential(tenantId);
   const graphToken = await credential.getToken("https://graph.microsoft.com/.default");
@@ -70,10 +75,11 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
     throw new Error("The Azure subscription belongs to a different Microsoft Entra tenant.");
   }
 
-  const [policy, groups, azureScores, conditionalAccess, namedLocations, roleDefinitions, registrations, m365Scores, compliancePolicies, deviceConfigurations, appPolicies, controlProfiles] = await Promise.all([
+  const [policy, groups, azureScores, azureAssessments, conditionalAccess, namedLocations, roleDefinitions, registrations, m365Scores, compliancePolicies, deviceConfigurations, appPolicies, controlProfiles] = await Promise.all([
     getJson("https://graph.microsoft.com/v1.0/policies/authorizationPolicy", graphToken.token),
     getJson(`https://management.azure.com/subscriptions/${subscriptionId}/resourcegroups?api-version=2021-04-01`, armToken.token),
     getJson(`https://management.azure.com/subscriptions/${subscriptionId}/providers/Microsoft.Security/secureScores?api-version=2020-01-01`, armToken.token),
+    optionalJson(`https://management.azure.com/subscriptions/${subscriptionId}/providers/Microsoft.Security/assessments?api-version=2021-06-01`, armToken.token),
     optionalJson("https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies", graphToken.token),
     optionalJson("https://graph.microsoft.com/v1.0/identity/conditionalAccess/namedLocations", graphToken.token),
     optionalJson("https://graph.microsoft.com/v1.0/roleManagement/directory/roleDefinitions?$filter=displayName%20eq%20'Global%20Administrator'", graphToken.token),
@@ -98,6 +104,35 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
     { checkId: "azure.resource-groups", title: "Azure resource inventory", status: "pass", detail: `${groupCount} resource group${groupCount === 1 ? "" : "s"} discovered.` },
     { checkId: "defender.secure-score", title: "Defender for Cloud secure score", status: azureScoreMaximum && azureScorePercentage >= 60 ? "pass" : "warning", detail: azureScoreMaximum ? `${azureScoreCurrent} of ${azureScoreMaximum} points (${azureScorePercentage}%).` : "No secure-score record is currently available for this subscription.", evidence: azureScoreMaximum ? { current: azureScoreCurrent, maximum: azureScoreMaximum, percentage: azureScorePercentage, initiatives: azureScoreRows } : undefined },
   ];
+
+  const severityRank: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+  const assessmentRows = azureAssessments && Array.isArray(azureAssessments.value) ? azureAssessments.value as Array<Record<string, unknown>> : [];
+  const defenderRecommendations = assessmentRows
+    .map((assessment) => {
+      const properties = assessment.properties as Record<string, unknown> | undefined;
+      const metadata = properties?.metadata as Record<string, unknown> | undefined;
+      const status = properties?.status as Record<string, unknown> | undefined;
+      const resource = properties?.resourceDetails as Record<string, unknown> | undefined;
+      return {
+        id: assessment.name,
+        title: String(metadata?.displayName ?? assessment.name ?? "Defender recommendation"),
+        severity: String(metadata?.severity ?? "Unknown"),
+        status: String(status?.code ?? "Unknown"),
+        cause: compactText(status?.cause, 300),
+        remediation: compactText(metadata?.remediationDescription ?? metadata?.description),
+        resourceId: resource?.id ?? assessment.id,
+      };
+    })
+    .filter((item) => item.status.toLowerCase() === "unhealthy")
+    .sort((a, b) => (severityRank[b.severity.toLowerCase()] ?? 0) - (severityRank[a.severity.toLowerCase()] ?? 0))
+    .slice(0, 25);
+  findings.push({
+    checkId: "defender.recommendations",
+    title: "Defender for Cloud recommendations",
+    status: defenderRecommendations.length ? "warning" : "pass",
+    detail: azureAssessments ? `${defenderRecommendations.length} highest-priority unhealthy assessment${defenderRecommendations.length === 1 ? "" : "s"} shown (maximum 25).` : "Defender for Cloud recommendations are unavailable.",
+    evidence: azureAssessments ? { recommendations: defenderRecommendations, limit: 25 } : undefined,
+  });
 
   const caPolicies = conditionalAccess && Array.isArray(conditionalAccess.value) ? conditionalAccess.value as Array<Record<string, unknown>> : [];
   const enabledPolicies = caPolicies.filter((item) => item.state === "enabled");
@@ -172,22 +207,40 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
     evidence: appPolicyCount !== null ? { managedAppPolicies: appPolicies?.value } : undefined,
   });
 
-  const opportunities = controlScores
-    .map((item) => {
-      const id = String(item.controlName ?? "");
-      const profile = profileById.get(id);
-      const percentage = Number(item.scoreInPercentage ?? 100);
-      return { id, title: String(profile?.title ?? id), gapPoints: Number(profile?.maxScore ?? 0) * (100 - percentage) / 100 };
-    })
-    .filter((item) => item.id && item.gapPoints > 0)
-    .sort((a, b) => b.gapPoints - a.gapPoints)
-    .slice(0, 3)
-    .map((item) => item.title);
-  findings.push({
-    checkId: "m365.priority-recommendations",
-    title: "Priority Microsoft 365 improvements",
-    status: opportunities.length ? "warning" : "pass",
-    detail: opportunities.length ? `Highest remaining opportunities: ${opportunities.join("; ")}.` : controlProfiles ? "No incomplete Secure Score controls were returned." : "Secure Score recommendation details are unavailable.",
-  });
+  for (const categoryName of categoryNames) {
+    const recommendations = controlScores
+      .map((item) => {
+        const id = String(item.controlName ?? "");
+        const profile = profileById.get(id);
+        const category = String(item.controlCategory ?? profile?.controlCategory ?? "");
+        const scorePercentage = Number(item.scoreInPercentage ?? 100);
+        const maximumPoints = Number(profile?.maxScore ?? 0);
+        return {
+          id,
+          category,
+          title: String(profile?.title ?? id),
+          currentPoints: Number(item.score ?? 0),
+          maximumPoints,
+          potentialGain: Math.round(maximumPoints * (100 - scorePercentage)) / 100,
+          scorePercentage,
+          service: profile?.service,
+          implementationCost: profile?.implementationCost,
+          userImpact: profile?.userImpact,
+          threats: profile?.threats,
+          remediation: compactText(profile?.remediation),
+          actionUrl: profile?.actionUrl,
+        };
+      })
+      .filter((item) => item.id && item.category.toLowerCase() === categoryName.toLowerCase() && item.potentialGain > 0)
+      .sort((a, b) => b.potentialGain - a.potentialGain)
+      .slice(0, 25);
+    findings.push({
+      checkId: `m365.recommendations.${categoryName.toLowerCase()}`,
+      title: `${categoryName} recommendations`,
+      status: recommendations.length ? "warning" : "pass",
+      detail: controlProfiles ? `${recommendations.length} highest-impact improvement${recommendations.length === 1 ? "" : "s"} shown (maximum 25).` : "Secure Score recommendation details are unavailable.",
+      evidence: controlProfiles ? { category: categoryName, recommendations, limit: 25 } : undefined,
+    });
+  }
   return findings;
 }

@@ -35,6 +35,8 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
   const m365Score = scoreEvidence(scan, "m365.secure-score");
   const defenderScore = scoreEvidence(scan, "defender.secure-score");
   const m365Categories = categoryScores(m365Score);
+  const recommendationFindings = scan?.findings.filter((finding) => finding.checkId.startsWith("m365.recommendations.") || finding.checkId === "defender.recommendations") ?? [];
+  const postureFindings = scan?.findings.filter((finding) => !finding.checkId.startsWith("m365.recommendations.") && finding.checkId !== "defender.recommendations") ?? [];
   useEffect(() => {
     void loadStarterScan(account, scanId).then(setScan);
     void loadScanHistory(account).then(setHistory);
@@ -97,7 +99,7 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
         ) : null}
         <p className="scan-reference">Scan {scanId}</p>
         <div className="starter-findings">
-          {scan?.findings.map((finding) => (
+          {postureFindings.map((finding) => (
             <article key={finding.checkId} className={finding.status === "pass" ? "finding-pass" : "finding-warning"}>
               <span>{finding.status}</span>
               <h2>{finding.title}</h2>
@@ -106,6 +108,7 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
             </article>
           ))}
         </div>
+        {recommendationFindings.length ? <section className="recommendation-section" aria-labelledby="recommendations-title"><p className="eyebrow">Prioritized actions</p><h2 id="recommendations-title">Recommendations</h2><p>Up to 25 of the most important available recommendations are retained for each area.</p><div className="recommendation-card-grid">{recommendationFindings.map((finding) => <article key={finding.checkId}><span>{finding.checkId === "defender.recommendations" ? "Azure" : "Microsoft 365"}</span><h3>{finding.title}</h3><p>{finding.detail}</p>{finding.evidence !== undefined ? <button className="detail-button" type="button" onClick={() => setSelectedFinding(finding)}>View recommendations</button> : null}</article>)}</div></section> : null}
         <div className="report-actions">
           <button className="step-action" type="button" onClick={runAgain} disabled={!scan?.subscriptionId || running}>{running ? "Running audit…" : "Run audit again"}</button>
           {runError ? <p className="auth-error" role="alert">{runError}</p> : null}
