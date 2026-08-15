@@ -1,5 +1,9 @@
 # Azure bootstrap
 
+> This document describes the initial infrastructure design. For the current rebuild order and
+> known automation gaps, use `docs/deploy-from-scratch.md`. The Bicep template must be reconciled
+> and tested in a disposable environment before it is treated as production-ready automation.
+
 The current workstation does not have Azure CLI installed or an authenticated Azure session.
 These steps are intentionally not automated until the target subscription is confirmed.
 

@@ -35,3 +35,5 @@ credential. Secrets, certificates, and private keys must never be placed in fron
 environment files.
 
 Azure Cloud Shell setup scripts and their usage order are documented in `scripts/README.md`.
+The rebuild sequence, automation coverage, and remaining clean-deployment gaps are tracked in
+`docs/deploy-from-scratch.md`.
