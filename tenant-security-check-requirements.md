@@ -221,6 +221,16 @@ Bootstrap routing uses the tenant registration record plus `lastScanId` and scan
 The API returns `consentStatus`, `azureRbacStatus`, latest scan summary, and destination. It
 never returns another tenant's state, even if the caller changes a URL or request parameter.
 
+The onboarding route is a compact four-step wizard rather than a second marketing page:
+
+1. Review the complete read-only authorization catalog in an expandable panel.
+2. Copy or open a tenant-specific Microsoft administrator-consent link.
+3. Select Azure scopes and assign the documented reader roles.
+4. Run the assessment and follow its progress to the first report.
+
+The current step and next action remain prominent. Removal instructions, detailed permissions,
+privacy explanations, and screenshots may be collapsed so they do not obscure the setup action.
+
 ## 6. Data Sources & Required Permissions
 
 ### 6.1 Microsoft Graph (application permissions, admin-consented)
