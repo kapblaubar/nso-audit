@@ -133,7 +133,17 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
   const current = Number(latest?.currentScore ?? 0);
   const maximum = Number(latest?.maxScore ?? 0);
   const percentage = maximum ? Math.round(current / maximum * 100) : 0;
-  findings.push({ checkId: "m365.secure-score", title: "Microsoft 365 Secure Score", status: maximum && percentage >= 60 ? "pass" : "warning", detail: maximum ? `${current} of ${maximum} points (${percentage}%) on ${String(latest?.createdDateTime ?? "the latest record")}.` : "Microsoft 365 Secure Score data is unavailable.", evidence: maximum ? { current, maximum, percentage, createdDateTime: latest?.createdDateTime, activeUserCount: latest?.activeUserCount, licensedUserCount: latest?.licensedUserCount } : undefined });
+  const profiles = controlProfiles && Array.isArray(controlProfiles.value) ? controlProfiles.value as Array<Record<string, unknown>> : [];
+  const profileById = new Map(profiles.filter((item) => item.deprecated !== true).map((item) => [String(item.id ?? ""), item]));
+  const controlScores = latest && Array.isArray(latest.controlScores) ? latest.controlScores as Array<Record<string, unknown>> : [];
+  const categoryNames = ["Identity", "Data", "Device", "Apps", "Infrastructure"];
+  const categories = categoryNames.map((name) => {
+    const controls = controlScores.filter((item) => String(item.controlCategory ?? "").toLowerCase() === name.toLowerCase());
+    const earned = controls.reduce((sum, item) => sum + Number(item.score ?? 0), 0);
+    const available = controls.reduce((sum, item) => sum + Number(profileById.get(String(item.controlName ?? ""))?.maxScore ?? 0), 0);
+    return { name, earned: Math.round(earned * 100) / 100, available: Math.round(available * 100) / 100, percentage: available ? Math.round(earned / available * 100) : null };
+  });
+  findings.push({ checkId: "m365.secure-score", title: "Microsoft 365 Secure Score", status: maximum && percentage >= 60 ? "pass" : "warning", detail: maximum ? `${current} of ${maximum} points (${percentage}%) on ${String(latest?.createdDateTime ?? "the latest record")}.` : "Microsoft 365 Secure Score data is unavailable.", evidence: maximum ? { current, maximum, percentage, categories, createdDateTime: latest?.createdDateTime, activeUserCount: latest?.activeUserCount, licensedUserCount: latest?.licensedUserCount } : undefined });
 
   const complianceCount = compliancePolicies && Array.isArray(compliancePolicies.value) ? compliancePolicies.value.length : null;
   const configurationCount = deviceConfigurations && Array.isArray(deviceConfigurations.value) ? deviceConfigurations.value.length : null;
@@ -156,9 +166,6 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
     evidence: appPolicyCount !== null ? { managedAppPolicies: appPolicies?.value } : undefined,
   });
 
-  const profiles = controlProfiles && Array.isArray(controlProfiles.value) ? controlProfiles.value as Array<Record<string, unknown>> : [];
-  const profileById = new Map(profiles.filter((item) => item.deprecated !== true).map((item) => [String(item.id ?? ""), item]));
-  const controlScores = latest && Array.isArray(latest.controlScores) ? latest.controlScores as Array<Record<string, unknown>> : [];
   const opportunities = controlScores
     .map((item) => {
       const id = String(item.controlName ?? "");

@@ -404,6 +404,12 @@ Microsoft 365 Secure Score, and Defender for Cloud Secure Score. Each Microsoft 
 vendor-returned current, maximum, and percentage values and is labelled with its source. Vendor
 scores are never blended into or relabelled as the NSO score.
 
+Under Microsoft 365 Secure Score, the report shows Microsoft's five control-category
+components: Identity, Data, Device, Apps, and Infrastructure. Earned points come from the latest
+control scores and available points from the matching control profiles. A category with no
+scored controls is shown as unavailable, not zero. The Identity component is the same posture
+component Microsoft surfaces as Identity Secure Score.
+
 ## 8. Security & Compliance Requirements
 
 - **Least privilege**: request only the scopes/roles actually used by an active module; don't

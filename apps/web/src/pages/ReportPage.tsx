@@ -14,6 +14,17 @@ function scoreEvidence(scan: StarterScan | undefined, checkId: string): Record<s
   return typeof evidence === "object" && evidence !== null ? evidence as Record<string, unknown> : undefined;
 }
 
+interface CategoryScore { name: string; earned: number; available: number; percentage: number | null }
+
+function categoryScores(evidence: Record<string, unknown> | undefined): CategoryScore[] {
+  if (!Array.isArray(evidence?.categories)) return [];
+  return evidence.categories.filter((item): item is CategoryScore => {
+    if (typeof item !== "object" || item === null) return false;
+    const value = item as Record<string, unknown>;
+    return typeof value.name === "string" && typeof value.earned === "number" && typeof value.available === "number" && (typeof value.percentage === "number" || value.percentage === null);
+  });
+}
+
 export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPageProps) {
   const [scan, setScan] = useState<StarterScan>();
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
@@ -21,6 +32,7 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
   const [runError, setRunError] = useState<string>();
   const m365Score = scoreEvidence(scan, "m365.secure-score");
   const defenderScore = scoreEvidence(scan, "defender.secure-score");
+  const m365Categories = categoryScores(m365Score);
   useEffect(() => {
     void loadStarterScan(account, scanId).then(setScan);
     void loadScanHistory(account).then(setHistory);
@@ -67,6 +79,20 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
             <p>{defenderScore ? `${String(defenderScore.current)} of ${String(defenderScore.maximum)} points` : "Not available in this scan"}</p>
           </div>
         </div>
+        {m365Categories.length ? (
+          <section className="m365-categories" aria-labelledby="m365-categories-title">
+            <div><span>Microsoft 365 breakdown</span><strong id="m365-categories-title">Secure Score categories</strong></div>
+            <div className="category-score-grid">
+              {m365Categories.map((category) => (
+                <div key={category.name}>
+                  <span>{category.name}</span>
+                  <strong>{category.percentage ?? "—"}<small>{category.percentage === null ? "" : "%"}</small></strong>
+                  <p>{category.available ? `${category.earned} of ${category.available} points` : "No scored controls available"}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
         <p className="scan-reference">Scan {scanId}</p>
         <div className="starter-findings">
           {scan?.findings.map((finding) => (
