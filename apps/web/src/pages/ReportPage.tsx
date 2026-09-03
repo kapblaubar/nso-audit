@@ -18,6 +18,82 @@ function scoreEvidence(scan: StarterScan | undefined, checkId: string): Record<s
 
 interface CategoryScore { name: string; earned: number; available: number; percentage: number | null }
 
+function reviewEvidence(finding: StarterScan["findings"][number]): Record<string, unknown> | undefined {
+  const evidence = typeof finding.evidence === "object" && finding.evidence !== null
+    ? finding.evidence as Record<string, unknown>
+    : undefined;
+  if (!evidence) return undefined;
+
+  if (finding.checkId === "m365.secure-score") {
+    return {
+      current: evidence.current,
+      maximum: evidence.maximum,
+      percentage: evidence.percentage,
+      categories: evidence.categories,
+      createdDateTime: evidence.createdDateTime,
+      activeUserCount: evidence.activeUserCount,
+      licensedUserCount: evidence.licensedUserCount,
+    };
+  }
+  if (finding.checkId === "defender.secure-score") {
+    return { current: evidence.current, maximum: evidence.maximum, percentage: evidence.percentage };
+  }
+  if (finding.checkId === "entra.global-admins") {
+    return { administratorCount: Array.isArray(evidence.administrators) ? evidence.administrators.length : 0 };
+  }
+  if (finding.checkId === "entra.conditional-access") {
+    const policies = Array.isArray(evidence.policies) ? evidence.policies as Array<Record<string, unknown>> : [];
+    return {
+      policyCount: policies.length,
+      enabledPolicyCount: policies.filter((policy) => policy.state === "enabled").length,
+      namedLocationCount: Array.isArray(evidence.namedLocations) ? evidence.namedLocations.length : 0,
+    };
+  }
+  if (finding.checkId === "intune.device-policies") {
+    return {
+      compliancePolicyCount: Array.isArray(evidence.compliancePolicies) ? evidence.compliancePolicies.length : 0,
+      deviceConfigurationCount: Array.isArray(evidence.deviceConfigurations) ? evidence.deviceConfigurations.length : 0,
+    };
+  }
+  if (finding.checkId === "intune.app-protection") {
+    return { managedAppPolicyCount: Array.isArray(evidence.managedAppPolicies) ? evidence.managedAppPolicies.length : 0 };
+  }
+  if (finding.checkId.startsWith("m365.recommendations.")) {
+    const recommendations = Array.isArray(evidence.recommendations)
+      ? evidence.recommendations as Array<Record<string, unknown>>
+      : [];
+    return {
+      category: evidence.category,
+      recommendationCount: recommendations.length,
+      recommendations: recommendations.map((item) => ({
+        title: item.title,
+        currentPoints: item.currentPoints,
+        maximumPoints: item.maximumPoints,
+        potentialGain: item.potentialGain,
+        scorePercentage: item.scorePercentage,
+        service: item.service,
+        implementationCost: item.implementationCost,
+        userImpact: item.userImpact,
+      })),
+    };
+  }
+  if (finding.checkId === "defender.recommendations") {
+    const recommendations = Array.isArray(evidence.recommendations)
+      ? evidence.recommendations as Array<Record<string, unknown>>
+      : [];
+    return {
+      recommendationCount: recommendations.length,
+      recommendations: recommendations.map((item) => ({
+        title: item.title,
+        severity: item.severity,
+        status: item.status,
+        affectedResourceCount: item.affectedResourceCount,
+      })),
+    };
+  }
+  return undefined;
+}
+
 function categoryScores(evidence: Record<string, unknown> | undefined): CategoryScore[] {
   if (!Array.isArray(evidence?.categories)) return [];
   return evidence.categories.filter((item): item is CategoryScore => {
@@ -53,6 +129,29 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
       setRunError(error instanceof Error ? error.message : "The audit could not be started.");
       setRunning(false);
     }
+  };
+  const downloadScoreReview = () => {
+    if (!scan) return;
+    const report = {
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      purpose: "NSO Audit scoring review",
+      redaction: "Tenant, subscription, administrator, policy, and resource identifiers are excluded.",
+      scan: { score: scan.score, findingCount: scan.findings.length },
+      findings: scan.findings.map((finding) => ({
+        checkId: finding.checkId,
+        title: finding.title,
+        status: finding.status,
+        detail: finding.detail,
+        ...(reviewEvidence(finding) ? { evidence: reviewEvidence(finding) } : {}),
+      })),
+    };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `nso-audit-score-review-${scanId}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
   return (
     <main className="report-page">
@@ -112,6 +211,7 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
         {recommendationFindings.length ? <section className="recommendation-section" aria-labelledby="recommendations-title"><p className="eyebrow">Prioritized actions</p><h2 id="recommendations-title">Recommendations</h2><p>Up to 25 of the most important available recommendations are retained for each area.</p><div className="recommendation-card-grid">{recommendationFindings.map((finding) => <article key={finding.checkId}><span>{finding.checkId === "defender.recommendations" ? "Azure" : "Microsoft 365"}</span><h3>{finding.title}</h3><p>{finding.detail}</p>{finding.evidence !== undefined ? <button className="detail-button" type="button" onClick={() => setSelectedFinding(finding)}>View recommendations</button> : null}</article>)}</div></section> : null}
         <div className="report-actions">
           <button className="step-action" type="button" onClick={runAgain} disabled={!scan?.subscriptionId || running}>{running ? "Running audit…" : "Run audit again"}</button>
+          <button className="detail-button" type="button" onClick={downloadScoreReview} disabled={!scan}>Download score-review report</button>
           {runError ? <p className="auth-error" role="alert">{runError}</p> : null}
         </div>
         <section className="scan-history" aria-labelledby="history-title">
