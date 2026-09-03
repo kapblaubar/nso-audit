@@ -14,7 +14,7 @@ for the target environment; credentials and deployment tokens must never be comm
 | SPA redirect | `Set-NsoAuditAppRedirect.ps1` | Supply the new Static Web App hostname |
 | Key Vault workload credential | Key Vault and managed-identity access are provisioned; the API now retrieves the configured secret name | Automate creating one App Registration secret directly in Key Vault, rotation, expiry alerts, and emergency revocation without printing the value |
 | Function runtime and CORS | `Set-NsoAuditApiRuntime.ps1` | Supply the new Function and Static Web App hostnames |
-| Function deployment | `Publish-NsoAuditApi.ps1` | Run after infrastructure and identity configuration |
+| Function deployment | `.github/workflows/deploy-api.yml` or `Publish-NsoAuditApi.ps1` | Add the `AZURE_FUNCTIONAPP_PUBLISH_PROFILE` GitHub environment secret; prefer workload-identity deployment before production |
 | Web deployment | `.github/workflows/deploy-web.yml` | GitHub environment and Static Web App deployment token are still created manually |
 | Customer consent and Azure roles | Portal consent plus downloadable `Set-NsoAuditCustomerReaderRoles.ps1` | Must be completed independently in every customer tenant |
 
