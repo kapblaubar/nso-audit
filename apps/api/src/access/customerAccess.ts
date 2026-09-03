@@ -1,4 +1,5 @@
-import { ClientAssertionCredential, ManagedIdentityCredential } from "@azure/identity";
+import { ClientSecretCredential, ManagedIdentityCredential } from "@azure/identity";
+import { SecretClient } from "@azure/keyvault-secrets";
 
 export interface AccessCheckResult {
   tenantAccess: { ok: boolean; message: string };
@@ -9,16 +10,41 @@ export interface AccessCheckResult {
 
 export interface StarterFinding { checkId: string; title: string; status: "pass" | "warning"; detail: string; evidence?: unknown }
 
-function customerCredential(tenantId: string): ClientAssertionCredential {
+const secretCacheLifetimeMs = 5 * 60 * 1000;
+let cachedClientSecret: { value: string; loadedAt: number } | undefined;
+let pendingClientSecret: Promise<string> | undefined;
+
+async function getApplicationClientSecret(): Promise<string> {
+  if (cachedClientSecret && Date.now() - cachedClientSecret.loadedAt < secretCacheLifetimeMs) {
+    return cachedClientSecret.value;
+  }
+
+  pendingClientSecret ??= (async () => {
+    const vaultUrl = process.env.KEY_VAULT_URI;
+    const secretName = process.env.ENTRA_CLIENT_SECRET_NAME;
+    const managedIdentityClientId = process.env.AZURE_CLIENT_ID;
+    if (!vaultUrl || !secretName || !managedIdentityClientId) {
+      throw new Error("Key Vault workload authentication is not configured.");
+    }
+
+    const managedIdentity = new ManagedIdentityCredential({ clientId: managedIdentityClientId });
+    const secret = await new SecretClient(vaultUrl, managedIdentity).getSecret(secretName);
+    if (!secret.value) throw new Error(`Key Vault secret '${secretName}' has no value.`);
+    cachedClientSecret = { value: secret.value, loadedAt: Date.now() };
+    return secret.value;
+  })();
+
+  try {
+    return await pendingClientSecret;
+  } finally {
+    pendingClientSecret = undefined;
+  }
+}
+
+async function customerCredential(tenantId: string): Promise<ClientSecretCredential> {
   const appClientId = process.env.ENTRA_CLIENT_ID;
-  const managedIdentityClientId = process.env.AZURE_CLIENT_ID;
-  if (!appClientId || !managedIdentityClientId) throw new Error("Workload identity is not configured.");
-  const managedIdentity = new ManagedIdentityCredential({ clientId: managedIdentityClientId });
-  return new ClientAssertionCredential(tenantId, appClientId, async () => {
-    const assertion = await managedIdentity.getToken("api://AzureADTokenExchange/.default");
-    if (!assertion) throw new Error("Managed identity assertion was unavailable.");
-    return assertion.token;
-  });
+  if (!appClientId) throw new Error("The App Registration client ID is not configured.");
+  return new ClientSecretCredential(tenantId, appClientId, await getApplicationClientSecret());
 }
 
 async function call(url: string, token: string): Promise<{ ok: boolean; status: number }> {
@@ -27,7 +53,7 @@ async function call(url: string, token: string): Promise<{ ok: boolean; status: 
 }
 
 export async function checkCustomerAccess(tenantId: string, subscriptionId: string): Promise<AccessCheckResult> {
-  const credential = customerCredential(tenantId);
+  const credential = await customerCredential(tenantId);
 
   let graph = { ok: false, status: 0 };
   let resources = { ok: false, status: 0 };
@@ -67,7 +93,7 @@ function compactText(value: unknown, maximumLength = 1000): string | undefined {
 }
 
 export async function runStarterCollection(tenantId: string, subscriptionId: string): Promise<StarterFinding[]> {
-  const credential = customerCredential(tenantId);
+  const credential = await customerCredential(tenantId);
   const graphToken = await credential.getToken("https://graph.microsoft.com/.default");
   const armToken = await credential.getToken("https://management.azure.com/.default");
   const subscription = await getJson(`https://management.azure.com/subscriptions/${subscriptionId}?api-version=2022-12-01`, armToken.token);

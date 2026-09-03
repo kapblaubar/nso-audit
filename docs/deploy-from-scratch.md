@@ -12,7 +12,7 @@ for the target environment; credentials and deployment tokens must never be comm
 | App Registration permissions | `Set-NsoAuditApiPermissions.ps1` | App Registration creation, verified publisher, ownership and production naming still require automation/review |
 | Protected API scope | `Set-NsoAuditApiScope.ps1` | None after the App Registration exists |
 | SPA redirect | `Set-NsoAuditAppRedirect.ps1` | Supply the new Static Web App hostname |
-| Workload federation | `Set-NsoAuditWorkloadFederation.ps1` | Supply the new managed identity and App Registration IDs |
+| Key Vault workload credential | Key Vault and managed-identity access are provisioned; the API now retrieves the configured secret name | Automate creating one App Registration secret directly in Key Vault, rotation, expiry alerts, and emergency revocation without printing the value |
 | Function runtime and CORS | `Set-NsoAuditApiRuntime.ps1` | Supply the new Function and Static Web App hostnames |
 | Function deployment | `Publish-NsoAuditApi.ps1` | Run after infrastructure and identity configuration |
 | Web deployment | `.github/workflows/deploy-web.yml` | GitHub environment and Static Web App deployment token are still created manually |
@@ -32,9 +32,10 @@ reconciling it; do not deploy the template blindly into production.
 4. Apply the exact allowlisted API permissions with `Set-NsoAuditApiPermissions.ps1`.
 5. Expose `api://{clientId}/access_as_user` with `Set-NsoAuditApiScope.ps1`.
 6. Add the Static Web App callback with `Set-NsoAuditAppRedirect.ps1`.
-7. Configure the managed-identity federated credential with
-   `Set-NsoAuditWorkloadFederation.ps1`.
-8. Configure Function settings and exact CORS origin with `Set-NsoAuditApiRuntime.ps1`.
+7. Create one App Registration secret and write it directly to the hosting Key Vault without
+   printing or persisting the value outside Key Vault.
+8. Configure the Function's secret-name setting and exact CORS origin with
+   `Set-NsoAuditApiRuntime.ps1`.
 9. Verify managed-identity Storage and Key Vault roles with `Test-NsoAuditResources.ps1`.
 10. Publish the API with `Publish-NsoAuditApi.ps1` and test `/api/health`.
 11. Configure the GitHub `AZURE_STATIC_WEB_APPS_API_TOKEN` secret and environment-specific Vite
@@ -46,8 +47,11 @@ reconciling it; do not deploy the template blindly into production.
 
 - No subscription ID, tenant ID, access token, storage key, deployment token, secret, or private
   certificate is committed.
-- The Function uses only its user-assigned managed identity for platform Storage and workload
-  federation.
+- The Function uses its user-assigned managed identity for platform Storage and to retrieve the
+  App Registration secret from the hosting Key Vault.
+- No customer-specific application credential exists. Exactly one App Registration secret is
+  stored in the hosting Key Vault, retrieved through managed identity, rotated automatically,
+  monitored before expiry, and never copied into Function settings or deployment output.
 - `tenants`, `scans`, and `findings` tables exist and reject anonymous access.
 - The API rejects a Subscription ID whose owning tenant differs from the signed token tenant.
 - A user from one tenant cannot retrieve another tenant's scan, even with a known scan ID.

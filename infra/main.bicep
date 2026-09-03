@@ -18,6 +18,9 @@ param environmentName string = 'dev'
 @maxLength(10)
 param uniqueSuffix string
 
+@description('Name of the App Registration client secret stored in Key Vault. The secret value is supplied out of band.')
+param entraClientSecretName string = 'nso-audit-app-client-secret'
+
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: resourceGroupName
   location: location
@@ -36,6 +39,7 @@ module platform 'modules/platform.bicep' = {
     location: location
     environmentName: environmentName
     uniqueSuffix: uniqueSuffix
+    entraClientSecretName: entraClientSecretName
   }
 }
 
@@ -43,4 +47,3 @@ output resourceGroupName string = resourceGroup.name
 output staticWebAppName string = platform.outputs.staticWebAppName
 output functionAppName string = platform.outputs.functionAppName
 output keyVaultName string = platform.outputs.keyVaultName
-

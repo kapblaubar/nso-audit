@@ -1,6 +1,7 @@
 param location string
 param environmentName string
 param uniqueSuffix string
+param entraClientSecretName string
 
 var compactPrefix = 'nsoaudit${environmentName}${uniqueSuffix}'
 var standardPrefix = 'nso-audit-${environmentName}-${uniqueSuffix}'
@@ -155,6 +156,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'STORAGE_ACCOUNT_NAME'
           value: storage.name
         }
+        {
+          name: 'ENTRA_CLIENT_SECRET_NAME'
+          value: entraClientSecretName
+        }
       ]
     }
   }
@@ -220,4 +225,3 @@ resource vaultRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 output staticWebAppName string = staticWebApp.name
 output functionAppName string = functionApp.name
 output keyVaultName string = vault.name
-

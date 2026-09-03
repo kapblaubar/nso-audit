@@ -15,6 +15,10 @@ param(
     [ValidatePattern('^[0-9a-fA-F-]{36}$')]
     [string] $ApplicationClientId,
 
+    [Parameter()]
+    [ValidateNotNullOrEmpty()]
+    [string] $ApplicationClientSecretName = "nso-audit-app-client-secret",
+
     [Parameter(Mandatory)]
     [ValidatePattern('^https://[^/]+$')]
     [string] $FrontendOrigin
@@ -34,7 +38,9 @@ if ($PSCmdlet.ShouldProcess($FunctionAppName, "Set Entra client ID and allow the
     az functionapp config appsettings set `
         --resource-group $ResourceGroupName `
         --name $FunctionAppName `
-        --settings "ENTRA_CLIENT_ID=$ApplicationClientId" `
+        --settings `
+            "ENTRA_CLIENT_ID=$ApplicationClientId" `
+            "ENTRA_CLIENT_SECRET_NAME=$ApplicationClientSecretName" `
         --output none
     if ($LASTEXITCODE -ne 0) { throw "Function App setting update failed." }
 
@@ -56,4 +62,3 @@ if ($PSCmdlet.ShouldProcess($FunctionAppName, "Set Entra client ID and allow the
 
     Write-Host "Configured API runtime and allowed origin: $FrontendOrigin" -ForegroundColor Green
 }
-

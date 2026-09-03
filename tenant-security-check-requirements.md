@@ -9,9 +9,12 @@ authorized administrator approve the Enterprise Application without using that p
 account as the ordinary NSO Audit dashboard session. Optional Azure RBAC read access is granted
 separately and only when Azure-resource modules are enabled.
 
-This is a **single central multi-tenant SaaS**: one App Registration, one Function App, one
-storage account, serving many customer tenants. Every stored record and every dashboard query
-is partitioned and scoped by `tenantId`.
+An MSP may deploy one instance in its own hosting tenant and use it to assess both that tenant
+and multiple consented customer tenants. A customer may instead deploy a dedicated instance in
+its own tenant. Each deployed instance has one App Registration, one Function App, and one
+storage account. Every stored record and dashboard query is partitioned and scoped by the
+selected audit-target `tenantId`; the signed-in operator's home tenant is not automatically the
+audit target.
 
 ## 2. Goals / Non-Goals
 
@@ -33,6 +36,25 @@ is partitioned and scoped by `tenantId`.
 - No collection or storage of customer administrator passwords or other customer credentials.
 
 ## 3. End-to-End User Flow
+
+### 3.1 Deployment and operating use cases
+
+- **MSP-hosted multi-customer**: authorized MSP operators sign in to an instance hosted in the
+  MSP tenant, select a customer from a server-authorized tenant registry, and run or review that
+  customer's assessments. Adding a customer requires independent admin consent in the customer
+  tenant and any separately selected Azure RBAC assignments.
+- **Hosting-tenant assessment**: the MSP can register its own tenant as an audit target and run
+  the same consent, access verification, baseline evaluation, storage isolation, and reporting
+  path used for a customer. Hosting the application does not implicitly authorize an audit.
+- **Customer-hosted dedicated**: a customer deploys its own instance and ordinarily registers
+  only its own tenant. The tenant selector may be hidden, but the same target-authorization
+  checks remain enforced by the API.
+
+Login proves the operator's identity; it does not grant access to every onboarded tenant. The API
+maintains and enforces the mapping between an MSP organization, its authorized operators, and its
+managed audit-target tenants. A browser-supplied tenant ID is never authoritative.
+
+### 3.2 Assessment flow
 
 1. User visits the marketing/landing page and signs in with a normal, non-privileged Microsoft
    organizational account. The backend establishes the user's home `tenantId`. The UI must
@@ -161,9 +183,10 @@ threat model, session isolation design, credential-handling review, and audit lo
 
 ### 5.5 Function App
 - One function/module per data source, orchestrated by a parent scan function.
-- Auth: client credentials flow against the target `tenantId`. The vendor Function's
-  user-assigned managed identity is trusted as a federated credential on the multitenant App
-  Registration, avoiding stored client secrets or certificate private keys.
+- Auth: client credentials flow against the selected target `tenantId`. The Function App uses
+  its user-assigned managed identity to retrieve the vendor-owned App Registration client secret
+  from the hosting deployment's Key Vault. The App Registration and each tenant's consented
+  Enterprise Application hold only the read permissions required by active scanner modules.
 - Each module: calls its API, normalizes response into a common finding schema (see §7.2),
   computes a sub-score, handles pagination/throttling/partial failures gracefully (one data
   source failing must not fail the whole scan).
@@ -173,9 +196,16 @@ threat model, session isolation design, credential-handling review, and audit lo
   familiarity but is harder to scale/test. Recommend **Python or C# on the isolated worker
   model** unless there's a reason to prefer PowerShell.
 
-The Function App uses its managed identity to retrieve the vendor-owned application
-certificate from Key Vault. Key Vault contains no customer administrator passwords. Storage
-and Key Vault access should use managed identity rather than account keys in configuration.
+One App Registration client secret is created per deployed NSO Audit application and stored only
+in a dedicated hosting Key Vault. The vault must contain no unrelated application secrets, and
+its data-plane access is limited to the Function's managed identity and explicitly authorized
+credential administrators. The secret is not copied into Function settings and is not recreated
+in each customer tenant. Customer admin consent creates a Service Principal that trusts the same
+application identity. The hosting tenant follows this same consent, authorization, and assessment
+path when it is selected as an audit target. The secret must have automated rotation, overlap
+between old and new versions, expiry monitoring, and a documented emergency-revocation process.
+Key Vault contains no customer administrator passwords. Storage and Key Vault access use managed
+identity rather than account keys in configuration.
 
 ### 5.6 Storage Account
 - Table Storage or Cosmos DB (table API) for structured, queryable findings — partition key
@@ -426,10 +456,11 @@ component Microsoft surfaces as Identity Secure Score.
   request permissions "in case we need them later."
 - **Read-only, always**: no permission in §6 should ever be a write scope. This should be an
   automated check in CI (lint the permission manifest) not just a code review convention.
-- **Secretless workload federation** for the Function App's client-credential flow in
-  production. The user-assigned managed identity is the federated credential on the vendor App
-  Registration; do not introduce a long-lived client secret. A Key Vault certificate is an
-  acceptable fallback only if federation is unavailable and certificate rotation is automated.
+- **Key Vault-held workload credential** for the Function App's client-credential flow. Exactly
+  one App Registration secret exists per NSO Audit deployment, is stored only in the hosting Key
+  Vault, and is retrieved using the Function's managed identity. Never copy it into application
+  settings, source control, logs, customer tenants, or operator-visible responses. Rotation,
+  expiry alerts, overlapping credential versions, revocation, and access auditing are required.
 - **No customer credentials ever held by us** — normal users authenticate through Microsoft,
   authorized administrators grant consent on Microsoft's page, and subscription administrators
   run any optional RBAC script in their own Azure session. Never ask for a password or
@@ -503,13 +534,20 @@ component Microsoft surfaces as Identity Secure Score.
 - **Frontend**: static web application for landing, authentication handoff, onboarding, scan
   status, and results; all privileged operations go through the protected API.
 - **Identity topology**: one vendor-owned multi-tenant App Registration and one Service
-  Principal per consenting customer tenant.
+  Principal per consenting audit-target tenant, including the hosting tenant when it is audited.
+- **MSP authorization topology**: the API stores an allowlisted relationship from MSP
+  organization and operator identity to each managed audit-target tenant. Tenant selection is
+  resolved against that relationship on every request and never authorized from a browser value
+  alone.
 - **User identity**: ordinary dashboard sign-in uses a normal organizational account; Global
   Administrator is neither requested nor recommended for routine site access.
 - **Consent identity**: tenant-wide Graph consent occurs separately on Microsoft's endpoint and
   may use a different authorized administrator account.
-- **Workload authentication**: certificate-based client credentials; the private key is stored
-  in the vendor Key Vault and read by the Function App through managed identity.
+- **Workload authentication**: one client secret for the vendor-owned multitenant App
+  Registration is stored in the hosting Key Vault and retrieved by the Function through managed
+  identity. The same application credential is used to request tenant-specific tokens for the
+  hosting tenant and every consented customer tenant; customer tenants never receive or provide
+  a copy of it.
 - **Customer setup**: Azure RBAC onboarding is optional, begins after the Graph-only Phase 1
   flow, and uses downloadable PowerShell/Azure Cloud Shell rather than an embedded terminal.
 - **Phase 1 sources**: Entra ID and Secure Score. Intune, Azure resource data, Sentinel, and
@@ -527,3 +565,8 @@ component Microsoft surfaces as Identity Secure Score.
   should be assigned.
 - Retention period for stored scan data (compliance/legal input needed, not just a technical
   default).
+- Complete the Key Vault credential lifecycle: automate creation of the single App Registration
+  secret, write it directly to Key Vault without exposing it in shell output, retrieve it through
+  managed identity, rotate it with a safe overlap window, alert before expiry, document emergency
+  revocation, and add deployment acceptance tests for both hosting-tenant and customer-tenant
+  token acquisition. Do not create one credential per customer tenant.

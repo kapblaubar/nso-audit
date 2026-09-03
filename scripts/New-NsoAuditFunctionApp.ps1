@@ -25,7 +25,11 @@ param(
 
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
-    [string] $ManagedIdentityName
+    [string] $ManagedIdentityName,
+
+    [Parameter()]
+    [ValidateNotNullOrEmpty()]
+    [string] $ApplicationClientSecretName = "nso-audit-app-client-secret"
 )
 
 $ErrorActionPreference = "Stop"
@@ -128,6 +132,7 @@ if ($PSCmdlet.ShouldProcess($FunctionAppName, "Set non-secret application config
             "KEY_VAULT_URI=$($vault.VaultUri)" `
             "STORAGE_ACCOUNT_NAME=$($storage.StorageAccountName)" `
             "AZURE_CLIENT_ID=$($identity.ClientId)" `
+            "ENTRA_CLIENT_SECRET_NAME=$ApplicationClientSecretName" `
         --output none
 
     if ($LASTEXITCODE -ne 0) {
