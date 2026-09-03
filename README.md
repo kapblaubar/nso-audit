@@ -14,6 +14,8 @@ Low-cost, multi-tenant Microsoft 365 and Azure security posture assessment.
 The separation between routine dashboard identity, Microsoft-hosted tenant admin consent, and
 optional Azure subscription RBAC is documented in `docs/identity-consent-model.md`.
 The staged API-permission and Azure-role catalog is documented in `docs/permission-matrix.md`.
+The initial versioned scoring rules and their limitations are documented in
+`docs/baseline-v1.md`.
 
 ## Local setup
 

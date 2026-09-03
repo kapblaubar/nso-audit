@@ -1,6 +1,7 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from "@azure/functions";
 import { requireTenantUser } from "../auth/requireTenantUser.js";
 import { runStarterCollection } from "../access/customerAccess.js";
+import { evaluateBaseline } from "../scoring/baseline.js";
 import { getStarterScan, listTenantScans, saveStarterScan } from "../storage/tenantStore.js";
 
 export async function startScan(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -9,7 +10,8 @@ export async function startScan(request: HttpRequest, context: InvocationContext
     const body = await request.json() as { subscriptionId?: unknown };
     if (typeof body.subscriptionId !== "string" || !/^[0-9a-f-]{36}$/i.test(body.subscriptionId)) return { status: 400, jsonBody: { error: "A valid Subscription ID is required." } };
     const findings = await runStarterCollection(user.tenantId, body.subscriptionId);
-    return { status: 201, jsonBody: await saveStarterScan(user.tenantId, body.subscriptionId, findings) };
+    const baseline = evaluateBaseline(findings);
+    return { status: 201, jsonBody: await saveStarterScan(user.tenantId, body.subscriptionId, findings, baseline) };
   } catch (error) {
     context.error("Starter scan failed", error instanceof Error ? error.message : "Unknown error");
     return { status: 500, jsonBody: { error: "The starter audit could not be completed." } };

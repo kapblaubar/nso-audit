@@ -58,7 +58,27 @@ export async function checkTenantAccess(account: AccountInfo, subscriptionId: st
   return body;
 }
 
-export interface StarterScan { scanId: string; score: number; subscriptionId?: string; findings: Array<{ checkId: string; title: string; status: string; detail: string; evidence?: unknown }> }
+export interface BaselineControlResult {
+  controlId: string;
+  title: string;
+  category: "identity" | "devices" | "azure" | "coverage";
+  status: "pass" | "partial" | "fail" | "informational" | "unsupported";
+  weight: number;
+  earnedWeight: number;
+  detail: string;
+  source: string;
+}
+
+export interface BaselineResult {
+  baselineId: string;
+  score: number | null;
+  coverage: number;
+  assessedWeight: number;
+  applicableWeight: number;
+  controls: BaselineControlResult[];
+}
+
+export interface StarterScan { scanId: string; score?: number; subscriptionId?: string; baseline?: BaselineResult; findings: Array<{ checkId: string; title: string; status: string; detail: string; evidence?: unknown }> }
 export interface ScanHistoryItem { scanId: string; status: string; createdAt: string; completedAt?: string; score?: number }
 
 export async function startStarterScan(account: AccountInfo, subscriptionId: string): Promise<StarterScan> {

@@ -100,7 +100,7 @@ function categoryScores(evidence: Record<string, unknown> | undefined): Category
     if (typeof item !== "object" || item === null) return false;
     const value = item as Record<string, unknown>;
     return typeof value.name === "string" && typeof value.earned === "number" && typeof value.available === "number" && (typeof value.percentage === "number" || value.percentage === null);
-  });
+  }).filter((category) => category.available > 0 && category.earned <= category.available && category.percentage !== null && category.percentage <= 100);
 }
 
 export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPageProps) {
@@ -138,6 +138,7 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
       purpose: "NSO Audit scoring review",
       redaction: "Tenant, subscription, administrator, policy, and resource identifiers are excluded.",
       scan: { score: scan.score, findingCount: scan.findings.length },
+      baseline: scan.baseline,
       findings: scan.findings.map((finding) => ({
         checkId: finding.checkId,
         title: finding.title,
@@ -168,9 +169,14 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
         <p>Tenant ID: {bootstrap.tenantId}</p>
         <div className="score-grid" aria-label="Security scores">
           <div className="report-score score-primary">
-            <span>NSO Assessment Score</span>
+            <span>{scan?.baseline ? "NSO Foundation Score" : "Legacy NSO Assessment Score"}</span>
             <strong>{scan?.score ?? "—"}<small>/100</small></strong>
-            <p>Preview scoring model</p>
+            <p>{scan?.baseline?.baselineId ?? "Legacy preview scoring model"}</p>
+          </div>
+          <div className="report-score">
+            <span>Assessment Coverage</span>
+            <strong>{scan?.baseline?.coverage ?? "—"}<small>%</small></strong>
+            <p>{scan?.baseline ? `${scan.baseline.assessedWeight} of ${scan.baseline.applicableWeight} baseline weight assessed` : "Available on the next scan"}</p>
           </div>
           <div className="report-score">
             <span>Microsoft 365 Secure Score</span>
@@ -183,6 +189,23 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
             <p>{defenderScore ? `${String(defenderScore.current)} of ${String(defenderScore.maximum)} points` : "Not available in this scan"}</p>
           </div>
         </div>
+        {scan?.baseline ? (
+          <section className="recommendation-section" aria-labelledby="baseline-controls-title">
+            <p className="eyebrow">{scan.baseline.baselineId}</p>
+            <h2 id="baseline-controls-title">Baseline controls</h2>
+            <p>Only weighted controls affect the NSO Foundation Score. Informational controls retain useful Microsoft and inventory signals without changing the score.</p>
+            <div className="starter-findings">
+              {scan.baseline.controls.map((control) => (
+                <article key={control.controlId} className={control.status === "pass" ? "finding-pass" : "finding-warning"}>
+                  <span>{control.status}</span>
+                  <h3>{control.title}</h3>
+                  <p>{control.detail}</p>
+                  <small>{control.weight ? `${control.earnedWeight} of ${control.weight} weighted points · ` : ""}{control.source}</small>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
         {m365Categories.length ? (
           <section className="m365-categories" aria-labelledby="m365-categories-title">
             <div><span>Microsoft 365 breakdown</span><strong id="m365-categories-title">Secure Score categories</strong></div>

@@ -1,5 +1,6 @@
 import { TableClient, type TableEntityResult } from "@azure/data-tables";
 import { DefaultAzureCredential } from "@azure/identity";
+import type { BaselineResult } from "../scoring/baseline.js";
 
 type ConsentStatus = "notConfigured" | "pending" | "granted" | "error";
 type AzureRbacStatus = "notConfigured" | "partial" | "configured";
@@ -21,6 +22,9 @@ interface ScanEntity {
   completedAt?: string;
   score?: number;
   subscriptionId?: string;
+  baselineId?: string;
+  coverage?: number;
+  baselineJson?: string;
 }
 
 export interface TenantBootstrapRecord {
@@ -137,12 +141,12 @@ export async function saveAccessCheck(
   }, "Merge");
 }
 
-export async function saveStarterScan(tenantId: string, subscriptionId: string, findings: Array<{ checkId: string; title: string; status: string; detail: string; evidence?: unknown }>) {
+export async function saveStarterScan(tenantId: string, subscriptionId: string, findings: Array<{ checkId: string; title: string; status: string; detail: string; evidence?: unknown }>, baseline: BaselineResult) {
   tenantsClient ??= getTableClient("tenants"); scansClient ??= getTableClient("scans"); findingsClient ??= getTableClient("findings");
   const scanId = crypto.randomUUID();
   const now = new Date().toISOString();
-  const score = Math.round(findings.filter((finding) => finding.status === "pass").length / findings.length * 100);
-  await scansClient.createEntity({ partitionKey: tenantId, rowKey: scanId, status: "complete", createdAt: now, completedAt: now, score, subscriptionId });
+  const score = baseline.score ?? undefined;
+  await scansClient.createEntity({ partitionKey: tenantId, rowKey: scanId, status: "complete", createdAt: now, completedAt: now, score, subscriptionId, baselineId: baseline.baselineId, coverage: baseline.coverage, baselineJson: JSON.stringify(baseline) });
   for (const finding of findings) {
     const serialized = finding.evidence === undefined ? undefined : JSON.stringify(finding.evidence);
     const evidenceJson = serialized && serialized.length <= 60000 ? serialized : serialized ? JSON.stringify({ truncated: true, message: "Evidence exceeded the Table Storage property limit." }) : undefined;
@@ -150,7 +154,7 @@ export async function saveStarterScan(tenantId: string, subscriptionId: string, 
     await findingsClient.createEntity({ partitionKey: `${tenantId}:${scanId}`, rowKey: finding.checkId, ...storedFinding, ...(evidenceJson ? { evidenceJson } : {}) });
   }
   await tenantsClient.upsertEntity({ partitionKey: tenantId, rowKey: "registration", lastScanId: scanId }, "Merge");
-  return { scanId, tenantId, status: "complete" as const, createdAt: now, completedAt: now, score, findings };
+  return { scanId, tenantId, status: "complete" as const, createdAt: now, completedAt: now, score, baseline, findings };
 }
 
 export async function getStarterScan(tenantId: string, scanId: string) {
@@ -159,7 +163,8 @@ export async function getStarterScan(tenantId: string, scanId: string) {
   if (!scan) return null;
   const findings = [];
   for await (const entity of findingsClient.listEntities<{ title: string; status: string; detail: string; evidenceJson?: string }>({ queryOptions: { filter: `PartitionKey eq '${tenantId}:${scanId}'` } })) findings.push({ checkId: entity.rowKey, title: entity.title, status: entity.status, detail: entity.detail, ...(entity.evidenceJson ? { evidence: JSON.parse(entity.evidenceJson) as unknown } : {}) });
-  return { scanId, tenantId, status: scan.status, createdAt: scan.createdAt, completedAt: scan.completedAt, score: scan.score, subscriptionId: scan.subscriptionId, findings };
+  const baseline = scan.baselineJson ? JSON.parse(scan.baselineJson) as BaselineResult : undefined;
+  return { scanId, tenantId, status: scan.status, createdAt: scan.createdAt, completedAt: scan.completedAt, score: scan.score, subscriptionId: scan.subscriptionId, ...(baseline ? { baseline } : {}), findings };
 }
 
 export async function listTenantScans(tenantId: string, limit = 25) {

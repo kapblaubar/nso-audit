@@ -6,6 +6,7 @@
   "main": "dist/src/functions/*.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/src/scoring/baseline.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

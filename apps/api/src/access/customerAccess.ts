@@ -220,7 +220,7 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
   const users = registrations && Array.isArray(registrations.value) ? registrations.value as Array<Record<string, unknown>> : [];
   const mfaUsers = users.filter((item) => item.isMfaRegistered === true).length;
   const mfaPercent = users.length ? Math.round(mfaUsers / users.length * 100) : 0;
-  findings.push({ checkId: "entra.mfa-registration", title: "MFA registration", status: users.length > 0 && mfaPercent >= 95 ? "pass" : "warning", detail: registrations ? `${mfaUsers} of ${users.length} reported users are MFA registered (${mfaPercent}%).` : "Authentication-method registration data is unavailable." });
+  findings.push({ checkId: "entra.mfa-registration", title: "MFA registration", status: users.length > 0 && mfaPercent >= 95 ? "pass" : "warning", detail: registrations ? `${mfaUsers} of ${users.length} reported users are MFA registered (${mfaPercent}%).` : "Authentication-method registration data is unavailable.", evidence: registrations ? { registeredUsers: mfaUsers, totalUsers: users.length, percentage: mfaPercent } : undefined });
 
   const scoreRows = m365Scores && Array.isArray(m365Scores.value) ? m365Scores.value as Array<Record<string, unknown>> : [];
   scoreRows.sort((a, b) => String(b.createdDateTime ?? "").localeCompare(String(a.createdDateTime ?? "")));
