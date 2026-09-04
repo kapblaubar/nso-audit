@@ -97,11 +97,13 @@ function reviewEvidence(finding: StarterScan["findings"][number]): Record<string
 
 function categoryScores(evidence: Record<string, unknown> | undefined): CategoryScore[] {
   if (!Array.isArray(evidence?.categories)) return [];
-  return evidence.categories.filter((item): item is CategoryScore => {
+  const categories = evidence.categories.filter((item): item is CategoryScore => {
     if (typeof item !== "object" || item === null) return false;
     const value = item as Record<string, unknown>;
     return typeof value.name === "string" && typeof value.earned === "number" && typeof value.available === "number" && (typeof value.percentage === "number" || value.percentage === null);
-  }).filter((category) => category.available > 0 && category.earned <= category.available && category.percentage !== null && category.percentage <= 100);
+  });
+  const complete = categories.length > 0 && categories.every((category) => category.available > 0 && category.earned <= category.available && category.percentage !== null && category.percentage <= 100);
+  return complete ? categories : [];
 }
 
 const baselineCategoryNames = { identity: "Identity", azure: "Azure security", devices: "Device management", coverage: "Microsoft source scores" } as const;
@@ -207,7 +209,7 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
           <section className="recommendation-section" aria-labelledby="baseline-controls-title">
             <p className="eyebrow">{scan.baseline.baselineId}</p>
             <h2 id="baseline-controls-title">Baseline controls</h2>
-            <p>Only weighted controls affect the NSO Foundation Score. Informational controls retain useful Microsoft and inventory signals without changing the score.</p>
+            <p>Baseline v1 scores the identity foundation controls. Azure, Defender, device, and Microsoft source signals remain informational until atomic and applicable controls are implemented.</p>
             <div className="baseline-outline">
               {baselineSections.map((section) => (
                 <section className="baseline-group" key={section.category}>

@@ -36,7 +36,7 @@ test("awards a complete score only when all weighted controls pass", () => {
   assert.equal(result.controls.filter((control) => control.weight > 0).every((control) => control.status === "pass"), true);
 });
 
-test("weights partial MFA, policy gaps, and Defender risk independently", () => {
+test("scores identity controls while retaining Defender risk as informational", () => {
   const result = evaluateBaseline([
     { checkId: "entra.mfa-registration", detail: "", evidence: { registeredUsers: 8, totalUsers: 10 } },
     { checkId: "entra.conditional-access", detail: "", evidence: { policies: [{ ...broadMfaPolicy, conditions: { ...broadMfaPolicy.conditions, users: { includeUsers: ["All"], excludeUsers: ["redacted"] } } }] } },
@@ -44,11 +44,12 @@ test("weights partial MFA, policy gaps, and Defender risk independently", () => 
     { checkId: "defender.recommendations", detail: "", evidence: { recommendations: Array.from({ length: 4 }, () => ({ severity: "High" })) } },
   ]);
 
-  assert.equal(result.score, 41);
+  assert.equal(result.score, 59);
   assert.equal(result.coverage, 100);
   assert.equal(result.controls.find((control) => control.controlId === "identity.mfa-registration")?.status, "partial");
   assert.equal(result.controls.find((control) => control.controlId === "identity.ca-block-legacy-auth")?.status, "fail");
-  assert.equal(result.controls.find((control) => control.controlId === "azure.defender-high-severity")?.status, "fail");
+  assert.equal(result.controls.find((control) => control.controlId === "azure.defender-high-severity")?.status, "informational");
+  assert.equal(result.controls.find((control) => control.controlId === "azure.defender-high-severity")?.weight, 0);
 });
 
 test("reports missing evidence as reduced coverage rather than a zero score", () => {

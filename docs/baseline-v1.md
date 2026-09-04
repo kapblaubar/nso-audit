@@ -15,7 +15,6 @@ independent vendor measurements and are not blended into the NSO score.
 | All-user MFA policy | 20 | Enabled Conditional Access policy includes all users and all resources, requires MFA, and has no detected identity exclusions | Matching broad policy has exclusions requiring review | Graph Conditional Access policies |
 | Block legacy authentication | 15 | Enabled policy includes all users and resources, blocks Exchange ActiveSync and other legacy clients | None in v1 | Graph Conditional Access policies |
 | Global Administrator count | 15 | 2–5 active assignments | 1 or 6–8 active assignments | Graph directory role assignments |
-| Defender high-severity posture | 30 | No retained high- or medium-severity recommendations | No high findings but medium findings remain, or 1–3 high findings remain | Defender for Cloud assessments |
 
 The score is earned weight divided by assessed weight. An unavailable control is `unsupported`
 and reduces Assessment Coverage; it does not silently become a pass or a score of zero. Controls
@@ -23,9 +22,10 @@ with available evidence are reported as `pass`, `partial`, or `fail`.
 
 ## Informational controls
 
-Intune device-policy inventory, Intune app-protection inventory, Microsoft 365 Secure Score, and
-Defender for Cloud Secure Score are shown without NSO weight. Inventory presence alone does not
-prove assignment coverage or secure configuration, and vendor scores retain their own methods.
+Defender recommendations, Intune device-policy inventory, Intune app-protection inventory,
+Microsoft 365 Secure Score, and Defender for Cloud Secure Score are shown without NSO weight.
+Inventory presence alone does not prove assignment coverage or secure configuration, one group
+of recommendations must not zero an entire domain, and vendor scores retain their own methods.
 
 ## Known limitations and next evidence work
 
@@ -36,6 +36,7 @@ prove assignment coverage or secure configuration, and vendor scores retain thei
 - Collect Intune assignments, licensing, applicability, and managed-device coverage before
   scoring policy presence.
 - Follow every Graph and Azure pagination link before treating counts as complete.
-- Evaluate Defender findings beyond the retained top 25 and add accepted-risk exceptions.
+- Define atomic, applicable Azure configuration controls before introducing an NSO Azure score;
+  evaluate Defender findings beyond the retained top 25 and add accepted-risk exceptions.
 - Validate the Global Administrator threshold alongside emergency-access coverage and PIM.
 - Version every rule or weight change; historical scans retain the baseline ID used at execution.

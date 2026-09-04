@@ -116,16 +116,13 @@ function evaluateGlobalAdministrators(findings: CollectedFinding[]): BaselineCon
 }
 
 function evaluateDefenderRecommendations(findings: CollectedFinding[]): BaselineControlResult {
-  const base = { controlId: "azure.defender-high-severity", title: "High-severity Defender recommendations are resolved", category: "azure" as const, weight: 30, source: "Microsoft Defender for Cloud assessments" };
+  const base = { controlId: "azure.defender-high-severity", title: "Defender recommendation posture", category: "azure" as const, weight: 0, source: "Microsoft Defender for Cloud assessments" };
   const evidence = findingEvidence(findings, "defender.recommendations");
-  if (!evidence || !Array.isArray(evidence.recommendations)) return unsupported(base.controlId, base.title, base.category, base.weight, base.source);
+  if (!evidence || !Array.isArray(evidence.recommendations)) return { ...base, status: "informational", earnedWeight: 0, detail: "Defender recommendation evidence was unavailable; refer to Assessment Coverage and the collection warning." };
   const recommendations = records(evidence.recommendations);
   const high = recommendations.filter((item) => String(item.severity ?? "").toLowerCase() === "high").length;
   const medium = recommendations.filter((item) => String(item.severity ?? "").toLowerCase() === "medium").length;
-  if (high === 0 && medium === 0) return { ...base, status: "pass", earnedWeight: 30, detail: "No high- or medium-severity recommendations were returned." };
-  if (high === 0) return { ...base, status: "partial", earnedWeight: 20, detail: `No high-severity recommendations were returned; ${medium} medium-severity recommendation${medium === 1 ? " remains" : "s remain"}.` };
-  if (high <= 3) return { ...base, status: "partial", earnedWeight: 10, detail: `${high} high-severity recommendation${high === 1 ? " remains" : "s remain"}; prioritize remediation.` };
-  return { ...base, status: "fail", earnedWeight: 0, detail: `${high} high-severity recommendations remain in the retained result set.` };
+  return { ...base, status: "informational", earnedWeight: 0, detail: `${high} high- and ${medium} medium-severity recommendations remain in the retained result set; these are prioritized findings but are not an NSO Baseline v1 score component.` };
 }
 
 function informationalControls(findings: CollectedFinding[]): BaselineControlResult[] {
@@ -148,7 +145,6 @@ export function evaluateBaseline(findings: CollectedFinding[]): BaselineResult {
     evaluateAllUserMfa(findings),
     evaluateLegacyAuthentication(findings),
     evaluateGlobalAdministrators(findings),
-    evaluateDefenderRecommendations(findings),
   ];
   const applicableWeight = scoredControls.reduce((sum, control) => sum + control.weight, 0);
   const assessed = scoredControls.filter((control) => control.status !== "unsupported");
@@ -160,6 +156,6 @@ export function evaluateBaseline(findings: CollectedFinding[]): BaselineResult {
     coverage: applicableWeight ? Math.round(assessedWeight / applicableWeight * 100) : 0,
     assessedWeight,
     applicableWeight,
-    controls: [...scoredControls, ...informationalControls(findings)],
+    controls: [...scoredControls, evaluateDefenderRecommendations(findings), ...informationalControls(findings)],
   };
 }
