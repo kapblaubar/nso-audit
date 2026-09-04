@@ -1,0 +1,18 @@
+{
+  "bindings": [
+    {
+      "name": "QueueMessage",
+      "type": "queueTrigger",
+      "direction": "in",
+      "queueName": "purview-scan-jobs",
+      "connection": "AuditStorage"
+    },
+    {
+      "name": "PurviewResult",
+      "type": "queue",
+      "direction": "out",
+      "queueName": "purview-scan-results",
+      "connection": "AuditStorage"
+    }
+  ]
+}

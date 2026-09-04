@@ -1,0 +1,39 @@
+name: Deploy Purview worker
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/purview/**"
+      - ".github/workflows/deploy-purview.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-purview-development
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Assemble deployment package
+        shell: bash
+        run: |
+          mkdir purview-package
+          cp apps/purview/host.json apps/purview/profile.ps1 apps/purview/requirements.psd1 purview-package/
+          cp -R apps/purview/PurviewCollector purview-package/PurviewCollector
+
+      - name: Deploy Azure Function App
+        uses: Azure/functions-action@v1
+        with:
+          app-name: nso-audit-dev-purview
+          package: purview-package
+          publish-profile: ${{ secrets.AZURE_PURVIEW_FUNCTIONAPP_PUBLISH_PROFILE }}

@@ -46,28 +46,27 @@ Do not assign these roles at management-group or tenant-root scope by default. T
 script must support explicit subscription, resource-group, workspace, and vault selections and
 must show every proposed assignment with `-WhatIf`.
 
-## Purview DLP limitation
+## Optional Purview worker
 
-Full Microsoft Purview DLP policy configuration is not currently treated as an unattended SaaS
-scanner module. There is no approved narrow Microsoft Graph application permission in this
-design for reading the complete DLP policy set. App-only Security & Compliance PowerShell can
-require `Exchange.ManageAsApp` plus separate compliance/Exchange RBAC, which is broader and more
-operationally complex than the product's current read-only consent promise.
+Complete DLP policy inventory is collected through a separate Windows PowerShell Function, not
+through a broad Graph permission or the Linux API process. It uses certificate-based app-only
+Security & Compliance PowerShell with `Get-DlpCompliancePolicy` and
+`Get-DlpComplianceRule`.
 
-Interim approach:
+| Requirement | Scope | Stage | Notes |
+|---|---|---|---|
+| Microsoft Exchange Online Protection `Exchange.ManageAsApp` | App Registration; customer admin consent | Optional Purview | Enables app-only Security & Compliance PowerShell; disclose separately from core Graph access |
+| `View-Only DLP Compliance Management` | Purview role-group membership for the customer service principal | Optional Purview | Initial least-privilege role; validate commands after propagation |
+| Key Vault `Secrets User` | Hosting vault, Purview worker managed identity | Hosting only | Reads the certificate backing secret; no customer credentials |
+| Storage Queue Data Contributor | Hosting audit storage, Purview worker managed identity | Hosting only | Receives jobs and emits sanitized evidence |
 
-1. Provide a customer-run, read-only PowerShell export for DLP policy metadata.
-2. Display the exact commands and output fields before execution.
-3. Let the customer review the output before uploading it.
-4. Do not request `Exchange.ManageAsApp` in the central Enterprise Application without a new
-   security review and explicit product decision.
+The worker has no role-management permission and cannot grant these customer-tenant permissions
+to itself. No permission or DLP score weight is added until result ingestion, module licensing,
+cross-tenant authorization, and the versioned baseline are tested.
 
-The parked automated design uses certificate-based app-only Security & Compliance PowerShell
-with `Get-DlpCompliancePolicy` and `Get-DlpComplianceRule`. It requires a separately reviewed
-Microsoft Exchange Online Protection `Exchange.ManageAsApp` application grant and the narrowest
-validated Purview read-only role. The certificate is deployment-owned, its private key is stored
-in the hosting Key Vault, and only its public key is registered in Entra. No permission or DLP
-score weight is added until the module and MSP cross-tenant authorization path are tested.
+Sensitivity labels/publishing, retention, DLP AI-destination coverage, DSPM for AI and Purview
+collection-policy posture are later modules. Insider Risk, Communication Compliance and
+eDiscovery require a separate privacy review and are excluded from default evidence collection.
 
 ## Scorecard inputs
 

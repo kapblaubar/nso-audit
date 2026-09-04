@@ -36,6 +36,11 @@ tenant IDs, credentials, or private keys.
     missing Graph secret directly into Key Vault, and optionally creates a Key Vault-hosted DLP
     certificate whose public key is appended to Entra. Use explicit rotation switches; values
     are never printed. The lifecycle contract is in `../docs/workload-credentials.md`.
+15. `New-NsoAuditPurviewWorker.ps1` — creates the separate Windows PowerShell 7.4 Purview
+    collector, its user-assigned managed identity, audit queues, role assignments, and non-secret
+    settings. It expects the certificate and customer Purview authorization to exist already.
+    A small dedicated host storage account is used for the Windows Consumption runtime; audit
+    evidence remains in the existing identity-protected audit storage account.
 
 Credential import and end-to-end token validation remain to be implemented. Until those paths
 are tested, do not describe credential provisioning as fully automated.
@@ -52,6 +57,23 @@ Example initial credential bootstrap:
 
 If an existing manually created secret should remain untouched while creating only the DLP
 certificate, add `-SkipSecret`. This bypass is explicit and does not validate secret health.
+
+Example Purview worker deployment for the current development environment:
+
+```powershell
+./scripts/New-NsoAuditPurviewWorker.ps1 `
+    -SubscriptionId "257f10d8-cb7f-400c-8e29-7f1fc5318247" `
+    -ResourceGroupName "NSO-Audit" `
+    -FunctionAppName "nso-audit-dev-purview" `
+    -HostStorageAccountName "nsoauditdevpurview" `
+    -AuditStorageAccountName "nsoauditdev" `
+    -KeyVaultName "nso-audit-dev-kv" `
+    -ApplicationClientId "f293a122-bf49-44a7-bfc9-48cfae6f8376"
+```
+
+Run it first with `-WhatIf`. The Function name and host-storage name are globally unique; change
+either if Azure reports that it is unavailable. This creates infrastructure only. The Linux API
+result consumer and DLP scoring remain disabled until their evidence contract is validated.
 
 Azure-facing scripts accept `SubscriptionId`; resource-scoped scripts also accept
 `ResourceGroupName`. If `SubscriptionId` is omitted, the current Cloud Shell subscription is

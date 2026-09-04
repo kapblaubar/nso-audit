@@ -49,6 +49,18 @@ audit target.
 - **Customer-hosted dedicated**: a customer deploys its own instance and ordinarily registers
   only its own tenant. The tenant selector may be hidden, but the same target-authorization
   checks remain enforced by the API.
+- **Optional Purview assessment**: an MSP enables the Purview module once in its hosting
+  deployment, then each target-tenant administrator separately grants the published application
+  permission and narrow Purview read role. A scan queues a target-scoped job to a dedicated
+  Windows collector. The administrator is not expected to install modules or run individual
+  collection commands during an ordinary scan.
+- **Purview capability check**: onboarding reports certificate, API-consent, service-principal
+  registration, Purview role, licensing, and collector health independently. A missing item
+  produces a guided setup action and `NotCollected`/`Incomplete`; it never becomes a zero score.
+- **AI data-protection posture**: where supported and licensed, the assessment inventories
+  protection coverage for Microsoft 365 Copilot, enterprise AI applications, and unmanaged AI
+  applications. It evaluates policy presence and scope only. Prompt/response content, matched
+  sensitive content, and user-level activity are excluded from routine posture collection.
 
 Login proves the operator's identity; it does not grant access to every onboarded tenant. The API
 maintains and enforces the mapping between an MSP organization, its authorized operators, and its
@@ -108,16 +120,21 @@ managed audit-target tenants. A browser-supplied tenant ID is never authoritativ
                                                  triggers scans)
                                                           |
                                                           v
-                                                  [Function App]
-                                       (per-data-source scan modules, timer
-                                        or HTTP-triggered, client-credential
-                                        auth into customer tenant)
+                                            [Linux Function App]
+                                   (orchestration, Graph/ARM collection,
+                                    normalization, scoring and persistence)
                                                           |
-                             +----------------------------+----------------------------+
-                             v                             v                            v
-                     [Microsoft Graph]           [Azure Resource Manager /       [Purview /
-                (Entra ID, Intune, Secure          Log Analytics / Sentinel]     Compliance APIs]
-                 Score, Conditional Access)
+                             +----------------------------+---------------------------+
+                             v                            v                           v
+                     [Microsoft Graph]          [Azure Resource Manager /    [Storage queues]
+                (Entra ID, Intune, Secure         Log Analytics / Sentinel]         |
+                 Score, Conditional Access)                                     v
+                                                                       [Windows PowerShell
+                                                                        Purview Function]
+                                                                               |
+                                                                               v
+                                                                     [Security & Compliance
+                                                                          PowerShell]
                                                           |
                                                           v
                                               [Storage Account]
@@ -223,6 +240,29 @@ repair/rotation action. The complete lifecycle is defined in `docs/workload-cred
   the admin directly).
 - Encryption at rest (default for Azure Storage), and access restricted to the Function App /
   API via managed identity — no shared keys embedded in code.
+
+### 5.6.1 Purview collection worker
+
+- Purview is collected by a separate Windows PowerShell Function App because the required
+  Security & Compliance PowerShell session is not supported by the Linux PowerShell path.
+- The Linux Function places a job containing only `scanId`, authorized `tenantId`, verified
+  tenant `organization` domain, requested module, and schema version on `purview-scan-jobs`.
+  It never places credentials or browser-supplied authorization decisions on the queue.
+- The Windows worker uses its own user-assigned managed identity to read the certificate's PFX
+  backing secret from the hosting Key Vault into ephemeral process memory. It authenticates as
+  the NSO Audit App Registration, collects the approved read-only cmdlets, strips sensitive
+  values, and writes versioned evidence to `purview-scan-results`.
+- The Linux Function validates the result's tenant, scan, module and schema, persists normalized
+  evidence, evaluates versioned controls, and completes the module. The PowerShell worker does
+  not calculate scores or write report records directly.
+- Both queues use the existing audit storage account and managed-identity data access. The
+  Windows Consumption runtime may use a separate deployment-only host storage account because
+  Azure Files on Windows Consumption requires shared-key access. That account contains no audit
+  evidence or credentials; its connection setting is a platform hosting exception, not an
+  application credential. Reassess Flex Consumption or a no-Azure-Files package deployment when
+  Windows PowerShell is supported there.
+- The worker has no public HTTP trigger. Queue retry and poison-message handling are required;
+  repeated or terminal failure returns `Incomplete` to the parent scan rather than zero.
 
 ### 5.7 Dashboard
 - Shows: the versioned NSO assessment score and coverage, source scores, assessment families,
@@ -387,30 +427,45 @@ least-privilege story that makes this tool trustworthy.
 
 ### 6.3 Purview DLP
 
-Full DLP policy inspection is deferred from the central unattended scanner until a suitably
-narrow, supported application API is approved. Do not add `Exchange.ManageAsApp` to the central
-Enterprise Application merely to run Security & Compliance PowerShell; its name and effective
-surface undermine the product's simple read-only consent promise and require separate service
-RBAC configuration.
-
-The interim design is a customer-run, read-only PowerShell export of selected DLP policy
-metadata. The customer reviews the exported data before uploading it. DLP contributes an
-`Incomplete`/customer-supplied scorecard state rather than silently receiving a zero score.
-
-The target automated collector uses certificate-based app-only Security & Compliance PowerShell
+The automated collector uses certificate-based app-only Security & Compliance PowerShell
 to run `Get-DlpCompliancePolicy` and `Get-DlpComplianceRule`. It captures policy/rule mode,
 locations and scope, conditions, actions, user/admin notifications, overrides, priority, and
-distribution errors, but excludes matched content and sensitive event payloads. This module
-requires a separately reviewed `Exchange.ManageAsApp` grant plus the narrowest functioning
-Purview read-only role assignment. It remains parked until the certificate bootstrap, MSP
-cross-tenant consent path, API behavior, licensing states, and sanitized evidence schema have
-been validated.
+distribution errors, but excludes matched content, notification recipients, user identities,
+document names, prompt/response content, and sensitive event payloads. The first collector
+schema stores only policy identifiers, modes, distribution state, location counts, and boolean
+rule-capability flags. More detailed fields require a privacy and scoring review before capture.
+
+This module requires the Microsoft Exchange Online Protection `Exchange.ManageAsApp`
+application grant, certificate-based authentication, Security & Compliance service-principal
+registration, and the narrowest validated Purview read role (initially **View-Only DLP
+Compliance Management**). These are a separately disclosed optional grant. The scanner is never
+given role-management permission and cannot authorize itself in a customer tenant.
 
 DLP will eventually be scored through versioned atomic controls such as applicable workload
 coverage, enabled/enforced mode, appropriate sensitive-information rules, alert configuration,
 override auditing, and absence of distribution errors. No DLP weight is added to the production
 baseline while collection is parked; missing DLP evidence remains `NotCollected` or
 `NotApplicable`, never zero.
+
+### 6.3.1 Additional Purview and AI posture candidates
+
+Collect policy configuration before activity or content. Add each capability behind its own
+licensing/permission check and versioned evidence contract:
+
+| Priority | Capability | Useful posture evidence | Initial collection route | Score state |
+|---|---|---|---|---|
+| 1 | Sensitivity labels and publishing | Label taxonomy exists; labels are published; intended users/workloads receive policies; encryption/content-marking defaults | Security & Compliance PowerShell (`Get-Label`, `Get-LabelPolicy`) after read-role validation | Candidate for later versioned scoring |
+| 1 | Retention and records management | Retention policies/rules exist, are enabled, have expected locations, and have no distribution errors | Security & Compliance PowerShell (`Get-RetentionCompliancePolicy`, `Get-RetentionComplianceRule`) | Candidate for later versioned scoring |
+| 1 | DLP for AI destinations | DLP policy coverage includes supported Copilot, browser, endpoint, enterprise-AI, or unmanaged-cloud-app locations where licensed | DLP policy/rule metadata; capability varies by tenant and workload | Candidate only after reliable location normalization |
+| 2 | DSPM for AI readiness | DSPM for AI is available; relevant recommendations and collection policies are enabled; expected AI application sources are covered | Purview configuration cmdlets/APIs only where Microsoft documents stable unattended read support | Informational until API and licensing behavior are proven |
+| 2 | Purview collection policies | Collection policy mode, sources, covered applications/activities, and ingestion on/off | Supported Purview configuration interface; do not infer this from activity data | Informational initially |
+| 2 | Audit and alerting configuration | Audit availability/retention and DLP alert/incident-generation settings, without event bodies | Purview configuration cmdlets and approved audit APIs | Score configuration, not event volume |
+| 3 | Insider Risk, Communication Compliance and eDiscovery | Feature/licensing presence and high-level policy coverage only | Separate high-sensitivity module and role; no cases, messages, users, or evidence by default | Not collected until privacy review |
+
+The Microsoft Purview Graph developer APIs that compute protection scopes and process content
+are enforcement APIs for an application/AI interaction. They are not treated as a complete
+tenant-posture inventory. NSO Audit must not send customer prompts, responses, files, or matched
+content to those APIs merely to calculate a posture score.
 
 ### 6.4 Recommendation sources
 
@@ -581,8 +636,9 @@ component Microsoft surfaces as Identity Secure Score.
    and optional Log Analytics connector-freshness checks. Connector inventory ships before log
    querying so `Log Analytics Reader` is not required unless freshness checks are enabled.
    Optional Defender Vulnerability Management score/recommendations follow when licensing and
-   API access are validated. Purview DLP policy collection/scoring remains parked while the
-   certificate-based Security & Compliance PowerShell integration is validated.
+   API access are validated. A separately deployed Windows Purview worker may collect sanitized
+   DLP policy evidence; DLP scoring remains disabled until result ingestion, cross-tenant tests,
+   licensing detection, and baseline controls are validated.
 3. **Phase 3 — Detection & dashboard**: optional Microsoft Defender alerts/incidents and
    Defender for Cloud alerts; severity/status/age and response indicators; scoring model,
    remediation guidance content, and scan history.
@@ -642,6 +698,12 @@ component Microsoft surfaces as Identity Secure Score.
 
 - Exact current Graph/Purview API surface for compliance data (beta vs GA endpoints) — verify
   at build time since this area shifts.
+- Whether Windows PowerShell 7.6 and ExchangeOnlineManagement 3.10+ are production-supported in
+  Azure Functions before PowerShell 7.4 support ends; the worker currently pins the compatible
+  7.4/3.9.2 combination and requires an upgrade test.
+- Which DSPM for AI and collection-policy configuration can be read through a documented,
+  unattended, least-privilege interface; do not substitute content-processing APIs for posture
+  inventory.
 - Scoring methodology: weighted average vs. Microsoft's own Secure Score reused as one input
   among several — needs a product decision, not just an engineering one.
 - Which Sentinel checks should enter Phase 2 and at what Azure scope the required reader role
