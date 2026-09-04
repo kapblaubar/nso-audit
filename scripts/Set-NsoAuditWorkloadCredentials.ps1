@@ -9,6 +9,7 @@ param(
     [Parameter()][ValidateNotNullOrEmpty()][string] $SecretName = "nso-audit-app-client-secret",
     [Parameter()][ValidateNotNullOrEmpty()][string] $SecretDisplayName = "nso-audit-graph-secret",
     [Parameter()][ValidateRange(1, 24)][int] $SecretValidityMonths = 12,
+    [Parameter()][switch] $SkipSecret,
     [Parameter()][switch] $IncludeDlpCertificate,
     [Parameter()][ValidateNotNullOrEmpty()][string] $CertificateName = "nso-audit-dlp-certificate",
     [Parameter()][ValidateNotNullOrEmpty()][string] $CertificateDisplayName = "nso-audit-dlp-certificate",
@@ -135,33 +136,42 @@ $application = Invoke-AzureCliJson -Arguments @(
 )
 if (-not $application.id) { throw "App Registration '$ApplicationClientId' was not found." }
 
-$credentials = Get-AppCredentials -ClientId $ApplicationClientId
-$vaultSecret = Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $SecretName -ErrorAction SilentlyContinue
-$entraSecrets = @($credentials | Where-Object { $_.displayName -eq $SecretDisplayName })
-$createSecret = $RotateSecret -or (-not $vaultSecret -and $entraSecrets.Count -eq 0)
-
-if (-not $RotateSecret -and (($vaultSecret -and $entraSecrets.Count -eq 0) -or (-not $vaultSecret -and $entraSecrets.Count -gt 0))) {
-    throw "Secret state is mismatched between Key Vault and Entra. Use -RotateSecret to create a reconciled credential after reviewing the existing entries."
+if ($SkipSecret -and $RotateSecret) {
+    throw "-SkipSecret and -RotateSecret cannot be used together."
 }
 
-if ($createSecret) {
-    if ($PSCmdlet.ShouldProcess(
-        "$($application.displayName) and Key Vault $KeyVaultName",
-        "Create an App Registration secret and store it as $SecretName"
-    )) {
-        $newSecret = Add-AppPasswordToVault `
-            -AppObjectId $application.id `
-            -ClientId $ApplicationClientId `
-            -VaultName $KeyVaultName `
-            -VaultSecretName $SecretName `
-            -DisplayName $SecretDisplayName `
-            -ValidityMonths $SecretValidityMonths
-        Write-Host "Client secret: Present (credential $($newSecret.KeyId), expires $($newSecret.Expires.ToString('u')))" -ForegroundColor Green
-    }
+if ($SkipSecret) {
+    Write-Host "Client secret: Check skipped by operator" -ForegroundColor Cyan
 }
 else {
-    $secretExpiry = ($entraSecrets | Sort-Object endDateTime -Descending | Select-Object -First 1).endDateTime
-    Write-Host "Client secret: Present (expires $secretExpiry)" -ForegroundColor Green
+    $credentials = Get-AppCredentials -ClientId $ApplicationClientId
+    $vaultSecret = Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $SecretName -ErrorAction SilentlyContinue
+    $entraSecrets = @($credentials | Where-Object { $_.displayName -eq $SecretDisplayName })
+    $createSecret = $RotateSecret -or (-not $vaultSecret -and $entraSecrets.Count -eq 0)
+
+    if (-not $RotateSecret -and (($vaultSecret -and $entraSecrets.Count -eq 0) -or (-not $vaultSecret -and $entraSecrets.Count -gt 0))) {
+        throw "Secret state is mismatched between Key Vault and Entra. Use -RotateSecret to create a reconciled credential after reviewing the existing entries."
+    }
+
+    if ($createSecret) {
+        if ($PSCmdlet.ShouldProcess(
+            "$($application.displayName) and Key Vault $KeyVaultName",
+            "Create an App Registration secret and store it as $SecretName"
+        )) {
+            $newSecret = Add-AppPasswordToVault `
+                -AppObjectId $application.id `
+                -ClientId $ApplicationClientId `
+                -VaultName $KeyVaultName `
+                -VaultSecretName $SecretName `
+                -DisplayName $SecretDisplayName `
+                -ValidityMonths $SecretValidityMonths
+            Write-Host "Client secret: Present (credential $($newSecret.KeyId), expires $($newSecret.Expires.ToString('u')))" -ForegroundColor Green
+        }
+    }
+    else {
+        $secretExpiry = ($entraSecrets | Sort-Object endDateTime -Descending | Select-Object -First 1).endDateTime
+        Write-Host "Client secret: Present (expires $secretExpiry)" -ForegroundColor Green
+    }
 }
 
 if (-not $IncludeDlpCertificate) {

@@ -50,6 +50,9 @@ Example initial credential bootstrap:
     -IncludeDlpCertificate
 ```
 
+If an existing manually created secret should remain untouched while creating only the DLP
+certificate, add `-SkipSecret`. This bypass is explicit and does not validate secret health.
+
 Azure-facing scripts accept `SubscriptionId`; resource-scoped scripts also accept
 `ResourceGroupName`. If `SubscriptionId` is omitted, the current Cloud Shell subscription is
 used. Scripts confirm the active subscription before continuing and never store credentials.
