@@ -17,6 +17,8 @@ the target catalog, not permission to enable every entry immediately.
 | Intune app configuration and app-protection policies | Microsoft Graph | `DeviceManagementApps.Read.All` | Scorecard, only if these checks ship | Do not request merely for device configuration checks |
 | Defender Vulnerability Management score | WindowsDefenderATP | `Score.Read.All` | Optional scorecard | Requires the relevant Defender licensing and API availability |
 | Defender Vulnerability Management recommendations | WindowsDefenderATP | `SecurityRecommendation.Read.All` | Optional scorecard | Read-only; do not request machine/software/vulnerability permissions unless corresponding checks ship |
+| Microsoft Defender alerts | Microsoft Graph | `SecurityAlert.Read.All` | Later, optional detection module | Read-only; request only when alert reporting ships and the customer enables it |
+| Microsoft Defender incidents | Microsoft Graph | `SecurityIncident.Read.All` | Later, optional detection module | Read-only; request only when incident reporting ships and the customer enables it |
 | Dashboard sign-in | Microsoft Graph | delegated `User.Read` | Core | Used by the interactive user session, not the unattended scanner |
 
 Explicitly excluded unless a later implemented check is approved:
@@ -24,7 +26,7 @@ Explicitly excluded unless a later implemented check is approved:
 - All `ReadWrite` permissions
 - `Mail.Read`, `MailboxSettings.Read`, and Exchange mailbox permissions
 - `Group.Read.All`, `GroupMember.Read.All`, and broad directory permissions
-- Defender machine, software inventory, alert, and vulnerability permissions
+- Defender machine, software inventory, and vulnerability permissions beyond approved modules
 - Intune managed-device inventory permission when only policy configuration is assessed
 
 ## Azure RBAC assigned to the customer Enterprise Application
@@ -37,8 +39,8 @@ roles separately and scope them to selected subscriptions, workspaces, or vaults
 | Enumerate Azure resources and inspect configuration | `Reader` | Selected subscription or resource group | Scorecard |
 | Defender for Cloud secure score and security recommendations | `Security Reader` | Selected subscription | Scorecard |
 | Recovery Services vault configuration, policies, and protected-item posture | `Backup Reader` | Selected Recovery Services vault | Scorecard |
-| Log Analytics workspace configuration and log queries | `Log Analytics Reader` | Selected workspace | Scorecard |
-| Microsoft Sentinel configuration and data connectors | `Microsoft Sentinel Reader` | Selected Sentinel-enabled workspace | Scorecard |
+| Log Analytics required-log presence and freshness queries | `Log Analytics Reader` | Selected workspace | Optional connector-health module; not required for connector inventory |
+| Microsoft Sentinel configuration and data-connector inventory | `Microsoft Sentinel Reader` | Selected Sentinel-enabled workspace | Scorecard |
 
 Do not assign these roles at management-group or tenant-root scope by default. The onboarding
 script must support explicit subscription, resource-group, workspace, and vault selections and
@@ -72,8 +74,25 @@ The scorecard can combine:
 - Recovery Services vault protection/settings checks
 - Log Analytics required-log presence and freshness
 - Sentinel data-connector configuration and health indicators
+- Optional alert/incident operational indicators, kept separate from configuration scoring
 - Customer-supplied DLP policy metadata until a suitably narrow supported API is approved
 
 Every score must retain its source, collection timestamp, completion state, licensing status,
 and permission status. Missing permissions, missing licenses, unsupported APIs, and collection
 errors must produce `Incomplete` or `NotApplicable`, never a failing security score of zero.
+
+## Reporting hierarchy and detection semantics
+
+- Keep the five Microsoft-defined Secure Score categories together under **Microsoft 365**:
+  Identity, Data, Device, Apps, and Infrastructure.
+- Map Conditional Access and authentication controls to Microsoft 365 / Identity.
+- Map DLP and Purview controls to Microsoft 365 / Data, labeled **Data protection** in the NSO
+  report.
+- Put alerts and incidents under **Detection & Response**, separated by Microsoft Defender,
+  Defender for Cloud, and Microsoft Sentinel source.
+- Put Sentinel data-connector inventory and health under **Detection & Response / Microsoft
+  Sentinel**. Connector inventory uses Sentinel resource access; Log Analytics access is added
+  only for implemented data-arrival/freshness queries.
+- Do not reduce a configuration score from raw alert volume. Report severity, status, age,
+  unresolved-high-severity exposure, and response indicators separately unless a future
+  versioned scoring rule explicitly defines normalization and applicability.

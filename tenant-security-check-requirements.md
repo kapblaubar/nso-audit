@@ -216,9 +216,25 @@ identity rather than account keys in configuration.
   API via managed identity — no shared keys embedded in code.
 
 ### 5.7 Dashboard
-- Shows: overall posture score, per-category scores (Identity, Devices, Data/Compliance,
-  Detection & Response), individual findings with severity and remediation guidance text,
-  scan history (score over time once more than one scan exists).
+- Shows: the versioned NSO assessment score and coverage, source scores, assessment families,
+  individual findings with severity and remediation guidance, and score history once more than
+  one scan exists.
+- The report hierarchy is:
+  - **Microsoft 365** — Microsoft's Secure Score summary and its five Microsoft-defined
+    categories (`Identity`, `Data`, `Device`, `Apps`, and `Infrastructure`) remain together.
+    NSO checks are mapped beneath the relevant category; Conditional Access belongs under
+    `Identity`, and DLP/Purview belongs under `Data` (displayed as **Data protection**).
+  - **Azure** — Defender for Cloud score/recommendations and other Azure configuration checks.
+  - **Detection & Response** — operational security signals grouped by source, including
+    Microsoft Defender alerts/incidents, Defender for Cloud alerts, and Microsoft Sentinel.
+    Sentinel data connectors appear here as a configuration/coverage subsection.
+  - **Resilience** — backup and recovery posture.
+- Microsoft source scores and NSO baseline scores must be labeled separately. An NSO Identity
+  control group must not be presented as if it were the entire Microsoft 365 Identity category.
+- Alert volume is not itself a configuration score. Display counts by severity, status, source,
+  and age, plus response measures such as unresolved high-severity alerts and time open. Any
+  future alert-based scoring rule must be versioned, explainable, and account for tenant size and
+  licensing; "more alerts means a lower posture score" is prohibited as a default rule.
 - Implementation left to discretion. A static web app calling the Web API is simplest and keeps
   a clean separation from the orchestration layer; a full React SPA is reasonable if richer
   interactivity (filtering, drill-downs) is wanted. Power BI embedded is viable but adds
@@ -335,7 +351,9 @@ operation when its module is implemented.
 | Entra risk | Risk detections and risky sign-ins | Identity Protection read permissions, selected against the implemented endpoint |
 | Intune / Devices | Managed-device inventory or device-level compliance state | `DeviceManagementManagedDevices.Read.All`, only if a device-inventory check is implemented |
 | Purview / Compliance | DLP policy coverage, sensitivity label usage, retention policies | `InformationProtectionPolicy.Read.All`, and/or Purview/Compliance-specific Graph beta endpoints — confirm current API surface at build time, this area changes |
-| Defender signals (optional, stretch) | Alerts, software, and vulnerability inventory beyond the approved score/recommendation checks | Select only the read permission for each implemented Microsoft Defender endpoint |
+| Microsoft Defender alerts | Alert inventory and operational risk indicators | `SecurityAlert.Read.All`, only when the alerts module ships and is explicitly enabled |
+| Microsoft Defender incidents | Incident inventory and operational risk indicators | `SecurityIncident.Read.All`, only when the incidents module ships and is explicitly enabled |
+| Other Defender signals (optional, stretch) | Software and vulnerability inventory beyond the approved score/recommendation checks | Select only the read permission for each implemented Microsoft Defender endpoint |
 
 > Note: exact Purview/Compliance Graph endpoints are still evolving (some require the beta
 > endpoint or the separate Microsoft Purview compliance APIs / Office 365 Management Activity
@@ -348,8 +366,8 @@ operation when its module is implemented.
 | General Azure resources | Resource inventory and configuration needed by implemented checks | `Reader` at selected subscription or resource-group scope |
 | Defender for Cloud | Azure secure score and security recommendations | `Security Reader` at selected subscription scope |
 | Recovery Services vaults | Vault settings, backup policies, protected-item posture | `Backup Reader` at each selected vault scope |
-| Log Analytics workspaces | Workspace configuration and presence/freshness of required logs | `Log Analytics Reader` at each selected workspace scope |
-| Microsoft Sentinel | Data connectors and implemented Sentinel configuration checks | `Microsoft Sentinel Reader` at each selected Sentinel-enabled workspace scope |
+| Log Analytics workspaces | Presence/freshness of required logs through implemented KQL checks | `Log Analytics Reader` at each selected workspace scope; do not assign merely to inventory Sentinel connectors |
+| Microsoft Sentinel | Data-connector inventory, configuration, and implemented Sentinel posture checks | `Microsoft Sentinel Reader` at each selected Sentinel-enabled workspace scope |
 
 Call out explicitly in the onboarding UI: **admin consent (step 4) only grants Graph API
 access. Azure RBAC roles (step 6) are a separate, explicit grant the customer controls and scopes
@@ -381,6 +399,31 @@ metadata. The customer reviews the exported data before uploading it. DLP contri
 - Findings from missing permissions, licensing, unsupported APIs, or unavailable products are
   marked `Incomplete` or `NotApplicable`, never scored as security failures.
 
+### 6.5 Detection, alert, and connector data
+
+- Microsoft 365 Defender alerts and incidents are collected through Microsoft Graph only after
+  the corresponding optional module is enabled. Reports group them by service source, severity,
+  status, and age and retain the source timestamp.
+- Defender for Cloud alerts are collected through Azure Resource Manager using the customer's
+  selected subscription scopes and `Security Reader` role.
+- Microsoft Sentinel connector inventory is read from the Azure Resource Manager
+  `Microsoft.SecurityInsights/dataConnectors` resource for each customer-selected,
+  Sentinel-enabled workspace. Record connector type, configuration/provisioning state, and safe
+  error metadata when the API exposes them.
+- Connector configuration does not prove that data is arriving. A separate, optional health
+  check compares expected sources with configured connectors and queries only the required Log
+  Analytics tables for last-event time, ingestion freshness, and gaps.
+- `Microsoft Sentinel Reader` is required for connector/configuration inventory. The
+  `Log Analytics Reader` role is required only when the enabled module runs workspace log
+  queries. Onboarding shows these as separate grants and never adds Log Analytics access
+  automatically.
+- In MSP-hosted mode, every alert, incident, workspace, connector, and log query is scoped to the
+  selected customer tenant and its explicitly selected subscriptions/workspaces. Results retain
+  source tenant, subscription, resource group, and workspace identifiers; cross-customer joins
+  are prohibited.
+- Missing Sentinel, Defender, Purview, licensing, permissions, or expected tables produces
+  `NotApplicable` or `Incomplete`, not a score of zero.
+
 ## 7. Data Model & Scan Semantics
 
 ### 7.1 Tenant registration record
@@ -388,8 +431,10 @@ metadata. The customer reviews the exported data before uploading it. DLP contri
 `lastScanId`, `status` (not-onboarded / onboarded / scanning / scanned / error).
 
 ### 7.2 Finding schema (normalized, one shape across all data sources)
-`scanId`, `tenantId`, `category` (Identity / Devices / Data / Detection), `sourceSystem`
-(Graph/Intune/Purview/LogAnalytics), `checkId`, `title`, `severity` (High/Medium/Low/Info),
+`scanId`, `tenantId`, `assessmentFamily` (Microsoft365 / Azure / DetectionResponse / Resilience),
+`category` (Identity / Data / Device / Apps / Infrastructure / AzureSecurity / Alerts /
+Sentinel / Backup), `sourceSystem` (Graph/Intune/Purview/DefenderForCloud/Sentinel/LogAnalytics),
+`checkId`, `title`, `severity` (High/Medium/Low/Info),
 `status` (Pass/Fail/Warning/NotApplicable), `details` (free text or structured),
 `remediationGuidance`, `rawRef` (pointer to the blob with raw API response).
 
@@ -409,15 +454,17 @@ recommend 90 days default) so score-over-time trending is possible later without
 The client scorecard contains separate source scores rather than presenting an unexplained
 single number:
 
-- Identity: Entra roles, Conditional Access, and authentication-registration coverage.
-- Endpoint management: Intune policy/configuration coverage.
-- Microsoft 365 posture: Microsoft Secure Score and its control recommendations.
+- Microsoft 365: Microsoft's Secure Score and control recommendations remain grouped into
+  Identity, Data, Device, Apps, and Infrastructure. NSO controls map into the same report family:
+  Entra roles, Conditional Access, and authentication-registration coverage map to Identity;
+  DLP/Purview maps to Data; and Intune policy/configuration coverage maps to Device.
 - Azure posture: Defender for Cloud secure score, security recommendations, and relevant Azure
   Advisor recommendations.
 - Resilience: Recovery Services vault configuration and protection posture.
 - Observability: Log Analytics configuration plus required-log presence and freshness.
-- Detection: Sentinel data-connector and implemented detection configuration posture.
-- Data protection: customer-supplied DLP posture until an approved narrow API is available.
+- Detection & Response: source-separated Microsoft Defender, Defender for Cloud, and Sentinel
+  alerts/incidents plus Sentinel data-connector and implemented detection configuration posture.
+  Operational indicators remain distinct from scored configuration controls.
 - Optional endpoint vulnerability posture: Defender Vulnerability Management score and critical
   recommendations when licensed and explicitly enabled.
 
@@ -498,11 +545,15 @@ component Microsoft surfaces as Identity Secure Score.
    the complete consent-to-results loop. Azure RBAC setup may be demonstrated but is not
    required to run the Graph-only scan.
 2. **Phase 2 — Scorecard sources**: Intune policy/configuration, Azure inventory, Defender for
-   Cloud score/recommendations, Recovery Services vaults, Log Analytics, and Sentinel data
-   connectors. Optional Defender Vulnerability Management score/recommendations follow when
+   Cloud score/recommendations, Recovery Services vaults, Sentinel data-connector inventory,
+   and optional Log Analytics connector-freshness checks. Connector inventory ships before log
+   querying so `Log Analytics Reader` is not required unless freshness checks are enabled.
+   Optional Defender Vulnerability Management score/recommendations follow when
    licensing and API access are validated. Purview DLP remains customer-supplied until a narrow
    unattended API is approved.
-3. **Phase 3 — Dashboard polish**: scoring model, remediation guidance content, scan history.
+3. **Phase 3 — Detection & dashboard**: optional Microsoft Defender alerts/incidents and
+   Defender for Cloud alerts; severity/status/age and response indicators; scoring model,
+   remediation guidance content, and scan history.
 4. **Phase 4 — Hardening**: publisher verification, retention-policy automation, deletion-flow
    validation, CI permission linting, and load testing.
 
