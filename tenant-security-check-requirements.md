@@ -227,7 +227,9 @@ identity rather than account keys in configuration.
   - **Azure** — Defender for Cloud score/recommendations and other Azure configuration checks.
   - **Detection & Response** — operational security signals grouped by source, including
     Microsoft Defender alerts/incidents, Defender for Cloud alerts, and Microsoft Sentinel.
-    Sentinel data connectors appear here as a configuration/coverage subsection.
+    Alert settings (notification routing, severity thresholds, suppression, and forwarding)
+    appear with Alerting. Sentinel data connectors appear under the Microsoft Sentinel
+    configuration/coverage subsection.
   - **Resilience** — backup and recovery posture.
 - Microsoft source scores and NSO baseline scores must be labeled separately. An NSO Identity
   control group must not be presented as if it were the entire Microsoft 365 Identity category.
@@ -423,6 +425,9 @@ metadata. The customer reviews the exported data before uploading it. DLP contri
   are prohibited.
 - Missing Sentinel, Defender, Purview, licensing, permissions, or expected tables produces
   `NotApplicable` or `Incomplete`, not a score of zero.
+- Until their collectors ship, DLP, alerts, alert settings, and Sentinel data connectors are
+  visible in the report hierarchy as `NotCollected`/`NotEnabled`; they carry no score or baseline
+  weight and the UI must not imply that evidence was evaluated.
 
 ## 7. Data Model & Scan Semantics
 

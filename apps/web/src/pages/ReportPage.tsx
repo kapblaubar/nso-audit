@@ -16,7 +16,7 @@ function scoreEvidence(scan: StarterScan | undefined, checkId: string): Record<s
   return typeof evidence === "object" && evidence !== null ? evidence as Record<string, unknown> : undefined;
 }
 
-interface CategoryScore { name: string; earned: number; available: number; percentage: number | null }
+interface CategoryScore { name: string; earned: number; available: number; percentage: number | null; valid: boolean }
 
 function reviewEvidence(finding: StarterScan["findings"][number]): Record<string, unknown> | undefined {
   const evidence = typeof finding.evidence === "object" && finding.evidence !== null
@@ -96,17 +96,36 @@ function reviewEvidence(finding: StarterScan["findings"][number]): Record<string
 }
 
 function categoryScores(evidence: Record<string, unknown> | undefined): CategoryScore[] {
-  if (!Array.isArray(evidence?.categories)) return [];
-  const categories = evidence.categories.filter((item): item is CategoryScore => {
-    if (typeof item !== "object" || item === null) return false;
-    const value = item as Record<string, unknown>;
-    return typeof value.name === "string" && typeof value.earned === "number" && typeof value.available === "number" && (typeof value.percentage === "number" || value.percentage === null);
+  const expected = ["Identity", "Data", "Device", "Apps", "Infrastructure"];
+  const source = Array.isArray(evidence?.categories) ? evidence.categories : [];
+  return expected.map((name) => {
+    const value = source.find((item) => typeof item === "object" && item !== null && String((item as Record<string, unknown>).name).toLowerCase() === name.toLowerCase()) as Record<string, unknown> | undefined;
+    const earned = typeof value?.earned === "number" ? value.earned : 0;
+    const available = typeof value?.available === "number" ? value.available : 0;
+    const percentage = typeof value?.percentage === "number" ? value.percentage : null;
+    const valid = Boolean(value) && available > 0 && earned <= available && percentage !== null && percentage >= 0 && percentage <= 100;
+    return { name, earned, available, percentage, valid };
   });
-  const complete = categories.length > 0 && categories.every((category) => category.available > 0 && category.earned <= category.available && category.percentage !== null && category.percentage <= 100);
-  return complete ? categories : [];
 }
 
-const baselineCategoryNames = { identity: "Identity", azure: "Azure security", devices: "Device management", coverage: "Microsoft source scores" } as const;
+function BaselineControls({ controls }: { controls: NonNullable<StarterScan["baseline"]>["controls"] }) {
+  if (!controls.length) return <p className="assessment-empty">No NSO controls are implemented for this area yet.</p>;
+  return <div className="baseline-control-list">{controls.map((control) => (
+    <details className={`baseline-control status-${control.status}`} key={control.controlId}>
+      <summary>
+        <span className="control-status">{control.status}</span>
+        <strong>{control.title}</strong>
+        <span className="control-points">{control.status === "unsupported" ? `Not scored · ${control.weight}-point control unavailable` : control.weight ? `${control.earnedWeight} / ${control.weight} points` : "Informational"}</span>
+        <span className="control-expand-label">View details</span>
+      </summary>
+      <div><p>{control.detail}</p><small>Evidence source: {control.source}</small></div>
+    </details>
+  ))}</div>;
+}
+
+function PlannedSignal({ title, detail }: { title: string; detail: string }) {
+  return <div className="planned-signal"><span>Not collected</span><div><strong>{title}</strong><p>{detail}</p></div></div>;
+}
 
 export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPageProps) {
   const [scan, setScan] = useState<StarterScan>();
@@ -119,17 +138,7 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
   const m365Categories = categoryScores(m365Score);
   const recommendationFindings = scan?.findings.filter((finding) => finding.checkId.startsWith("m365.recommendations.") || finding.checkId === "defender.recommendations") ?? [];
   const postureFindings = scan?.findings.filter((finding) => !finding.checkId.startsWith("m365.recommendations.") && finding.checkId !== "defender.recommendations") ?? [];
-  const baselineSections = scan?.baseline
-    ? (Object.keys(baselineCategoryNames) as Array<keyof typeof baselineCategoryNames>).map((category) => {
-        const controls = scan.baseline?.controls.filter((control) => control.category === category) ?? [];
-        const weighted = controls.filter((control) => control.weight > 0);
-        const assessed = weighted.filter((control) => control.status !== "unsupported");
-        const assessedWeight = assessed.reduce((sum, control) => sum + control.weight, 0);
-        const earnedWeight = assessed.reduce((sum, control) => sum + control.earnedWeight, 0);
-        const applicableWeight = weighted.reduce((sum, control) => sum + control.weight, 0);
-        return { category, title: baselineCategoryNames[category], controls, assessedWeight, earnedWeight, applicableWeight, score: assessedWeight ? Math.round(earnedWeight / assessedWeight * 100) : null };
-      }).filter((section) => section.controls.length > 0)
-    : [];
+  const controlsFor = (category: "identity" | "devices" | "azure") => scan?.baseline?.controls.filter((control) => control.category === category) ?? [];
   useEffect(() => {
     void loadStarterScan(account, scanId).then(setScan);
     void loadScanHistory(account).then(setHistory);
@@ -155,6 +164,26 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
       redaction: "Tenant, subscription, administrator, policy, and resource identifiers are excluded.",
       scan: { score: scan.score, findingCount: scan.findings.length },
       baseline: scan.baseline,
+      assessmentFamilies: [
+        {
+          name: "Microsoft 365",
+          sourceScore: m365Score,
+          categories: m365Categories,
+          placement: {
+            identity: ["Conditional Access", "MFA registration", "Administrator roles"],
+            data: ["DLP and Purview (not collected)"],
+            device: ["Intune configuration"],
+            apps: [],
+            infrastructure: [],
+          },
+        },
+        { name: "Azure", sourceScore: defenderScore, areas: ["Defender for Cloud posture"] },
+        {
+          name: "Detection & Response",
+          status: "notEnabled",
+          areas: ["Defender alerts and incidents", "Alert settings", "Microsoft Sentinel data connectors"],
+        },
+      ],
       findings: scan.findings.map((finding) => ({
         checkId: finding.checkId,
         title: finding.title,
@@ -194,64 +223,29 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
             <strong>{scan?.baseline?.coverage ?? "—"}<small>%</small></strong>
             <p>{scan?.baseline ? `${scan.baseline.assessedWeight} of ${scan.baseline.applicableWeight} baseline weight assessed` : "Available on the next scan"}</p>
           </div>
-          <div className="report-score">
-            <span>Microsoft 365 Secure Score</span>
-            <strong>{String(m365Score?.percentage ?? "—")}<small>%</small></strong>
-            <p>{m365Score ? `${String(m365Score.current)} of ${String(m365Score.maximum)} points` : "Not available in this scan"}</p>
-          </div>
-          <div className="report-score">
-            <span>Defender for Cloud Secure Score</span>
-            <strong>{String(defenderScore?.percentage ?? "—")}<small>%</small></strong>
-            <p>{defenderScore ? `${String(defenderScore.current)} of ${String(defenderScore.maximum)} points` : "Not available in this scan"}</p>
-          </div>
         </div>
-        {scan?.baseline ? (
-          <section className="recommendation-section" aria-labelledby="baseline-controls-title">
-            <p className="eyebrow">{scan.baseline.baselineId}</p>
-            <h2 id="baseline-controls-title">Baseline controls</h2>
-            <p>Baseline v1 scores the identity foundation controls. Azure, Defender, device, and Microsoft source signals remain informational until atomic and applicable controls are implemented.</p>
-            <div className="baseline-outline">
-              {baselineSections.map((section) => (
-                <section className="baseline-group" key={section.category}>
-                  <header>
-                    <div><span>{section.category}</span><h3>{section.title}</h3></div>
-                    <div className="baseline-group-score">
-                      <strong>{section.score ?? "—"}<small>{section.score === null ? "" : "/100"}</small></strong>
-                      <span>{section.applicableWeight ? `${section.assessedWeight} of ${section.applicableWeight} weight assessed` : "Informational"}</span>
-                    </div>
-                  </header>
-                  <div className="baseline-control-list">
-                    {section.controls.map((control) => (
-                      <details className={`baseline-control status-${control.status}`} key={control.controlId}>
-                        <summary>
-                          <span className="control-status">{control.status}</span>
-                          <strong>{control.title}</strong>
-                          <span className="control-points">{control.status === "unsupported" ? `Not scored · ${control.weight}-point control unavailable` : control.weight ? `${control.earnedWeight} / ${control.weight} points` : "Informational"}</span>
-                          <span className="control-expand-label">View details</span>
-                        </summary>
-                        <div><p>{control.detail}</p><small>Evidence source: {control.source}</small></div>
-                      </details>
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-          </section>
-        ) : null}
-        {m365Categories.length ? (
-          <section className="m365-categories" aria-labelledby="m365-categories-title">
-            <div><span>Microsoft 365 breakdown</span><strong id="m365-categories-title">Secure Score categories</strong></div>
-            <div className="category-score-grid">
-              {m365Categories.map((category) => (
-                <div key={category.name}>
-                  <span>{category.name}</span>
-                  <strong>{category.percentage ?? "—"}<small>{category.percentage === null ? "" : "%"}</small></strong>
-                  <p>{category.available ? `${category.earned} of ${category.available} points` : "No scored controls available"}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
+        <section className="assessment-family" aria-labelledby="m365-family-title">
+          <header className="family-header"><div><p className="eyebrow">Assessment family</p><h2 id="m365-family-title">Microsoft 365</h2><p>Identity, data, device, apps, and infrastructure remain together as Microsoft defines them.</p></div><div className="family-source-score"><span>Microsoft Secure Score</span><strong>{String(m365Score?.percentage ?? "—")}<small>%</small></strong></div></header>
+          <div className="family-categories">
+            {m365Categories.map((category) => {
+              const controls = category.name === "Identity" ? controlsFor("identity") : category.name === "Device" ? controlsFor("devices") : [];
+              return <section className="assessment-category" key={category.name}>
+                <header><div><span>Microsoft 365</span><h3>{category.name === "Data" ? "Data protection" : category.name}</h3></div><div className={`source-category-score${category.valid ? "" : " is-unavailable"}`}><strong>{category.valid ? category.percentage : "—"}<small>{category.valid ? "%" : ""}</small></strong><span>{category.valid ? `${category.earned} of ${category.available} Microsoft points` : category.available || category.earned ? `Source values require review (${category.earned} of ${category.available})` : "Microsoft category score unavailable"}</span></div></header>
+                <BaselineControls controls={controls} />
+                {category.name === "Data" ? <PlannedSignal title="DLP and Purview controls" detail="The scanner does not yet have an approved unattended DLP API. This area is unscored and does not reduce coverage." /> : null}
+              </section>;
+            })}
+          </div>
+        </section>
+        <section className="assessment-family" aria-labelledby="azure-family-title">
+          <header className="family-header"><div><p className="eyebrow">Assessment family</p><h2 id="azure-family-title">Azure</h2><p>Cloud security configuration and Defender for Cloud posture.</p></div><div className="family-source-score"><span>Defender for Cloud</span><strong>{String(defenderScore?.percentage ?? "—")}<small>%</small></strong></div></header>
+          <section className="assessment-category"><header><div><span>Azure</span><h3>Cloud security</h3></div></header><BaselineControls controls={controlsFor("azure")} /></section>
+        </section>
+        <section className="assessment-family" aria-labelledby="detection-family-title">
+          <header className="family-header"><div><p className="eyebrow">Assessment family</p><h2 id="detection-family-title">Detection &amp; Response</h2><p>Operational signals and detection configuration are reported separately from posture scoring.</p></div><div className="family-status"><span>Coverage</span><strong>Not enabled</strong></div></header>
+          <section className="assessment-category"><header><div><span>Detection</span><h3>Alerting</h3></div></header><PlannedSignal title="Defender alerts and incidents" detail="Alert collection is not implemented. Future reports will show severity, status, ownership, and age without scoring raw alert volume." /><PlannedSignal title="Alert settings" detail="Notification routing, severity thresholds, suppression, and forwarding settings are not currently collected." /></section>
+          <section className="assessment-category"><header><div><span>Detection</span><h3>Microsoft Sentinel</h3></div></header><PlannedSignal title="Sentinel data connectors" detail="Connector inventory and configuration are not currently collected. Data freshness will remain a separate optional Log Analytics check." /></section>
+        </section>
         <p className="scan-reference">Scan {scanId}</p>
         <div className="starter-findings">
           {postureFindings.map((finding) => (
