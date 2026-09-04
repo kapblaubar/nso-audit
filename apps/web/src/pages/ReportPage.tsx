@@ -78,6 +78,7 @@ function reviewEvidence(finding: StarterScan["findings"][number]): Record<string
     };
   }
   if (finding.checkId === "defender.recommendations") {
+    if (evidence.unavailable === true) return { unavailable: true, error: evidence.error };
     const recommendations = Array.isArray(evidence.recommendations)
       ? evidence.recommendations as Array<Record<string, unknown>>
       : [];
@@ -103,6 +104,8 @@ function categoryScores(evidence: Record<string, unknown> | undefined): Category
   }).filter((category) => category.available > 0 && category.earned <= category.available && category.percentage !== null && category.percentage <= 100);
 }
 
+const baselineCategoryNames = { identity: "Identity", azure: "Azure security", devices: "Device management", coverage: "Microsoft source scores" } as const;
+
 export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPageProps) {
   const [scan, setScan] = useState<StarterScan>();
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
@@ -114,6 +117,17 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
   const m365Categories = categoryScores(m365Score);
   const recommendationFindings = scan?.findings.filter((finding) => finding.checkId.startsWith("m365.recommendations.") || finding.checkId === "defender.recommendations") ?? [];
   const postureFindings = scan?.findings.filter((finding) => !finding.checkId.startsWith("m365.recommendations.") && finding.checkId !== "defender.recommendations") ?? [];
+  const baselineSections = scan?.baseline
+    ? (Object.keys(baselineCategoryNames) as Array<keyof typeof baselineCategoryNames>).map((category) => {
+        const controls = scan.baseline?.controls.filter((control) => control.category === category) ?? [];
+        const weighted = controls.filter((control) => control.weight > 0);
+        const assessed = weighted.filter((control) => control.status !== "unsupported");
+        const assessedWeight = assessed.reduce((sum, control) => sum + control.weight, 0);
+        const earnedWeight = assessed.reduce((sum, control) => sum + control.earnedWeight, 0);
+        const applicableWeight = weighted.reduce((sum, control) => sum + control.weight, 0);
+        return { category, title: baselineCategoryNames[category], controls, assessedWeight, earnedWeight, applicableWeight, score: assessedWeight ? Math.round(earnedWeight / assessedWeight * 100) : null };
+      }).filter((section) => section.controls.length > 0)
+    : [];
   useEffect(() => {
     void loadStarterScan(account, scanId).then(setScan);
     void loadScanHistory(account).then(setHistory);
@@ -168,7 +182,7 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
         <h1>{account.name ?? account.username}</h1>
         <p>Tenant ID: {bootstrap.tenantId}</p>
         <div className="score-grid" aria-label="Security scores">
-          <div className="report-score score-primary">
+          <div className="report-score score-primary score-hero">
             <span>{scan?.baseline ? "NSO Foundation Score" : "Legacy NSO Assessment Score"}</span>
             <strong>{scan?.score ?? "—"}<small>/100</small></strong>
             <p>{scan?.baseline?.baselineId ?? "Legacy preview scoring model"}</p>
@@ -194,14 +208,30 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
             <p className="eyebrow">{scan.baseline.baselineId}</p>
             <h2 id="baseline-controls-title">Baseline controls</h2>
             <p>Only weighted controls affect the NSO Foundation Score. Informational controls retain useful Microsoft and inventory signals without changing the score.</p>
-            <div className="starter-findings">
-              {scan.baseline.controls.map((control) => (
-                <article key={control.controlId} className={control.status === "pass" ? "finding-pass" : "finding-warning"}>
-                  <span>{control.status}</span>
-                  <h3>{control.title}</h3>
-                  <p>{control.detail}</p>
-                  <small>{control.weight ? `${control.earnedWeight} of ${control.weight} weighted points · ` : ""}{control.source}</small>
-                </article>
+            <div className="baseline-outline">
+              {baselineSections.map((section) => (
+                <section className="baseline-group" key={section.category}>
+                  <header>
+                    <div><span>{section.category}</span><h3>{section.title}</h3></div>
+                    <div className="baseline-group-score">
+                      <strong>{section.score ?? "—"}<small>{section.score === null ? "" : "/100"}</small></strong>
+                      <span>{section.applicableWeight ? `${section.assessedWeight} of ${section.applicableWeight} weight assessed` : "Informational"}</span>
+                    </div>
+                  </header>
+                  <div className="baseline-control-list">
+                    {section.controls.map((control) => (
+                      <details className={`baseline-control status-${control.status}`} key={control.controlId}>
+                        <summary>
+                          <span className="control-status">{control.status}</span>
+                          <strong>{control.title}</strong>
+                          <span className="control-points">{control.status === "unsupported" ? `Not scored · ${control.weight}-point control unavailable` : control.weight ? `${control.earnedWeight} / ${control.weight} points` : "Informational"}</span>
+                          <span className="control-expand-label">View details</span>
+                        </summary>
+                        <div><p>{control.detail}</p><small>Evidence source: {control.source}</small></div>
+                      </details>
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
           </section>

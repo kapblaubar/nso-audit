@@ -77,14 +77,36 @@ export async function checkCustomerAccess(tenantId: string, subscriptionId: stri
   return result;
 }
 
+class CollectionRequestError extends Error {
+  constructor(readonly status: number) {
+    super(`Collection request failed with HTTP ${status}.`);
+  }
+}
+
+const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
 async function getJson(url: string, token: string): Promise<Record<string, unknown>> {
-  const response = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
-  if (!response.ok) throw new Error(`Collection request failed with HTTP ${response.status}.`);
-  return await response.json() as Record<string, unknown>;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
+    if (response.ok) return await response.json() as Record<string, unknown>;
+    const retryable = response.status === 429 || response.status >= 500;
+    if (!retryable || attempt === 2) throw new CollectionRequestError(response.status);
+    const retryAfter = Number(response.headers.get("retry-after"));
+    await delay(Number.isFinite(retryAfter) ? Math.min(retryAfter * 1000, 5000) : 500 * 2 ** attempt);
+  }
+  throw new Error("Collection retry loop ended unexpectedly.");
 }
 
 async function optionalJson(url: string, token: string): Promise<Record<string, unknown> | null> {
   try { return await getJson(url, token); } catch { return null; }
+}
+
+async function optionalJsonWithStatus(url: string, token: string): Promise<{ data: Record<string, unknown> | null; error?: string }> {
+  try {
+    return { data: await getJson(url, token) };
+  } catch (error) {
+    return { data: null, error: error instanceof CollectionRequestError ? `HTTP ${error.status}` : "request failed" };
+  }
 }
 
 function compactText(value: unknown, maximumLength = 1000): string | undefined {
@@ -101,11 +123,11 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
     throw new Error("The Azure subscription belongs to a different Microsoft Entra tenant.");
   }
 
-  const [policy, groups, azureScores, azureAssessments, azureAssessmentMetadata, conditionalAccess, namedLocations, roleDefinitions, registrations, m365Scores, compliancePolicies, deviceConfigurations, appPolicies, controlProfiles] = await Promise.all([
+  const [policy, groups, azureScores, azureAssessmentsResult, azureAssessmentMetadata, conditionalAccess, namedLocations, roleDefinitions, registrations, m365Scores, compliancePolicies, deviceConfigurations, appPolicies, controlProfiles] = await Promise.all([
     getJson("https://graph.microsoft.com/v1.0/policies/authorizationPolicy", graphToken.token),
     getJson(`https://management.azure.com/subscriptions/${subscriptionId}/resourcegroups?api-version=2021-04-01`, armToken.token),
     getJson(`https://management.azure.com/subscriptions/${subscriptionId}/providers/Microsoft.Security/secureScores?api-version=2020-01-01`, armToken.token),
-    optionalJson(`https://management.azure.com/subscriptions/${subscriptionId}/providers/Microsoft.Security/assessments?api-version=2021-06-01`, armToken.token),
+    optionalJsonWithStatus(`https://management.azure.com/subscriptions/${subscriptionId}/providers/Microsoft.Security/assessments?api-version=2021-06-01`, armToken.token),
     optionalJson(`https://management.azure.com/subscriptions/${subscriptionId}/providers/Microsoft.Security/assessmentMetadata?api-version=2021-06-01`, armToken.token),
     optionalJson("https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies", graphToken.token),
     optionalJson("https://graph.microsoft.com/v1.0/identity/conditionalAccess/namedLocations", graphToken.token),
@@ -117,6 +139,7 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
     optionalJson("https://graph.microsoft.com/v1.0/deviceAppManagement/managedAppPolicies", graphToken.token),
     optionalJson("https://graph.microsoft.com/v1.0/security/secureScoreControlProfiles?$top=200", graphToken.token),
   ]);
+  const azureAssessments = azureAssessmentsResult.data;
   const groupCount = Array.isArray(groups.value) ? groups.value.length : 0;
   const scoreCount = Array.isArray(azureScores.value) ? azureScores.value.length : 0;
   const azureScoreRows = scoreCount ? azureScores.value as Array<Record<string, unknown>> : [];
@@ -183,9 +206,9 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
   findings.push({
     checkId: "defender.recommendations",
     title: "Defender for Cloud recommendations",
-    status: defenderRecommendations.length ? "warning" : "pass",
-    detail: azureAssessments ? `${defenderRecommendations.length} highest-priority recommendation${defenderRecommendations.length === 1 ? "" : "s"} grouped across affected resources (maximum 25).` : "Defender for Cloud recommendations are unavailable.",
-    evidence: azureAssessments ? { recommendations: defenderRecommendations, limit: 25 } : undefined,
+    status: !azureAssessments || defenderRecommendations.length ? "warning" : "pass",
+    detail: azureAssessments ? `${defenderRecommendations.length} highest-priority recommendation${defenderRecommendations.length === 1 ? "" : "s"} grouped across affected resources (maximum 25).` : `Defender for Cloud recommendations are unavailable (${azureAssessmentsResult.error ?? "unknown collection error"}).`,
+    evidence: azureAssessments ? { recommendations: defenderRecommendations, limit: 25 } : { unavailable: true, error: azureAssessmentsResult.error ?? "unknown collection error" },
   });
 
   const caPolicies = conditionalAccess && Array.isArray(conditionalAccess.value) ? conditionalAccess.value as Array<Record<string, unknown>> : [];
