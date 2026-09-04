@@ -62,6 +62,13 @@ Interim approach:
 4. Do not request `Exchange.ManageAsApp` in the central Enterprise Application without a new
    security review and explicit product decision.
 
+The parked automated design uses certificate-based app-only Security & Compliance PowerShell
+with `Get-DlpCompliancePolicy` and `Get-DlpComplianceRule`. It requires a separately reviewed
+Microsoft Exchange Online Protection `Exchange.ManageAsApp` application grant and the narrowest
+validated Purview read-only role. The certificate is deployment-owned, its private key is stored
+in the hosting Key Vault, and only its public key is registered in Entra. No permission or DLP
+score weight is added until the module and MSP cross-tenant authorization path are tested.
+
 ## Scorecard inputs
 
 The scorecard can combine:

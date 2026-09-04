@@ -196,9 +196,11 @@ threat model, session isolation design, credential-handling review, and audit lo
   familiarity but is harder to scale/test. Recommend **Python or C# on the isolated worker
   model** unless there's a reason to prefer PowerShell.
 
-One App Registration client secret is created per deployed NSO Audit application and stored only
-in a dedicated hosting Key Vault. The vault must contain no unrelated application secrets, and
-its data-plane access is limited to the Function's managed identity and explicitly authorized
+One App Registration client secret and, when the DLP module is enabled, one client certificate
+are created per deployed NSO Audit application and stored only in a dedicated hosting Key Vault.
+Only the certificate's public key is registered in Entra. The vault must contain no unrelated
+application credentials, and its data-plane access is limited to the Function's managed identity
+and explicitly authorized
 credential administrators. The secret is not copied into Function settings and is not recreated
 in each customer tenant. Customer admin consent creates a Service Principal that trusts the same
 application identity. The hosting tenant follows this same consent, authorization, and assessment
@@ -206,6 +208,13 @@ path when it is selected as an audit target. The secret must have automated rota
 between old and new versions, expiry monitoring, and a documented emergency-revocation process.
 Key Vault contains no customer administrator passwords. Storage and Key Vault access use managed
 identity rather than account keys in configuration.
+
+After infrastructure deployment, an idempotent credential bootstrap checks both Entra credential
+metadata and Key Vault metadata. Missing credentials are generated and stored without printing
+their values. MSP-supplied credentials are accepted only through secure, non-echoing secret
+prompts or password-protected PFX import; command-line secret values and browser paste fields for
+private keys are prohibited. Split or mismatched state fails closed and requires an explicit
+repair/rotation action. The complete lifecycle is defined in `docs/workload-credentials.md`.
 
 ### 5.6 Storage Account
 - Table Storage or Cosmos DB (table API) for structured, queryable findings — partition key
@@ -388,6 +397,21 @@ The interim design is a customer-run, read-only PowerShell export of selected DL
 metadata. The customer reviews the exported data before uploading it. DLP contributes an
 `Incomplete`/customer-supplied scorecard state rather than silently receiving a zero score.
 
+The target automated collector uses certificate-based app-only Security & Compliance PowerShell
+to run `Get-DlpCompliancePolicy` and `Get-DlpComplianceRule`. It captures policy/rule mode,
+locations and scope, conditions, actions, user/admin notifications, overrides, priority, and
+distribution errors, but excludes matched content and sensitive event payloads. This module
+requires a separately reviewed `Exchange.ManageAsApp` grant plus the narrowest functioning
+Purview read-only role assignment. It remains parked until the certificate bootstrap, MSP
+cross-tenant consent path, API behavior, licensing states, and sanitized evidence schema have
+been validated.
+
+DLP will eventually be scored through versioned atomic controls such as applicable workload
+coverage, enabled/enforced mode, appropriate sensitive-information rules, alert configuration,
+override auditing, and absence of distribution errors. No DLP weight is added to the production
+baseline while collection is parked; missing DLP evidence remains `NotCollected` or
+`NotApplicable`, never zero.
+
 ### 6.4 Recommendation sources
 
 - Microsoft 365 recommendations come from Secure Score control profiles using
@@ -508,11 +532,14 @@ component Microsoft surfaces as Identity Secure Score.
   request permissions "in case we need them later."
 - **Read-only, always**: no permission in §6 should ever be a write scope. This should be an
   automated check in CI (lint the permission manifest) not just a code review convention.
-- **Key Vault-held workload credential** for the Function App's client-credential flow. Exactly
-  one App Registration secret exists per NSO Audit deployment, is stored only in the hosting Key
-  Vault, and is retrieved using the Function's managed identity. Never copy it into application
-  settings, source control, logs, customer tenants, or operator-visible responses. Rotation,
-  expiry alerts, overlapping credential versions, revocation, and access auditing are required.
+- **Key Vault-held workload credentials** for the Function App's client-credential flows.
+  One primary App Registration secret and, when DLP is enabled, one primary certificate exist per
+  deployment, with additional credentials allowed only during a controlled rotation overlap.
+  Both are stored in the hosting Key Vault and retrieved using the
+  Function's managed identity; only the certificate public key is uploaded to Entra. Never copy
+  credential values into application settings, source control, logs, customer tenants, or
+  operator-visible responses. Automated detection/creation, rotation, expiry alerts, overlapping
+  versions, revocation, reconciliation, and access auditing are required.
 - **No customer credentials ever held by us** — normal users authenticate through Microsoft,
   authorized administrators grant consent on Microsoft's page, and subscription administrators
   run any optional RBAC script in their own Azure session. Never ask for a password or
@@ -553,9 +580,9 @@ component Microsoft surfaces as Identity Secure Score.
    Cloud score/recommendations, Recovery Services vaults, Sentinel data-connector inventory,
    and optional Log Analytics connector-freshness checks. Connector inventory ships before log
    querying so `Log Analytics Reader` is not required unless freshness checks are enabled.
-   Optional Defender Vulnerability Management score/recommendations follow when
-   licensing and API access are validated. Purview DLP remains customer-supplied until a narrow
-   unattended API is approved.
+   Optional Defender Vulnerability Management score/recommendations follow when licensing and
+   API access are validated. Purview DLP policy collection/scoring remains parked while the
+   certificate-based Security & Compliance PowerShell integration is validated.
 3. **Phase 3 — Detection & dashboard**: optional Microsoft Defender alerts/incidents and
    Defender for Cloud alerts; severity/status/age and response indicators; scoring model,
    remediation guidance content, and scan history.
@@ -599,11 +626,11 @@ component Microsoft surfaces as Identity Secure Score.
   Administrator is neither requested nor recommended for routine site access.
 - **Consent identity**: tenant-wide Graph consent occurs separately on Microsoft's endpoint and
   may use a different authorized administrator account.
-- **Workload authentication**: one client secret for the vendor-owned multitenant App
-  Registration is stored in the hosting Key Vault and retrieved by the Function through managed
-  identity. The same application credential is used to request tenant-specific tokens for the
-  hosting tenant and every consented customer tenant; customer tenants never receive or provide
-  a copy of it.
+- **Workload authentication**: one client secret for the current Graph flow and one optional
+  client certificate for the future DLP flow are stored in the hosting Key Vault and retrieved
+  by the Function through managed identity. Credentials belong to the MSP deployment and request
+  tenant-specific tokens for the hosting tenant and consented customer tenants; customer tenants
+  never receive or provide a copy.
 - **Customer setup**: Azure RBAC onboarding is optional, begins after the Graph-only Phase 1
   flow, and uses downloadable PowerShell/Azure Cloud Shell rather than an embedded terminal.
 - **Phase 1 sources**: Entra ID and Secure Score. Intune, Azure resource data, Sentinel, and
@@ -621,8 +648,7 @@ component Microsoft surfaces as Identity Secure Score.
   should be assigned.
 - Retention period for stored scan data (compliance/legal input needed, not just a technical
   default).
-- Complete the Key Vault credential lifecycle: automate creation of the single App Registration
-  secret, write it directly to Key Vault without exposing it in shell output, retrieve it through
-  managed identity, rotate it with a safe overlap window, alert before expiry, document emergency
-  revocation, and add deployment acceptance tests for both hosting-tenant and customer-tenant
-  token acquisition. Do not create one credential per customer tenant.
+- Implement and validate the Key Vault credential bootstrap described in
+  `docs/workload-credentials.md`, including secret and optional DLP certificate reconciliation,
+  rotation, expiry alerts, emergency revocation, and hosting/customer-tenant token tests. Do not
+  create credentials per customer tenant.

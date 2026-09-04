@@ -33,6 +33,11 @@ tenant IDs, credentials, or private keys.
 13. `Set-NsoAuditApiRuntime.ps1` — sets the Function App's public Entra client ID and allows the
     exact Static Web App origin through CORS. It stores no credentials.
 
+The next platform-automation script is an idempotent workload-credential bootstrap for the App
+Registration secret and optional DLP certificate. Its required behavior, secure import fallback,
+rotation, and recovery rules are specified in `../docs/workload-credentials.md`. Until that script
+is implemented and tested, do not describe credential provisioning as fully automated.
+
 Azure-facing scripts accept `SubscriptionId`; resource-scoped scripts also accept
 `ResourceGroupName`. If `SubscriptionId` is omitted, the current Cloud Shell subscription is
 used. Scripts confirm the active subscription before continuing and never store credentials.
