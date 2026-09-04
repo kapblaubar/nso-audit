@@ -53,7 +53,7 @@ Certificate policy requirements:
 ## Operator-supplied fallback
 
 Some MSPs require credentials issued by an internal PKI or created by a separate identity team.
-The bootstrap therefore supports an explicit import mode:
+The completed bootstrap must therefore support an explicit import mode:
 
 - Secret values are accepted through a secure, non-echoing prompt and written directly to Key
   Vault. A command-line secret parameter is prohibited because it can enter shell history or
@@ -78,3 +78,12 @@ actions according to the operator's authorization.
   requires a new end-to-end token test.
 
 Credential creation is a hosting-environment operation. It is never part of customer onboarding.
+
+## Current implementation status
+
+`scripts/Set-NsoAuditWorkloadCredentials.ps1` implements metadata checks, missing-secret
+creation through Microsoft Graph, direct Key Vault secret storage, optional Key Vault certificate
+creation/public-key registration, explicit rotation creation, and mismatched-state protection.
+Secure import, automated retirement of the old credential after its overlap window, expiry-alert
+deployment, and end-to-end customer-tenant token validation remain required before the complete
+bootstrap is production-ready.

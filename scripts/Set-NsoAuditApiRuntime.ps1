@@ -19,6 +19,10 @@ param(
     [ValidateNotNullOrEmpty()]
     [string] $ApplicationClientSecretName = "nso-audit-app-client-secret",
 
+    [Parameter()]
+    [ValidateNotNullOrEmpty()]
+    [string] $ApplicationClientCertificateName = "nso-audit-dlp-certificate",
+
     [Parameter(Mandatory)]
     [ValidatePattern('^https://[^/]+$')]
     [string] $FrontendOrigin
@@ -41,6 +45,7 @@ if ($PSCmdlet.ShouldProcess($FunctionAppName, "Set Entra client ID and allow the
         --settings `
             "ENTRA_CLIENT_ID=$ApplicationClientId" `
             "ENTRA_CLIENT_SECRET_NAME=$ApplicationClientSecretName" `
+            "ENTRA_CLIENT_CERTIFICATE_NAME=$ApplicationClientCertificateName" `
         --output none
     if ($LASTEXITCODE -ne 0) { throw "Function App setting update failed." }
 

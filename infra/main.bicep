@@ -21,6 +21,9 @@ param uniqueSuffix string
 @description('Name of the App Registration client secret stored in Key Vault. The secret value is supplied out of band.')
 param entraClientSecretName string = 'nso-audit-app-client-secret'
 
+@description('Name of the optional DLP client certificate stored in Key Vault. No certificate value is stored in deployment parameters.')
+param entraClientCertificateName string = 'nso-audit-dlp-certificate'
+
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: resourceGroupName
   location: location
@@ -40,6 +43,7 @@ module platform 'modules/platform.bicep' = {
     environmentName: environmentName
     uniqueSuffix: uniqueSuffix
     entraClientSecretName: entraClientSecretName
+    entraClientCertificateName: entraClientCertificateName
   }
 }
 

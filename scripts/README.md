@@ -32,11 +32,23 @@ tenant IDs, credentials, or private keys.
     Function App's user-assigned managed identity to act as the multitenant NSO Audit application.
 13. `Set-NsoAuditApiRuntime.ps1` — sets the Function App's public Entra client ID and allows the
     exact Static Web App origin through CORS. It stores no credentials.
+14. `Set-NsoAuditWorkloadCredentials.ps1` — checks the App Registration and Key Vault, creates a
+    missing Graph secret directly into Key Vault, and optionally creates a Key Vault-hosted DLP
+    certificate whose public key is appended to Entra. Use explicit rotation switches; values
+    are never printed. The lifecycle contract is in `../docs/workload-credentials.md`.
 
-The next platform-automation script is an idempotent workload-credential bootstrap for the App
-Registration secret and optional DLP certificate. Its required behavior, secure import fallback,
-rotation, and recovery rules are specified in `../docs/workload-credentials.md`. Until that script
-is implemented and tested, do not describe credential provisioning as fully automated.
+Credential import and end-to-end token validation remain to be implemented. Until those paths
+are tested, do not describe credential provisioning as fully automated.
+
+Example initial credential bootstrap:
+
+```powershell
+./scripts/Set-NsoAuditWorkloadCredentials.ps1 `
+    -SubscriptionId "00000000-0000-0000-0000-000000000000" `
+    -KeyVaultName "nso-audit-dev-kv" `
+    -ApplicationClientId "00000000-0000-0000-0000-000000000000" `
+    -IncludeDlpCertificate
+```
 
 Azure-facing scripts accept `SubscriptionId`; resource-scoped scripts also accept
 `ResourceGroupName`. If `SubscriptionId` is omitted, the current Cloud Shell subscription is

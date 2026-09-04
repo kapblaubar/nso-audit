@@ -648,7 +648,8 @@ component Microsoft surfaces as Identity Secure Score.
   should be assigned.
 - Retention period for stored scan data (compliance/legal input needed, not just a technical
   default).
-- Implement and validate the Key Vault credential bootstrap described in
-  `docs/workload-credentials.md`, including secret and optional DLP certificate reconciliation,
-  rotation, expiry alerts, emergency revocation, and hosting/customer-tenant token tests. Do not
-  create credentials per customer tenant.
+- Complete and validate the Key Vault credential bootstrap described in
+  `docs/workload-credentials.md`. Initial credential creation and mismatch detection are
+  implemented; secure import, old-version retirement after rotation, expiry alerts, emergency
+  revocation, and hosting/customer-tenant token tests remain. Do not create credentials per
+  customer tenant.

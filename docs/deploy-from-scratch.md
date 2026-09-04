@@ -12,7 +12,7 @@ for the target environment; credentials and deployment tokens must never be comm
 | App Registration permissions | `Set-NsoAuditApiPermissions.ps1` | App Registration creation, verified publisher, ownership and production naming still require automation/review |
 | Protected API scope | `Set-NsoAuditApiScope.ps1` | None after the App Registration exists |
 | SPA redirect | `Set-NsoAuditAppRedirect.ps1` | Supply the new Static Web App hostname |
-| Key Vault workload credentials | Key Vault and managed-identity access are provisioned; the API retrieves the configured secret name | Implement the idempotent secret and optional DLP certificate bootstrap in `workload-credentials.md` |
+| Key Vault workload credentials | `Set-NsoAuditWorkloadCredentials.ps1` checks and creates the Graph secret and optional DLP certificate | Add secure import, end-to-end token validation, expiry alerts, and tested rotation cleanup |
 | Function runtime and CORS | `Set-NsoAuditApiRuntime.ps1` | Supply the new Function and Static Web App hostnames |
 | Function deployment | `.github/workflows/deploy-api.yml` or `Publish-NsoAuditApi.ps1` | Add the `AZURE_FUNCTIONAPP_PUBLISH_PROFILE` GitHub environment secret; prefer workload-identity deployment before production |
 | Web deployment | `.github/workflows/deploy-web.yml` | GitHub environment and Static Web App deployment token are still created manually |
@@ -32,9 +32,10 @@ reconciling it; do not deploy the template blindly into production.
 4. Apply the exact allowlisted API permissions with `Set-NsoAuditApiPermissions.ps1`.
 5. Expose `api://{clientId}/access_as_user` with `Set-NsoAuditApiScope.ps1`.
 6. Add the Static Web App callback with `Set-NsoAuditAppRedirect.ps1`.
-7. Run the workload-credential bootstrap. It checks Entra and Key Vault, creates or securely
-   imports the Graph secret, and creates/imports the DLP certificate only when that module is
-   selected. Credential values are never printed or persisted outside Key Vault.
+7. Run `Set-NsoAuditWorkloadCredentials.ps1`. It checks Entra and Key Vault, creates the Graph
+   secret, and creates the DLP certificate only when that module is selected. Credential values
+   are never printed or persisted outside Key Vault. Secure import is a documented fallback but
+   is not implemented in the current script.
 8. Configure the Function's secret-name setting and exact CORS origin with
    `Set-NsoAuditApiRuntime.ps1`.
 9. Verify managed-identity Storage and Key Vault roles with `Test-NsoAuditResources.ps1`.
