@@ -6,9 +6,17 @@ for the target environment; credentials and deployment tokens must never be comm
 
 ## Current automation status
 
+The existing `NSO-Audit` resource group is **Dev**. Future Prod must use the same maintained
+infrastructure modules with isolated environment parameters, identities, credentials and data.
+Every infrastructure-dependent feature must update its infrastructure code, versioned database
+migrations and this runbook as applicable. See `AGENTS.md` and
+`docs/product-direction-v2.md` for the project requirements. Current Bicep-generated resource
+names differ from live Dev; reconcile them before applying templates to the existing group.
+
 | Area | Repository coverage | Remaining work |
 | --- | --- | --- |
 | Resource group, Storage, tables, managed identity, Key Vault, Function and Static Web App | Initial Bicep exists under `infra/` | Reconcile the template with the proven live configuration and current Functions hosting guidance before using it for a clean deployment |
+| Additive SQL foundation | `infra/sql.bicep`, Dev parameters, deployment/bootstrap scripts, versioned migrations and live isolation checks | SQL is deployed to Dev; client auth/workspaces, app cutover, scan backfill and disposable clean-rebuild validation remain |
 | App Registration permissions | `Set-NsoAuditApiPermissions.ps1` | App Registration creation, verified publisher, ownership and production naming still require automation/review |
 | Protected API scope | `Set-NsoAuditApiScope.ps1` | None after the App Registration exists |
 | SPA redirect | `Set-NsoAuditAppRedirect.ps1` | Supply the new Static Web App hostname |
@@ -24,6 +32,13 @@ tested against a disposable environment. Use the scripts and live configuration 
 reconciling it; do not deploy the template blindly into production.
 
 ## Required deployment order
+
+For the additive SQL foundation on existing Dev, follow `database/README.md` and use
+`infra/sql.bicep` with `infra/sql.dev.bicepparam`, `scripts/Deploy-NsoAuditSql.ps1`, and
+`scripts/database.mjs`. Existing Table-backed scans are not migrated or deleted by this step.
+Run the SQL isolation verification against Dev after applying schema migrations. Configure
+runtime metadata using `scripts/Set-NsoAuditSqlRuntime.ps1`. Never apply the unreconciled full
+platform template to existing Dev as a shortcut to adding SQL.
 
 1. Choose the subscription, region, environment name, globally unique resource suffix, and
    `NSO-Audit` resource-group name.

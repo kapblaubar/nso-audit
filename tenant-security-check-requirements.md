@@ -1,5 +1,10 @@
 # Tenant Security Posture Check — Requirements Document
 
+> Expansion proposal (2026-10-19): [Product direction v2](docs/product-direction-v2.md)
+> discusses broader environments, insurance-readiness questionnaires, customer/MSP tenancy,
+> connector credentials, and SQL storage. It is a discussion draft; the requirements below
+> describe the existing Microsoft-focused baseline until the replacement scope is agreed.
+
 ## 1. Purpose
 
 A self-service web product that lets an authorized Microsoft 365 / Azure tenant user run a

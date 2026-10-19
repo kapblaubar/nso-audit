@@ -76,7 +76,7 @@ resource logWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
       name: 'PerGB2018'
     }
     workspaceCapping: {
-      dailyQuotaGb: 0.1
+      dailyQuotaGb: json('0.1')
     }
   }
 }
