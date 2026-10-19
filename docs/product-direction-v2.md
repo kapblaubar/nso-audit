@@ -142,6 +142,16 @@ reuse rights.
 
 ### 4.1 Portal registration and administrator setup
 
+Initial Dev identities: `chris@newsommer.com` remains the NewSommer Entra management user.
+`kapblaubar@gmail.com` is the nominated customer owner for the existing NewSommer assessment
+workspace, including its historical reports. This is an ownership change within the existing
+workspace, not a change to the audited Microsoft tenant or its application consent. Preserve
+all organization, tenant and scan IDs. Do not merge the two identities or infer ownership from
+matching email text. The customer nomination grants no access until the Gmail client account
+is created and its email verified. Chris's management role is not revoked by a customer-role
+handover. Client sign-in, verification and an authorized ownership-completion workflow are
+required before declaring the handover complete.
+
 Users register through the portal using an email address and an app-specific password.
 Both work and personal addresses are supported, including `chris@newsommer.com` and
 `kapblaubar@gmail.com`. These are examples of separate accounts; do not automatically link

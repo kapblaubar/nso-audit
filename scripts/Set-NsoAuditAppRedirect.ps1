@@ -15,17 +15,14 @@ param(
 $ErrorActionPreference = "Stop"
 
 if ($SubscriptionId) {
-    Set-AzContext -SubscriptionId $SubscriptionId | Out-Null
     az account set --subscription $SubscriptionId
     if ($LASTEXITCODE -ne 0) {
         throw "Azure CLI could not select subscription '$SubscriptionId'."
     }
 }
 
-$context = Get-AzContext
-if (-not $context) {
-    throw "No Azure context is available. Open an authenticated Azure Cloud Shell session."
-}
+az account show --output none
+if ($LASTEXITCODE -ne 0) { throw "Sign in with Azure CLI before configuring redirects." }
 
 $applicationJson = az ad app show --id $ApplicationClientId --output json
 if ($LASTEXITCODE -ne 0 -or -not $applicationJson) {
@@ -54,15 +51,21 @@ if (-not $PSCmdlet.ShouldProcess(
     return
 }
 
-$response = az rest `
+$payloadPath = [System.IO.Path]::GetTempFileName()
+try {
+$payload | Set-Content -LiteralPath $payloadPath -Encoding utf8
+az rest `
     --method patch `
     --url "https://graph.microsoft.com/v1.0/applications/$($application.id)" `
     --headers "Content-Type=application/json" `
-    --body $payload `
+    --body "@$payloadPath" `
     --output none
 
 if ($LASTEXITCODE -ne 0) {
     throw "App Registration redirect URI update failed."
+}
+} finally {
+    Remove-Item -LiteralPath $payloadPath -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host "Added SPA redirect URI: $RedirectUri" -ForegroundColor Green

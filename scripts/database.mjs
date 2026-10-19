@@ -154,6 +154,8 @@ async function verifyIsolation() {
   const permissions = await pool.request().query(`EXECUTE AS USER=N'nso_api_runtime';
     SELECT HAS_PERMS_BY_NAME('identitydata.Users','OBJECT','SELECT') AS CanReadPasswords,
       HAS_PERMS_BY_NAME('security.Memberships','OBJECT','INSERT') AS CanGrantMembership,
+      HAS_PERMS_BY_NAME('security.WorkspaceOwnershipRequests','OBJECT','SELECT') AS CanReadOwnershipRequests,
+      HAS_PERMS_BY_NAME('security.WorkspaceOwnershipRequests','OBJECT','INSERT') AS CanNominateOwner,
       HAS_PERMS_BY_NAME(DB_NAME(),'DATABASE','ALTER ANY SECURITY POLICY') AS CanAlterPolicy,
       IS_ROLEMEMBER('db_owner') AS IsOwner;
     REVERT;`);

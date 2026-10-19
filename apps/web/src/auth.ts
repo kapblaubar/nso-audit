@@ -66,6 +66,18 @@ export async function signIn(): Promise<void> {
   });
 }
 
+export async function signInManagement():Promise<void>{
+  sessionStorage.setItem('nso.managementLogin','1');
+  try{await getClient().loginRedirect({scopes:signInScopes,prompt:'select_account',redirectStartPage:`${window.location.origin}/management`});}
+  catch(error){sessionStorage.removeItem('nso.managementLogin');throw error;}
+}
+
+export async function signOutManagement():Promise<void>{
+  sessionStorage.removeItem('nso.managementLogin');
+  const authClient=getClient(),account=authClient.getActiveAccount();
+  await authClient.logoutRedirect({...(account?{account}:{}),postLogoutRedirectUri:`${window.location.origin}/management`});
+}
+
 export async function getApiAccessToken(account: AccountInfo): Promise<string> {
   if (!appConfig.apiScope) {
     throw new Error("The NSO Audit API scope is not configured.");

@@ -37,6 +37,8 @@ For the additive SQL foundation on existing Dev, follow `database/README.md` and
 `infra/sql.bicep` with `infra/sql.dev.bicepparam`, `scripts/Deploy-NsoAuditSql.ps1`, and
 `scripts/database.mjs`. Provisioning alone does not migrate or delete existing Table-backed scans.
 For the subsequent data migration and application switch, follow `database/scan-cutover.md`.
+Initial Dev customer-owner nomination is recorded separately in `database/workspace-ownership.md`;
+it is pending verified client onboarding and must not be seeded automatically into Prod.
 Run the SQL isolation verification against Dev after applying schema migrations. Configure
 runtime metadata using `scripts/Set-NsoAuditSqlRuntime.ps1`. Never apply the unreconciled full
 platform template to existing Dev as a shortcut to adding SQL.

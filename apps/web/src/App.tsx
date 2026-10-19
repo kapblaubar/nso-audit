@@ -5,8 +5,15 @@ import { loadTenantBootstrap, type TenantBootstrap } from "./api";
 import { LandingPage } from "./pages/LandingPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { ReportPage } from "./pages/ReportPage";
+import {ManagementPage} from './pages/ManagementPage';
 
 export function App() {
+  const management=window.location.pathname==='/management'||window.location.pathname.startsWith('/management/')||
+    (window.location.pathname==='/auth/callback'&&sessionStorage.getItem('nso.managementLogin')==='1');
+  return management?<ManagementPage/>:<LegacyApp/>;
+}
+
+function LegacyApp() {
   const [account, setAccount] = useState<AccountInfo>();
   const [authReady, setAuthReady] = useState(false);
   const [authError, setAuthError] = useState<string>();
