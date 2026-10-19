@@ -8,8 +8,9 @@ SQL is Entra-only: the deployment administrator runs migrations, while the API m
 receives only the `nso_runtime` database role. Do not grant the runtime `db_owner`. Portal client
 password hashes belong in `identitydata.Users`; management identities belong in
 `identitydata.ManagementUsers`. Neither contains a recoverable password or connector secret.
-This migration creates the foundation tables; registration/login and email delivery are not yet
-implemented. Existing scans remain in Tables until a validated backfill and application cutover.
+Client registration/login and email delivery are not yet implemented. The scan-data backfill and
+application cutover are documented in [scan-cutover.md](scan-cutover.md). Retain source Tables
+as the pre-cutover snapshot; SQL is the destination for active structured scan records.
 
 ## Deploy and initialize
 
@@ -28,7 +29,7 @@ implemented. Existing scans remain in Tables until a validated backfill and appl
 
    ```powershell
    node scripts/database.mjs migrate
-   $env:SQL_RUNTIME_OBJECT_ID = '<managed identity principal/object ID>'
+   $env:SQL_RUNTIME_CLIENT_ID = '<managed identity application/client ID>'
    node scripts/database.mjs bootstrap
    node scripts/database.mjs verify
    ```
@@ -36,6 +37,14 @@ implemented. Existing scans remain in Tables until a validated backfill and appl
 4. Re-run `migrate` to verify idempotence. Applied migrations are checksum protected and
    serialized with an application lock. Add a new numbered migration for every schema change.
    Migration values, connection strings with passwords, and access tokens are never printed.
+   SQL `CREATE USER ... WITH SID ... TYPE=E` needs the **application/client ID** for a managed
+   identity, not its principal/object ID. See Microsoft's
+   [contained principal creation guidance](https://learn.microsoft.com/en-us/sql/t-sql/statements/create-user-transact-sql?view=sql-server-ver17#k-create-a-contained-database-user-from-a-microsoft-entra-principal-without-validation).
+   For the initial Dev bootstrap's incorrect object-ID SID only, set the correct
+   `SQL_RUNTIME_CLIENT_ID` plus the expected old `SQL_RUNTIME_PREVIOUS_OBJECT_ID` and run
+   `node scripts/database.mjs repair-runtime`. This explicit repair refuses unexpected IDs,
+   ownership, extra grants or role memberships, and recreates only the restricted runtime user
+   transactionally. It does not touch customer data. Ordinary bootstrap never repairs silently.
 5. Runtime connection code is `apps/api/src/storage/sql.ts`; set SQL configuration through the
    versioned environment configuration script when enabling SQL-backed application endpoints.
    The migration command uses Azure CLI credentials; runtime uses managed identity/default
@@ -64,9 +73,9 @@ implemented. Existing scans remain in Tables until a validated backfill and appl
   context reveals no organization rows, and cross-organization inserts are blocked.
 - Runtime cannot select password hashes, grant memberships, alter RLS or act as database owner.
 - Chris's existing NewSommer Entra object was explicitly provisioned as a setup administrator.
-- SQL connector and management bootstrap endpoint compile locally but have not been deployed
-  to the Function. The existing frontend and Table-backed scan path remain active. Client
-  registration/login and workspace management screens are the next implementation increment.
+- The initial foundation stopped before application cutover. Subsequent scan-data migration
+  and deployment validation are tracked in `scan-cutover.md`. Client registration/login and
+  workspace management screens remain the next portal increment.
 - Full application build, type check and five tests passed. Bicep compilation passed for both
   the legacy platform and additive SQL entry points. CI validation is defined in
   `.github/workflows/validate-foundation.yml`; it has not yet run on GitHub.

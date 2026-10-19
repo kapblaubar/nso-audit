@@ -1,0 +1,179 @@
+import { TableClient, type TableEntityResult } from "@azure/data-tables";
+import { AzureCliCredential, ManagedIdentityCredential } from "@azure/identity";
+import type { BaselineResult } from "../scoring/baseline.js";
+
+type ConsentStatus = "notConfigured" | "pending" | "granted" | "error";
+type AzureRbacStatus = "notConfigured" | "partial" | "configured";
+type ScanStatus = "queued" | "running" | "complete" | "partial" | "failed";
+
+interface TenantEntity {
+  partitionKey: string;
+  rowKey: string;
+  consentStatus?: ConsentStatus;
+  azureRbacStatus?: AzureRbacStatus;
+  lastScanId?: string;
+}
+
+interface ScanEntity {
+  partitionKey: string;
+  rowKey: string;
+  status: ScanStatus;
+  createdAt: string;
+  completedAt?: string;
+  score?: number;
+  subscriptionId?: string;
+  baselineId?: string;
+  coverage?: number;
+  baselineJson?: string;
+}
+
+export interface TenantBootstrapRecord {
+  tenantId: string;
+  registered: boolean;
+  consentStatus: ConsentStatus;
+  azureRbacStatus: AzureRbacStatus;
+  latestScan: {
+    scanId: string;
+    tenantId: string;
+    status: ScanStatus;
+    createdAt: string;
+    completedAt?: string;
+    score?: number;
+  } | null;
+  destination: "onboarding" | "scan" | "report";
+}
+
+let tenantsClient: TableClient | undefined;
+let scansClient: TableClient | undefined;
+let findingsClient: TableClient | undefined;
+
+function getTableClient(tableName: string): TableClient {
+  const accountName = process.env.STORAGE_ACCOUNT_NAME;
+  if (!accountName) {
+    throw new Error("The storage account name is not configured.");
+  }
+
+  return new TableClient(
+    `https://${accountName}.table.core.windows.net`,
+    tableName,
+    process.env.WEBSITE_HOSTNAME || process.env.IDENTITY_ENDPOINT
+      ? new ManagedIdentityCredential(process.env.AZURE_CLIENT_ID ? { clientId: process.env.AZURE_CLIENT_ID } : {})
+      : new AzureCliCredential(),
+  );
+}
+
+function isNotFound(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "statusCode" in error && error.statusCode === 404;
+}
+
+async function getOptionalEntity<T extends object>(
+  client: TableClient,
+  partitionKey: string,
+  rowKey: string,
+): Promise<TableEntityResult<T> | null> {
+  try {
+    return await client.getEntity<T>(partitionKey, rowKey);
+  } catch (error) {
+    if (isNotFound(error)) return null;
+    throw error;
+  }
+}
+
+export async function getTenantBootstrap(tenantId: string): Promise<TenantBootstrapRecord> {
+  tenantsClient ??= getTableClient("tenants");
+  scansClient ??= getTableClient("scans");
+
+  const tenant = await getOptionalEntity<TenantEntity>(tenantsClient, tenantId, "registration");
+  if (!tenant) {
+    return {
+      tenantId,
+      registered: false,
+      consentStatus: "notConfigured",
+      azureRbacStatus: "notConfigured",
+      latestScan: null,
+      destination: "onboarding",
+    };
+  }
+
+  let latestScan: TenantBootstrapRecord["latestScan"] = null;
+  if (tenant.lastScanId) {
+    const scan = await getOptionalEntity<ScanEntity>(scansClient, tenantId, tenant.lastScanId);
+    if (scan) {
+      latestScan = {
+        scanId: scan.rowKey,
+        tenantId,
+        status: scan.status,
+        createdAt: scan.createdAt,
+        ...(scan.completedAt ? { completedAt: scan.completedAt } : {}),
+        ...(typeof scan.score === "number" ? { score: scan.score } : {}),
+      };
+    }
+  }
+
+  const destination = latestScan?.status === "complete" || latestScan?.status === "partial"
+    ? "report"
+    : latestScan?.status === "queued" || latestScan?.status === "running"
+      ? "scan"
+      : "onboarding";
+
+  return {
+    tenantId,
+    registered: true,
+    consentStatus: tenant.consentStatus ?? "notConfigured",
+    azureRbacStatus: tenant.azureRbacStatus ?? "notConfigured",
+    latestScan,
+    destination,
+  };
+}
+
+export async function saveAccessCheck(
+  tenantId: string,
+  subscriptionId: string,
+  consentGranted: boolean,
+  azureRbacConfigured: boolean,
+): Promise<void> {
+  tenantsClient ??= getTableClient("tenants");
+  await tenantsClient.upsertEntity({
+    partitionKey: tenantId,
+    rowKey: "registration",
+    subscriptionId,
+    consentStatus: consentGranted ? "granted" : "error",
+    azureRbacStatus: azureRbacConfigured ? "configured" : "partial",
+    accessCheckedAt: new Date().toISOString(),
+  }, "Merge");
+}
+
+export async function saveStarterScan(tenantId: string, subscriptionId: string, findings: Array<{ checkId: string; title: string; status: string; detail: string; evidence?: unknown }>, baseline: BaselineResult) {
+  tenantsClient ??= getTableClient("tenants"); scansClient ??= getTableClient("scans"); findingsClient ??= getTableClient("findings");
+  const scanId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const score = baseline.score ?? undefined;
+  await scansClient.createEntity({ partitionKey: tenantId, rowKey: scanId, status: "complete", createdAt: now, completedAt: now, score, subscriptionId, baselineId: baseline.baselineId, coverage: baseline.coverage, baselineJson: JSON.stringify(baseline) });
+  for (const finding of findings) {
+    const serialized = finding.evidence === undefined ? undefined : JSON.stringify(finding.evidence);
+    const evidenceJson = serialized && serialized.length <= 60000 ? serialized : serialized ? JSON.stringify({ truncated: true, message: "Evidence exceeded the Table Storage property limit." }) : undefined;
+    const { evidence: _evidence, ...storedFinding } = finding;
+    await findingsClient.createEntity({ partitionKey: `${tenantId}:${scanId}`, rowKey: finding.checkId, ...storedFinding, ...(evidenceJson ? { evidenceJson } : {}) });
+  }
+  await tenantsClient.upsertEntity({ partitionKey: tenantId, rowKey: "registration", lastScanId: scanId }, "Merge");
+  return { scanId, tenantId, status: "complete" as const, createdAt: now, completedAt: now, score, baseline, findings };
+}
+
+export async function getStarterScan(tenantId: string, scanId: string) {
+  scansClient ??= getTableClient("scans"); findingsClient ??= getTableClient("findings");
+  const scan = await getOptionalEntity<ScanEntity>(scansClient, tenantId, scanId);
+  if (!scan) return null;
+  const findings = [];
+  for await (const entity of findingsClient.listEntities<{ title: string; status: string; detail: string; evidenceJson?: string }>({ queryOptions: { filter: `PartitionKey eq '${tenantId}:${scanId}'` } })) findings.push({ checkId: entity.rowKey, title: entity.title, status: entity.status, detail: entity.detail, ...(entity.evidenceJson ? { evidence: JSON.parse(entity.evidenceJson) as unknown } : {}) });
+  const baseline = scan.baselineJson ? JSON.parse(scan.baselineJson) as BaselineResult : undefined;
+  return { scanId, tenantId, status: scan.status, createdAt: scan.createdAt, completedAt: scan.completedAt, score: scan.score, subscriptionId: scan.subscriptionId, ...(baseline ? { baseline } : {}), findings };
+}
+
+export async function listTenantScans(tenantId: string, limit = 25) {
+  scansClient ??= getTableClient("scans");
+  const scans = [];
+  for await (const entity of scansClient.listEntities<ScanEntity>({ queryOptions: { filter: `PartitionKey eq '${tenantId}'` } })) {
+    scans.push({ scanId: entity.rowKey, status: entity.status, createdAt: entity.createdAt, completedAt: entity.completedAt, score: entity.score });
+  }
+  return scans.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit);
+}

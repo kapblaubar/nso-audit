@@ -16,7 +16,7 @@ names differ from live Dev; reconcile them before applying templates to the exis
 | Area | Repository coverage | Remaining work |
 | --- | --- | --- |
 | Resource group, Storage, tables, managed identity, Key Vault, Function and Static Web App | Initial Bicep exists under `infra/` | Reconcile the template with the proven live configuration and current Functions hosting guidance before using it for a clean deployment |
-| Additive SQL foundation | `infra/sql.bicep`, Dev parameters, deployment/bootstrap scripts, versioned migrations and live isolation checks | SQL is deployed to Dev; client auth/workspaces, app cutover, scan backfill and disposable clean-rebuild validation remain |
+| SQL and scan storage | `infra/sql.bicep`, Dev parameters, migrations, copy/reconciliation and cutover scripts; Dev API uses SQL | Client auth/workspaces, stable Prod networking and disposable clean-rebuild validation remain; see `database/scan-cutover.md` |
 | App Registration permissions | `Set-NsoAuditApiPermissions.ps1` | App Registration creation, verified publisher, ownership and production naming still require automation/review |
 | Protected API scope | `Set-NsoAuditApiScope.ps1` | None after the App Registration exists |
 | SPA redirect | `Set-NsoAuditAppRedirect.ps1` | Supply the new Static Web App hostname |
@@ -35,7 +35,8 @@ reconciling it; do not deploy the template blindly into production.
 
 For the additive SQL foundation on existing Dev, follow `database/README.md` and use
 `infra/sql.bicep` with `infra/sql.dev.bicepparam`, `scripts/Deploy-NsoAuditSql.ps1`, and
-`scripts/database.mjs`. Existing Table-backed scans are not migrated or deleted by this step.
+`scripts/database.mjs`. Provisioning alone does not migrate or delete existing Table-backed scans.
+For the subsequent data migration and application switch, follow `database/scan-cutover.md`.
 Run the SQL isolation verification against Dev after applying schema migrations. Configure
 runtime metadata using `scripts/Set-NsoAuditSqlRuntime.ps1`. Never apply the unreconciled full
 platform template to existing Dev as a shortcut to adding SQL.

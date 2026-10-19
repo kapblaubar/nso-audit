@@ -25,7 +25,7 @@ async function migrate() {
     AppliedAt datetime2 NOT NULL DEFAULT SYSUTCDATETIME());`);
   const directory = new URL('../database/migrations/', import.meta.url);
   for (const name of (await readdir(directory)).filter((item) => /^\d+_.+\.sql$/.test(item)).sort()) {
-    const source = await readFile(new URL(name, directory), 'utf8');
+    const source = (await readFile(new URL(name, directory), 'utf8')).replace(/\r\n/g, '\n');
     const checksum = createHash('sha256').update(source).digest('hex');
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
@@ -53,18 +53,45 @@ async function migrate() {
   console.log('Schema is current.');
 }
 
-async function bootstrap() {
-  const objectId = process.env.SQL_RUNTIME_OBJECT_ID;
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(objectId ?? '')) {
-    throw new Error('SQL_RUNTIME_OBJECT_ID must be the managed identity principal/object ID.');
+async function bootstrap(repair = false) {
+  const clientId = process.env.SQL_RUNTIME_CLIENT_ID;
+  const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuid.test(clientId ?? '')) {
+    throw new Error('SQL_RUNTIME_CLIENT_ID must be the managed identity application/client ID, not its object ID.');
   }
-  const bytes = Buffer.from(objectId.replaceAll('-', ''), 'hex');
-  const sid = Buffer.concat([bytes.subarray(0,4).reverse(), bytes.subarray(4,6).reverse(), bytes.subarray(6,8).reverse(), bytes.subarray(8)]).toString('hex');
-  await pool.request().query(`IF NOT EXISTS(SELECT 1 FROM sys.database_principals WHERE name=N'nso_api_runtime')
+  function binarySid(id) {
+    const bytes=Buffer.from(id.replaceAll('-',''),'hex');
+    return Buffer.concat([bytes.subarray(0,4).reverse(),bytes.subarray(4,6).reverse(),bytes.subarray(6,8).reverse(),bytes.subarray(8)]).toString('hex');
+  }
+  const sid=binarySid(clientId);
+  let repairSql='';
+  if(repair) {
+    const previous=process.env.SQL_RUNTIME_PREVIOUS_OBJECT_ID;
+    if(!uuid.test(previous??'')) throw new Error('Explicit repair requires SQL_RUNTIME_PREVIOUS_OBJECT_ID.');
+    const oldSid=binarySid(previous);
+    repairSql=`IF EXISTS(SELECT 1 FROM sys.database_principals WHERE name=N'nso_api_runtime' AND sid<>0x${sid})
+      BEGIN
+        IF NOT EXISTS(SELECT 1 FROM sys.database_principals WHERE name=N'nso_api_runtime' AND sid=0x${oldSid})
+          THROW 51000,'Unexpected prior runtime identity; refusing repair.',1;
+        IF EXISTS(SELECT 1 FROM sys.schemas WHERE principal_id=USER_ID(N'nso_api_runtime'))
+          OR EXISTS(SELECT 1 FROM sys.database_permissions WHERE grantee_principal_id=USER_ID(N'nso_api_runtime')
+            AND NOT(class=0 AND permission_name='CONNECT' AND state='G'))
+          OR EXISTS(SELECT 1 FROM sys.database_role_members WHERE member_principal_id=USER_ID(N'nso_api_runtime') AND role_principal_id<>DATABASE_PRINCIPAL_ID(N'nso_runtime'))
+          THROW 51000,'Unexpected ownership or permissions; refusing runtime identity replacement.',1;
+        DROP USER [nso_api_runtime];
+      END;`;
+  }
+  const transaction=new sql.Transaction(pool);
+  await transaction.begin();
+  try {
+    await new sql.Request(transaction).query(`${repairSql}
+    IF NOT EXISTS(SELECT 1 FROM sys.database_principals WHERE name=N'nso_api_runtime')
       CREATE USER [nso_api_runtime] WITH SID=0x${sid}, TYPE=E;
     IF NOT EXISTS(SELECT 1 FROM sys.database_principals WHERE name=N'nso_api_runtime' AND sid=0x${sid})
       THROW 51000, 'Runtime identity mismatch; explicit repair required.', 1;
     ALTER ROLE nso_runtime ADD MEMBER [nso_api_runtime];`);
+    await transaction.commit();
+  } catch(error) { await transaction.rollback().catch(()=>undefined);throw error; }
   console.log('Runtime identity granted nso_runtime; no schema ownership or migration rights.');
 }
 
@@ -138,7 +165,8 @@ try {
   const command = process.argv[2];
   if (command === 'migrate') await migrate();
   else if (command === 'bootstrap') await bootstrap();
+  else if (command === 'repair-runtime') await bootstrap(true);
   else if (command === 'bootstrap-management') await bootstrapManagement();
   else if (command === 'verify') await verifyIsolation();
-  else throw new Error(`Usage: node ${fileURLToPath(import.meta.url)} migrate|bootstrap|bootstrap-management|verify`);
+  else throw new Error(`Usage: node ${fileURLToPath(import.meta.url)} migrate|bootstrap|repair-runtime|bootstrap-management|verify`);
 } finally { await pool.close(); }

@@ -74,6 +74,7 @@ resource retention 'Microsoft.Sql/servers/databases/backupShortTermRetentionPoli
   name: 'default'
   properties: {
     retentionDays: 7
+    diffBackupIntervalInHours: 24
   }
 }
 

@@ -21,9 +21,11 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - run: node --test scripts/lib/legacy-model.test.mjs
       - run: npm run build
       - name: Compile infrastructure and Dev SQL parameters
         run: |
           az bicep build --file infra/main.bicep --stdout > /dev/null
           az bicep build --file infra/sql.bicep --stdout > /dev/null
+          az bicep build --file infra/migration-access.bicep --stdout > /dev/null
           az bicep build-params --file infra/sql.dev.bicepparam --stdout > /dev/null

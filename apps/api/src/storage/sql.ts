@@ -1,4 +1,5 @@
 import sql from 'mssql';
+import { AzureCliCredential, ManagedIdentityCredential } from '@azure/identity';
 
 let poolPromise: Promise<sql.ConnectionPool> | undefined;
 
@@ -10,8 +11,10 @@ export function getSqlPool(): Promise<sql.ConnectionPool> {
     const pool = new sql.ConnectionPool({
       server, database,
       authentication: {
-        type: 'azure-active-directory-default',
-        options: process.env.AZURE_CLIENT_ID ? { clientId: process.env.AZURE_CLIENT_ID } : {},
+        type: 'token-credential',
+        options: { credential: process.env.SQL_AUTH_MODE === 'managedidentity' || process.env.WEBSITE_HOSTNAME || process.env.IDENTITY_ENDPOINT
+          ? new ManagedIdentityCredential(process.env.AZURE_CLIENT_ID ? { clientId: process.env.AZURE_CLIENT_ID } : {})
+          : new AzureCliCredential() },
       },
       options: { encrypt: true, trustServerCertificate: false },
       pool: { max: 5, min: 0, idleTimeoutMillis: 30000 },

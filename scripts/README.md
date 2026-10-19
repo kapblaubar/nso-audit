@@ -5,6 +5,13 @@ tenant IDs, credentials, or private keys.
 
 ## Order of use
 
+For the SQL migration, see `../database/scan-cutover.md`. SQL provisioning uses
+`Deploy-NsoAuditSql.ps1`; schema/bootstrap uses `database.mjs`; repeatable Table copying uses
+`migrate-table-data.mjs`; final maintenance/cutover uses `Complete-NsoAuditSqlCutover.ps1` and
+`Set-NsoAuditSqlRuntime.ps1`. `Publish-NsoAuditApi.ps1` now requires only Azure CLI plus npm,
+uses a unique temporary package directory, validates its cleanup target and can retain a release
+ZIP at an explicit output path. It does not require an Azure PowerShell login.
+
 1. `Test-NsoAuditResources.ps1` — read-only resource and application verification.
 2. `Set-NsoAuditDataRoles.ps1` — assigns the managed identity's required data-plane roles.
 3. `Test-NsoAuditFunctionName.ps1` — read-only Function App name availability check.

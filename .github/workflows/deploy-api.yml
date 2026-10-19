@@ -42,6 +42,11 @@ jobs:
       - name: Build API
         run: npm run build --workspace @nso-audit/api
 
+      - name: Test API and migration model
+        run: |
+          npm test --workspace @nso-audit/api
+          node --test scripts/lib/legacy-model.test.mjs
+
       - name: Assemble deployment package
         shell: bash
         run: |
@@ -57,3 +62,6 @@ jobs:
           app-name: nso-audit-dev-api
           package: api-package
           publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+
+      - name: Check deployed runtime health
+        run: curl --fail --retry 8 --retry-delay 5 --retry-all-errors https://nso-audit-dev-api.azurewebsites.net/api/health
