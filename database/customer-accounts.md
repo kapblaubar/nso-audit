@@ -79,3 +79,5 @@ an applied migration or copy Dev identities, users, sessions or credentials into
   verification. No clean full-environment rebuild or production restore rehearsal was performed.
 
 Password complexity is enforced by the API for registration and reset, with matching browser guidance and validation. Existing passwords remain usable until changed; Microsoft passwords follow Microsoft tenant policy. This policy change requires API and web deployment only, with no database or infrastructure changes.
+
+Password-policy update validation (2026-10-20): 14 API tests, six browser tests and web type checks passed. API and web deployed to Dev. After deployment startup settled, live registration and reset requests missing uppercase letters both returned HTTP 400 with the new complexity guidance.
