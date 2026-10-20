@@ -99,3 +99,18 @@ Example:
 
 The application client ID is a public identifier. Never add secrets, access tokens, storage
 keys, certificate private keys, or passwords to these files.
+
+## Customer sign-in
+
+- `Set-NsoAuditAccountRuntime.ps1` configures public ACS endpoint/sender, portal origin and the
+  exact approved staff Entra object ID without printing existing settings or adding secrets.
+- `verify-customer-accounts.mjs` performs transactional SQL authentication and membership checks
+  using Dev operator credentials with `CONFIRM_DEV_WRITE_TEST=yes`. Use `--validate-migration`
+  only on a database at 006 to test migrations 007?009 before applying them; fixtures and candidate
+  schema changes roll back. On current Dev run it without the flag.
+- `verify-customer-account-api.mjs` tests the deployed Dev API with a disposable verified account
+  and workspace, then removes them in `finally`. It requires explicit SQL targets,
+  `ACCOUNT_TEST_API_BASE_URL`, and `CONFIRM_DEV_WRITE_TEST=yes`; it sends no emails.
+
+See `database/customer-accounts.md` and `docs/deploy-from-scratch.md` for infrastructure,
+email configuration, deployment order, recovery and inbox checks.

@@ -13,7 +13,6 @@ export function LandingPage({ authReady, authError, onSignIn }: LandingPageProps
           <span className="brand-name">NSO Audit</span>
         </a>
         <div className="nav-actions">
-          <a className="nav-link" href="/clientmanagement">Staff sign in</a>
           <a className="nav-link" href="#how-it-works">How it works</a>
           <a className="nav-link" href="#trust">Security & privacy</a>
           <ThemeToggle />
@@ -30,7 +29,7 @@ export function LandingPage({ authReady, authError, onSignIn }: LandingPageProps
           NSO Audit turns Microsoft 365 and Azure configuration, policy, resilience, logging,
           and secure-score signals into one understandable client scorecard.
         </p>
-        <button type="button" onClick={onSignIn} disabled={!authReady}>Sign in with Microsoft</button>
+        <a className="landing-start" href="/signin">Get started</a>
         {authError ? <p className="auth-error" role="alert">{authError}</p> : null}
       </section>
 

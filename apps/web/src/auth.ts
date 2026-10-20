@@ -8,6 +8,8 @@ import { appConfig } from "./config";
 
 const signInScopes = ["openid", "profile", "email", ...(appConfig.apiScope ? [appConfig.apiScope] : [])];
 
+export interface EmailAuditAccount{kind:'email';organizationId:string;tenantId:string;name:string;username:string;role:string}
+export type AuditAccount=AccountInfo|EmailAuditAccount;
 let client: PublicClientApplication | undefined;
 
 function getClient(): PublicClientApplication {
@@ -59,10 +61,13 @@ export async function initializeAuth(): Promise<AuthState> {
 }
 
 export async function signIn(): Promise<void> {
+  sessionStorage.removeItem('nso.managementLogin');
+  sessionStorage.removeItem('nso.customerSession');
   const authClient = getClient();
   await authClient.loginRedirect({
     scopes: signInScopes,
     prompt: "select_account",
+    redirectStartPage: `${window.location.origin}/audit`,
   });
 }
 
@@ -78,7 +83,12 @@ export async function signOutManagement():Promise<void>{
   await authClient.logoutRedirect({...(account?{account}:{}),postLogoutRedirectUri:`${window.location.origin}/clientmanagement`});
 }
 
-export async function getApiAccessToken(account: AccountInfo): Promise<string> {
+export async function getApiAccessToken(account: AuditAccount): Promise<string> {
+  if(!('homeAccountId' in account)){
+    const token=sessionStorage.getItem('nso.customerSession');
+    if(!token)throw new Error('Please sign in again.');
+    return token;
+  }
   if (!appConfig.apiScope) {
     throw new Error("The NSO Audit API scope is not configured.");
   }

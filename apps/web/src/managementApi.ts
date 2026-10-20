@@ -24,3 +24,6 @@ export const listCustomers=(account:AccountInfo)=>call<{customers:CustomerSummar
 export const getCustomer=(account:AccountInfo,id:string)=>call<CustomerDetails>(account,`customers/${encodeURIComponent(id)}`);
 export const saveCustomer=(account:AccountInfo,id:string|undefined,profile:CustomerProfile,users:ClientContact[],version?:string)=>
   call<CustomerDetails>(account,id?`customers/${encodeURIComponent(id)}`:'customers',id?'PUT':'POST',{profile,users,...(version?{version}:{})});
+
+export const activateCustomerContact=(account:AccountInfo,organizationId:string,contactId:string)=>
+  call<{message:string}>(account,`customers/${encodeURIComponent(organizationId)}/contacts/${encodeURIComponent(contactId)}/activate`,'POST',{});

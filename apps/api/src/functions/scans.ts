@@ -1,18 +1,19 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from "@azure/functions";
-import { requireTenantUser } from "../auth/requireTenantUser.js";
+import { requireAuditUser, AuditAccessError } from "../auth/requireAuditUser.js";
 import { runStarterCollection } from "../access/customerAccess.js";
 import { evaluateBaseline } from "../scoring/baseline.js";
 import { getStarterScan, listTenantScans, saveStarterScan } from "../storage/tenantStore.js";
 
 export async function startScan(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   try {
-    const user = await requireTenantUser(request);
+    const user = await requireAuditUser(request);
     const body = await request.json() as { subscriptionId?: unknown };
     if (typeof body.subscriptionId !== "string" || !/^[0-9a-f-]{36}$/i.test(body.subscriptionId)) return { status: 400, jsonBody: { error: "A valid Subscription ID is required." } };
     const findings = await runStarterCollection(user.tenantId, body.subscriptionId);
     const baseline = evaluateBaseline(findings);
     return { status: 201, jsonBody: await saveStarterScan(user.tenantId, body.subscriptionId, findings, baseline) };
   } catch (error) {
+    if(error instanceof AuditAccessError)return{status:error.status,jsonBody:{error:error.message}};
     context.error("Starter scan failed", error instanceof Error ? error.message : "Unknown error");
     return { status: 500, jsonBody: { error: "The starter audit could not be completed." } };
   }
@@ -20,7 +21,7 @@ export async function startScan(request: HttpRequest, context: InvocationContext
 
 export async function getScan(request: HttpRequest): Promise<HttpResponseInit> {
   try {
-    const user = await requireTenantUser(request);
+    const user = await requireAuditUser(request);
     const scanId = request.params.scanId;
     if (!scanId) return { status: 400, jsonBody: { error: "Scan ID is required." } };
     const scan = await getStarterScan(user.tenantId, scanId);
@@ -30,7 +31,7 @@ export async function getScan(request: HttpRequest): Promise<HttpResponseInit> {
 
 export async function listScans(request: HttpRequest): Promise<HttpResponseInit> {
   try {
-    const user = await requireTenantUser(request);
+    const user = await requireAuditUser(request);
     return { status: 200, jsonBody: { scans: await listTenantScans(user.tenantId) } };
   } catch { return { status: 401, jsonBody: { error: "Authentication required." } }; }
 }

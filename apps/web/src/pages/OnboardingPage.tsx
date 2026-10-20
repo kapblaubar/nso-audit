@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import type { AccountInfo } from "@azure/msal-browser";
+import type { AuditAccount } from "../auth";
 import { checkTenantAccess, startStarterScan, type AccessCheckResult, type TenantBootstrap } from "../api";
 import { appConfig } from "../config";
 import { ThemeToggle } from "../components/ThemeToggle";
 
 interface OnboardingPageProps {
-  account: AccountInfo;
+  account: AuditAccount;
   bootstrap?: TenantBootstrap;
   bootstrapError?: string;
   onSignOut: () => void;
@@ -200,7 +200,7 @@ export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }
             <pre className="generated-command"><code>{previewCommand}</code></pre>
             <p className="pending-note"><code>-WhatIf</code> previews the exact assignments without changing Azure. Remove it only after reviewing the output.</p>
             <div className="access-check-panel">
-              <button className="step-action" type="button" onClick={runAccessCheck} disabled={!validSubscriptionId || checkingAccess}>
+              <button className="step-action" type="button" onClick={runAccessCheck} disabled={!validSubscriptionId || checkingAccess || ('kind' in account && account.role==='viewer')}>
                 {checkingAccess ? "Checking access…" : subscriptionId ? "Check access" : "Enter Subscription ID to check access"}
               </button>
               {accessError ? <p className="auth-error" role="alert">{accessError}</p> : null}
@@ -221,7 +221,7 @@ export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }
             <p className="step-state">Assessment</p>
             <h2>Run the audit</h2>
             <p>Collect the configured signals, monitor progress, and open the scorecard when the first scan finishes.</p>
-            <button className="step-action" type="button" onClick={runAudit} disabled={!accessResult?.ready || auditRunning}>
+            <button className="step-action" type="button" onClick={runAudit} disabled={!accessResult?.ready || auditRunning || ('kind' in account && account.role==='viewer')}>
               {auditRunning ? "Running starter audit…" : accessResult?.ready ? "Run starter audit" : "Run audit after access check"}
             </button>
           </div>

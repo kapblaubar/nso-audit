@@ -514,7 +514,7 @@ html[data-theme="light"] .footer { border-color: #d5dfdc; }
 }
 
 /* NewSommer customer management: scoped separately from the assessment report. */
-.management-page, .management-login { --mg-panel:#0c181f; --mg-field:#08131a; --mg-border:#27383f; --mg-muted:#a3b5be; --mg-text:#e8edf3; color:var(--mg-text); }
+.management-page, .management-login, .customer-entry { --mg-panel:#0c181f; --mg-field:#08131a; --mg-border:#27383f; --mg-muted:#a3b5be; --mg-text:#e8edf3; color:var(--mg-text); }
 .management-header { max-width:1380px; margin:0 auto; padding:42px 32px 30px; display:flex; align-items:center; justify-content:space-between; gap:24px; }
 .management-header h1 { font-size:clamp(1.8rem,3vw,2.6rem); letter-spacing:-.04em; margin:8px 0; }
 .management-header p:not(.eyebrow), .management-card p, .management-save p { color:var(--mg-muted); font-size:.9rem; line-height:1.6; }
@@ -574,7 +574,7 @@ html[data-theme="light"] .footer { border-color: #d5dfdc; }
 .management-login section>p:not(.eyebrow):not(.management-error) { color:var(--mg-muted); line-height:1.7; }
 .management-login section>button { display:block; margin-top:20px; }
 .management-back { display:inline-block; color:var(--mg-muted); font-size:.85rem; margin-top:26px; }
-html[data-theme="light"] .management-page,html[data-theme="light"] .management-login { --mg-panel:#fff; --mg-field:#f7faf9; --mg-border:#d0ded8; --mg-muted:#566e68; --mg-text:#172d26; background:#f1f6f3; }
+html[data-theme="light"] .management-page,html[data-theme="light"] .management-login,html[data-theme="light"] .customer-entry { --mg-panel:#fff; --mg-field:#f7faf9; --mg-border:#d0ded8; --mg-muted:#566e68; --mg-text:#172d26; background:#f1f6f3; }
 html[data-theme="light"] .management-env { color:#146c4f; }
 html[data-theme="light"] .management-error { color:#942e1d; background:#fff2ef; }
 html[data-theme="light"] .management-success { color:#17613f; background:#edf9f1; }
@@ -582,3 +582,22 @@ html[data-theme="light"] .management-remove { color:#9c3929; }
 @media(max-width:1150px) { .management-user { grid-template-columns:1fr 1.2fr; }.management-user .management-badge { margin:0; justify-self:start; }.management-user .management-remove { justify-self:start; } }
 @media(max-width:760px) { .management-header { padding:28px 20px; align-items:flex-start; flex-direction:column; }.management-layout { grid-template-columns:1fr; padding:0 20px 40px; }.management-customers { position:static; }.management-customer-list { max-height:230px; }.management-fields { grid-template-columns:1fr; }.management-card { padding:20px; }.management-save { align-items:stretch; flex-direction:column; }.management-login section { padding:26px; margin-top:65px; }.management-login h1 { font-size:2.1rem; }.management-section-heading { align-items:flex-start; flex-wrap:wrap; } }
 @media(max-width:460px) { .management-user { grid-template-columns:1fr; } }
+
+/* Shared customer entry point. */
+.landing-start { display:inline-block; padding:16px 24px; background:var(--accent, #00866b); color:white; border-radius:7px; font-weight:700; text-decoration:none; }
+.customer-entry { min-height:100vh; padding-bottom:64px; }
+.customer-entry-card { width:min(520px,calc(100% - 32px)); margin:64px auto 0; padding:32px; border:1px solid var(--mg-border); border-radius:16px; background:var(--mg-panel); }
+.customer-entry-card h1 { font-size:2rem; line-height:1.2; margin:12px 0 20px; }
+.customer-entry-card fieldset { border:0; padding:0; margin:0; display:grid; gap:20px; min-width:0; }
+.customer-entry-card input { width:100%; box-sizing:border-box; }
+.customer-microsoft,.customer-submit { width:100%; margin-top:12px; }
+.customer-divider { display:flex; align-items:center; gap:12px; margin:24px 0; font-size:14px; }
+.customer-divider::before,.customer-divider::after { content:''; flex:1; height:1px; background:var(--border,#cddbd8); }
+.customer-entry-links { display:flex; flex-wrap:wrap; gap:16px; margin-top:24px; }
+.customer-workspaces { list-style:none; padding:0; }
+.customer-workspaces li { display:flex; justify-content:space-between; gap:16px; padding:16px 0; border-bottom:1px solid var(--border,#cddbd8); }
+@media(max-width:600px) { .customer-entry-card { padding:24px; margin-top:32px; } }
+
+.customer-workspace-back { padding:12px 24px; background:#0c181f; color:#e8edf3; }
+html[data-theme="light"] .customer-workspace-back { background:#f1f6f3; color:#172d26; }
+.customer-workspaces li { flex-wrap:wrap; align-items:center; }

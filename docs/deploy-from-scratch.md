@@ -105,3 +105,44 @@ Create one environment bootstrap command that deploys the reconciled Bicep, appl
 configuration, reconciles workload credentials, publishes the API, and prints only the safe
 GitHub values that still require an authorized human action. Keep customer-tenant onboarding
 separate from vendor-platform deployment.
+
+## Customer sign-in and email delivery
+
+The public home page has one **Sign in** button leading to `/signin`, with Microsoft and
+email/password choices. Staff use the unlisted `/clientmanagement` URL. Both an active SQL
+management role and the exact configured Entra tenant/object ID are required for staff access.
+
+1. Compile `infra/account-email.bicep` and its environment parameter file. Inspect resource-group
+   what-if before deployment. The additive email template creates an Email Service, an Azure-managed
+   sender domain, a Communication Service and a resource-scoped sender role for the environment's
+   API identity. It does not redeploy the unreconciled platform. Dev parameters are in
+   `infra/account-email.dev.bicepparam`; future Prod needs separate resources, identity and parameters.
+   ACS Email is pay as you go, with no fixed-capacity email tier selected.
+2. Validate migrations 007 through 009 in a transaction on the chosen Dev database using
+   `CONFIRM_DEV_WRITE_TEST=yes node scripts/verify-customer-accounts.mjs --validate-migration`
+   **before** applying them to a database that is still at 006. On an already migrated database,
+   run the script without that flag. Apply migrations with `node scripts/database.mjs migrate`
+   and repeat to verify checksums/idempotence. These migrations add auth procedures and persistent
+   rate limits; existing customer data is preserved. See `database/customer-accounts.md`.
+3. Deploy the email template using `az deployment group create` with the inspected environment
+   parameter file. Its `endpoint` and `senderAddress` outputs are public configuration. Run
+   `scripts/Set-NsoAuditAccountRuntime.ps1` with the explicit subscription, resource group, Function,
+   portal origin, these outputs and the approved staff object's ID. Allow RBAC propagation.
+   The runtime uses managed identity; do not obtain or store ACS access keys.
+4. Ensure the API's CORS allowlist includes only the intended portal origins. Register both
+   `/auth/callback` and `/clientmanagement` SPA redirects through the versioned redirect script.
+   Publish API first using `Publish-NsoAuditApi.ps1`, then web with `Publish-NsoAuditWeb.ps1` or CI.
+5. Check `/api/health`, confirm unauthenticated `/api/account/session` returns 401 and staff endpoints
+   reject customer session tokens. Use `/signin` to create a disposable account and check actual
+   inbox receipt, verify the address, sign in, reset the password, and confirm prior sessions stop
+   working. In staff management, save a contact matching that verified address and explicitly
+   **Activate access**. Customer registration and Microsoft metadata alone must not grant membership.
+   Confirm a different account cannot open that workspace and a viewer cannot start an audit.
+6. Remove temporary operator SQL firewall access. Record the release checks and outstanding manual
+   identity-provider/inbox checks; local tests and compilation do not establish a clean Prod rebuild.
+
+Recovery: roll back the API/web releases together; retain additive schema and migration ledger.
+To invalidate email sessions during recovery, revoke `identitydata.Sessions` through an authorized
+SQL operator. Reverting the app does not remove users or customer data. Do not reverse migrations
+or delete the email domain as a routine application rollback. A disposable full rebuild and SQL
+restore rehearsal are still required before claiming Prod reproducibility.

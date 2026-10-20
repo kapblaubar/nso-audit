@@ -5,8 +5,11 @@ one broad "connect everything" step.
 
 ## 1. Dashboard user
 
-The dashboard user signs in with a normal Microsoft organizational account. This establishes
-the home tenant and authorizes access to that tenant's NSO Audit dashboard data.
+The customer sign-in page offers a Microsoft organizational account or an NSO Audit email/password
+account. Microsoft sign-in retains the existing tenant audit workflow. Email accounts require verified
+email and explicit staff-approved workspace membership; the API resolves an approved tenant connection
+from that membership. Matching email addresses never silently merge these identities. See
+`database/customer-accounts.md` for sessions and lifecycle details.
 
 - Do not recommend Global Administrator for routine dashboard access.
 - Delegated `User.Read` supports basic sign-in only.

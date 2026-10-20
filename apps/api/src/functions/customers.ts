@@ -2,7 +2,8 @@ import {app,type HttpRequest,type HttpResponseInit,type InvocationContext} from 
 import {requireManagementUser} from '../auth/requireManagementUser.js';
 import {CustomerInputError,validateCustomerInput} from '../management/customerInput.js';
 import {listCustomers,getCustomer,saveCustomer} from '../management/customerStore.js';
-import {uuidPattern} from '../storage/sql.js';
+import {uuidPattern,getSqlPool} from '../storage/sql.js';
+import sql from 'mssql';
 
 export async function manageCustomers(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
   const headers={'Cache-Control':'no-store'};
@@ -31,3 +32,20 @@ export async function manageCustomers(request:HttpRequest,context:InvocationCont
 }
 app.http('managementCustomers',{methods:['GET','POST'],authLevel:'anonymous',route:'management/customers',handler:manageCustomers});
 app.http('managementCustomer',{methods:['GET','PUT'],authLevel:'anonymous',route:'management/customers/{organizationId}',handler:manageCustomers});
+
+export async function activateContact(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
+  const headers={'Cache-Control':'no-store'};
+  let actor;try{actor=await requireManagementUser(request);}catch{return{status:403,headers,jsonBody:{error:'Management access is required.'}};}
+  const {organizationId,contactId}=request.params;
+  if(!uuidPattern.test(organizationId??'')||!uuidPattern.test(contactId??''))return{status:400,headers,jsonBody:{error:'Invalid contact.'}};
+  try{
+    const pool=await getSqlPool();
+    await pool.request().input('TenantId',sql.UniqueIdentifier,actor.tenantId).input('ObjectId',sql.UniqueIdentifier,actor.objectId)
+      .input('OrganizationId',sql.UniqueIdentifier,organizationId).input('ContactId',sql.UniqueIdentifier,contactId).execute('security.ManagementActivateContact');
+    return{status:200,headers,jsonBody:{message:'Workspace access activated for the verified email account.'}};
+  }catch(error){
+    if(typeof error==='object'&&error!==null&&'number'in error&&error.number===51011)return{status:409,headers,jsonBody:{error:'Save this contact, then have them create and verify an email account before activating access.'}};
+    context.error('Contact activation failed.');return{status:503,headers,jsonBody:{error:'Access could not be activated. Please try again.'}};
+  }
+}
+app.http('activateCustomerContact',{methods:['POST'],authLevel:'anonymous',route:'management/customers/{organizationId}/contacts/{contactId}/activate',handler:activateContact});

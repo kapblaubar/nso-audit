@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
-import { initializeAuth, signIn, signOut } from "./auth";
+import { initializeAuth, signOut } from "./auth";
 import { loadTenantBootstrap, type TenantBootstrap } from "./api";
 import { LandingPage } from "./pages/LandingPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { ReportPage } from "./pages/ReportPage";
+import {CustomerEntry} from "./pages/CustomerEntry";
 import {ManagementPage} from './pages/ManagementPage';
 
 export function App() {
@@ -13,7 +14,9 @@ export function App() {
   }
   const management=window.location.pathname==='/clientmanagement'||window.location.pathname.startsWith('/clientmanagement/')||
     (window.location.pathname==='/auth/callback'&&sessionStorage.getItem('nso.managementLogin')==='1');
-  return management?<ManagementPage/>:<LegacyApp/>;
+  if(management)return <ManagementPage/>;
+  if(window.location.pathname==='/signin'||window.location.pathname.startsWith('/account')||(sessionStorage.getItem('nso.customerSession')&&['/','/audit','/onboarding'].includes(window.location.pathname))||(sessionStorage.getItem('nso.customerSession')&&/^\/(reports|scans)\//.test(window.location.pathname)))return <CustomerEntry/>;
+  return <LegacyApp/>;
 }
 
 function LegacyApp() {
@@ -55,7 +58,7 @@ function LegacyApp() {
 
   const beginSignIn = () => {
     setAuthError(undefined);
-    void signIn().catch((error: unknown) => setAuthError(error instanceof Error ? error.message : "Microsoft sign-in failed."));
+    window.location.assign("/signin");
   };
 
   const beginSignOut = () => {

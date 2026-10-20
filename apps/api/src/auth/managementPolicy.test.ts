@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assertManagementTenant, isManagementRole } from './managementPolicy.js';
+import { assertManagementTenant, assertManagementIdentity, isManagementRole } from './managementPolicy.js';
 
 const staff = { tenantId: 'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA', objectId: 'staff-object' };
 test('management denies missing configuration and a different Entra tenant', () => {
@@ -14,4 +14,10 @@ test('customer roles and unrecognized roles never grant management authority', (
   }
   assert.equal(isManagementRole('setupAdmin'), true);
   assert.equal(isManagementRole('platformAdmin'), true);
+});
+
+test('staff entrance requires the exact configured identity, not merely the tenant or email',()=>{
+  assert.throws(()=>assertManagementIdentity(staff,undefined));
+  assert.throws(()=>assertManagementIdentity({...staff,objectId:'someone-else'},staff.objectId));
+  assert.doesNotThrow(()=>assertManagementIdentity(staff,staff.objectId.toUpperCase()));
 });

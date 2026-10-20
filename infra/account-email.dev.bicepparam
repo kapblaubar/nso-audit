@@ -1,0 +1,6 @@
+using './account-email.bicep'
+param environmentName = 'dev'
+param emailServiceName = 'nso-audit-dev-email'
+param communicationServiceName = 'nso-audit-dev-communication'
+param dataLocation = 'United States'
+param runtimePrincipalId = '85a61920-0209-4fc3-b9fa-d2cde3034894'

@@ -1,5 +1,5 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from "@azure/functions";
-import { requireTenantUser } from "../auth/requireTenantUser.js";
+import { requireAuditUser, AuditAccessError } from "../auth/requireAuditUser.js";
 import { getTenantBootstrap } from "../storage/tenantStore.js";
 
 function unauthorized(message: string): HttpResponseInit {
@@ -16,8 +16,9 @@ export async function bootstrap(
 ): Promise<HttpResponseInit> {
   let user;
   try {
-    user = await requireTenantUser(request);
+    user = await requireAuditUser(request);
   } catch (error) {
+    if(error instanceof AuditAccessError)return{status:error.status,jsonBody:{error:error.message}};
     const message = error instanceof Error ? error.message : "Authentication failed.";
     context.warn("Tenant bootstrap authentication rejected", { message });
     return unauthorized("The NSO Audit access token is missing, invalid, or expired.");

@@ -29,3 +29,12 @@ jobs:
           az bicep build --file infra/sql.bicep --stdout > /dev/null
           az bicep build --file infra/migration-access.bicep --stdout > /dev/null
           az bicep build-params --file infra/sql.dev.bicepparam --stdout > /dev/null
+          az bicep build --file infra/account-email.bicep --stdout > /dev/null
+          az bicep build-params --file infra/account-email.dev.bicepparam --stdout > /dev/null
+      - name: Install browser for customer entry tests
+        run: npx playwright install --with-deps chromium
+      - name: Check customer and staff entry points
+        run: npx playwright test --config playwright.management.config.ts
+        env:
+          VITE_API_BASE_URL: http://127.0.0.1:7071/api
+          VITE_ENTRA_CLIENT_ID: browser-tests-only

@@ -385,3 +385,13 @@ when implementing; these sources support the direction rather than an exhaustive
   https://learn.microsoft.com/en-us/azure/azure-sql/database/saas-tenancy-app-design-patterns?view=azuresql
 - NIST CSF 2.0 Small Business Quick-Start Guide (proposed framework starting point):
   https://www.nist.gov/publications/nist-cybersecurity-framework-20-small-business-quick-start-guide
+
+## Customer entry points, 2026-10-20
+
+Public navigation exposes one Sign in button leading to `/signin`. Customers choose Microsoft
+work sign-in or an email/password account, with email verification and password recovery through
+Azure Communication Services Email. The unlisted `/clientmanagement` entry requires Chris's exact
+configured Dev Entra identity plus an active SQL staff role. Staff explicitly activate verified
+contacts; registration does not grant workspace access. Email members can open audits for existing
+approved Microsoft connections, with viewer write restrictions. Microsoft connection consent is
+separate from portal sign-in. See `database/customer-accounts.md` for implementation limits.

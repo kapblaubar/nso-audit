@@ -9,3 +9,9 @@ export function assertManagementTenant(user: TenantUser, approvedTenantId: strin
 export function isManagementRole(value: unknown): value is 'setupAdmin' | 'platformAdmin' {
   return value === 'setupAdmin' || value === 'platformAdmin';
 }
+
+export function assertManagementIdentity(user:TenantUser,approvedObjectId:string|undefined):void{
+  if(!approvedObjectId||user.objectId.toLowerCase()!==approvedObjectId.toLowerCase()){
+    throw new Error('This Microsoft account is not authorized for staff access.');
+  }
+}
