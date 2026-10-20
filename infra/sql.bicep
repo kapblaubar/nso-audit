@@ -15,8 +15,10 @@ param skuName string = 'Basic'
 param skuTier string = 'Basic'
 param skuCapacity int = 5
 param maxSizeBytes int = 2147483648
-@description('Explicit IPv4 addresses for deployment operators and app outbound connectivity. No Azure-wide bypass.')
+@description('Temporary exact operator IPv4 addresses only. Normal API access uses its subnet. No Azure-wide bypass.')
 param allowedIpv4Addresses array = []
+@description('Approved API subnet; bootstrap SQL before the network with an empty value.')
+param apiSubnetResourceId string = ''
 
 var tags = {
   application: 'nso-audit'
@@ -80,3 +82,12 @@ resource retention 'Microsoft.Sql/servers/databases/backupShortTermRetentionPoli
 
 output serverFqdn string = server.properties.fullyQualifiedDomainName
 output databaseName string = database.name
+
+module apiNetworkRule 'modules/sql-network-rule.bicep' = if(!empty(apiSubnetResourceId)) {
+  name: 'sql-foundation-api-network-${environmentName}'
+  params: {
+    sqlServerName: server.name
+    subnetResourceId: apiSubnetResourceId
+    ruleName: 'nso-audit-${environmentName}-api-subnet'
+  }
+}

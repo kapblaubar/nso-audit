@@ -1,3 +1,5 @@
+// Legacy full foundation is not reconciled with live Dev. Do not apply to NSO-Audit.
+// Use api-network.bicep for the approved additive VNet/Flex migration; see deployment runbook.
 targetScope = 'subscription'
 
 @description('Azure region for all regional resources.')

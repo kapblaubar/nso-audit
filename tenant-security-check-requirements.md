@@ -5,6 +5,16 @@
 > connector credentials, and SQL storage. It is a discussion draft; the requirements below
 > describe the existing Microsoft-focused baseline until the replacement scope is agreed.
 
+## API/SQL networking amendment (2026-10-20)
+
+The API, rather than the Static Web App or browser, is the SQL client. Its managed identity must
+have restricted read/write procedure permissions and connect from an approved VNet subnet.
+Changing Function worker IPs must not require firewall edits. The approved Dev migration uses
+VNet-integrated Flex Consumption and a Microsoft.Sql service endpoint/subnet rule, preserving
+existing Dev resources. Front Door remains a future inbound edge; it must not change SQL access
+or replace user authorization. Full requirements and the Front Door integration contract are in
+[networking requirements](docs/networking-requirements.md).
+
 ## 1. Purpose
 
 A self-service web product that lets an authorized Microsoft 365 / Azure tenant user run a

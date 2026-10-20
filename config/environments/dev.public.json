@@ -1,0 +1,6 @@
+{
+  "VITE_ENTRA_CLIENT_ID": "f293a122-bf49-44a7-bfc9-48cfae6f8376",
+  "VITE_AUTH_REDIRECT_URI": "https://blue-mushroom-0b2666c1e.7.azurestaticapps.net/auth/callback",
+  "VITE_API_BASE_URL": "https://nso-audit-dev-api-flex.azurewebsites.net/api",
+  "VITE_API_SCOPE": "api://f293a122-bf49-44a7-bfc9-48cfae6f8376/access_as_user"
+}

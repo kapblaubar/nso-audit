@@ -120,3 +120,18 @@ fixtures. Set explicit SQL server/database and `CONFIRM_DEV_WRITE_TEST=yes`. Bef
 use `--validate-migration`; afterward omit it. It checks that account credentials, tokens and access
 are removed, neighboring users and shared answers remain, and the same email can register again.
 No actual customer account should be used as a deployment smoke test.
+
+## Stable network deployment (2026-10-20)
+
+Use `Deploy-NsoAuditApiNetwork.ps1` and `infra/api-network.<environment>.bicepparam` for the
+VNet-capable Flex API. The older `New-NsoAuditFunctionApp.ps1` provisions legacy Consumption
+and is not the normal SQL-backed hosting path. `Set-NsoAuditLegacySqlFirewall.ps1` previews
+and explicitly removes/restores the public legacy-IP manifest; no broad firewall bypass is used.
+SQL bootstrap before network provisioning uses `Deploy-NsoAuditSql.ps1 -BootstrapBeforeApiNetwork`.
+`Publish-NsoAuditWeb.ps1` requires `-PublicConfigurationFile`; Dev uses
+`config/environments/dev.public.json`, shared with the web workflow. Follow the deployment,
+read/write validation, operator-access removal and rollback sequence in
+`../docs/deploy-from-scratch.md`. The API workflow uses an app-scoped federated deployment identity, provisioned by
+`Set-NsoAuditGitHubApiDeployment.ps1` and `infra/github-api-deployment.bicep`; no API publish
+profile is required. `Test-NsoAuditApiNetwork.ps1` wraps disposable Dev read/write checks with
+exact operator-IP access and automatic firewall cleanup.

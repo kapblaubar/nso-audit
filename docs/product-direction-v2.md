@@ -395,3 +395,12 @@ configured Dev Entra identity plus an active SQL staff role. Staff explicitly ac
 contacts; registration does not grant workspace access. Email members can open audits for existing
 approved Microsoft connections, with viewer write restrictions. Microsoft connection consent is
 separate from portal sign-in. See `database/customer-accounts.md` for implementation limits.
+
+## Approved API networking amendment (2026-10-20)
+
+Normal SQL access uses the environment's managed-identity API on a dedicated VNet subnet with
+Microsoft.Sql service endpoints and an exact SQL virtual network rule. Changing worker public
+IP allowlists are retired after validated cutover. The approved Front Door integration contract,
+identity boundaries, separate Dev/Prod configuration and recovery requirements are maintained
+in [networking requirements](networking-requirements.md); implementation and deployment order
+are in [the deployment runbook](deploy-from-scratch.md).

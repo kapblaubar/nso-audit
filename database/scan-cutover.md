@@ -73,7 +73,7 @@ screens, or change scanner permissions. Blob/queue/runtime Storage remains in us
    routes must be implemented separately. The source copy does not turn tenant consent into
    operator authorization across customer workspaces.
 8. Delete the specific temporary read-role assignment (`az role assignment delete --ids <id>`)
-   and temporary SQL operator firewall rule. Keep Function outbound IP access. Preserve source
+   and temporary SQL operator firewall rule. Keep the approved API subnet rule. Preserve source
    Tables as the pre-cutover snapshot; no decommission/deletion is part of this release.
 
 ## Failure and rollback
@@ -114,7 +114,8 @@ the older full platform Bicep is reconciled or that Prod clean deployment has be
 - Cloud SQL authentication explicitly selects managed identity; local tooling uses Azure CLI
   rather than whichever cached developer identity a default chain happens to select.
 - Linux Consumption's actual worker egress included an address absent from ARM's reported
-  outbound addresses. The observed address is explicitly recorded in Dev SQL parameters.
+  outbound addresses. The observed address was recorded in historical Dev SQL parameters.
   Do not infer a stable network boundary from that list. Before Prod, select supported
   VNet/private connectivity or stable egress (including an appropriate Functions hosting plan).
-  Dev may need an explicitly reviewed firewall update if worker egress changes.
+  This historical workaround is superseded by the 2026-10-20 VNet/Flex migration; do not add
+  further worker IPs. See `../docs/networking-requirements.md` and the deployment runbook.

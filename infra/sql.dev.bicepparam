@@ -6,27 +6,7 @@ param databaseName = 'nso-audit-dev'
 param administratorLogin = 'chris@newsommer.com'
 param administratorObjectId = '28995be7-732b-47c4-a04d-f4ea51eb088e'
 param administratorType = 'User'
-param allowedIpv4Addresses = [
-  '52.149.26.131'
-  '52.250.80.223'
-  '52.250.81.131'
-  '52.156.92.168'
-  '52.156.94.32'
-  '52.156.94.33'
-  '40.64.128.231'
-  // Observed Linux Consumption worker egress; not included in ARM outboundIpAddresses.
-  '20.3.32.210'
-  '172.194.168.132'
-  '52.175.252.145'
-  '40.91.85.183'
-  '4.246.2.62'
-  '4.246.2.36'
-  '52.175.252.238'
-  '172.179.80.209'
-  '20.252.25.39'
-  '52.183.112.167'
-  '4.155.178.241'
-  '172.179.85.149'
-]
-// Deployment wrapper supplies the current operator IP and exact Function outbound addresses.
-// All values are public configuration, not credentials.
+// API access is the approved subnet, not changing public worker addresses.
+param allowedIpv4Addresses = []
+param apiSubnetResourceId = '/subscriptions/257f10d8-cb7f-400c-8e29-7f1fc5318247/resourceGroups/NSO-Audit/providers/Microsoft.Network/virtualNetworks/nso-audit-dev-vnet/subnets/api-integration'
+// Use the explicit bootstrap switch before this network exists in a fresh environment.

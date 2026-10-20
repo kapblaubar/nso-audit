@@ -18,12 +18,12 @@ as the pre-cutover snapshot; SQL is the destination for active structured scan r
    parameter file with a unique server/database name and its own Entra admin group. Dev uses
    Basic/5 DTU/2 GiB and seven-day local backup retention; Prod capacity, redundancy and recovery
    requirements must be selected explicitly. No Prod environment is deployed by this work.
-2. Obtain the current deployment operator IPv4 and Function outbound addresses. Pass exact IPs
-   to `scripts/Deploy-NsoAuditSql.ps1` with subscription, resource group and parameter file.
-   Without `-Apply` it performs only what-if. Inspect output before applying. No Azure-wide
-   `0.0.0.0` firewall rule is used. Keep required application IPs in the deployment parameters;
-   remove temporary operator access when no longer needed. Prod networking needs a dedicated
-   review, including private endpoints and the Functions hosting plan.
+2. Normal API access uses its dedicated subnet and a SQL VNet rule. Follow
+   `../docs/networking-requirements.md` and the deployment runbook. Pass only a temporary exact
+   operator IPv4 to `scripts/Deploy-NsoAuditSql.ps1` when required for migrations. Without
+   `-Apply` it previews; inspect before applying. For SQL bootstrap before the VNet exists use
+   `-BootstrapBeforeApiNetwork`; provision the network afterward. No Azure-wide `0.0.0.0`
+   rule is used. Dev's permanent parameters contain no Function worker IPs.
 3. Set public configuration `SQL_SERVER=<name>.database.windows.net` and `SQL_DATABASE=<name>`
    in your shell, authenticate with `az login`, then run:
 
@@ -61,8 +61,8 @@ as the pre-cutover snapshot; SQL is the destination for active structured scan r
    `allowed-<operator-ip-with-dashes>`; delete only that rule using
    `az sql server firewall-rule delete --subscription <subscription> --resource-group <group>
    --server <server> --name <temporary-rule-name>`. The persistent Dev parameter file retains
-   only the Function outbound IPs. Incremental deployment does not remove old firewall rules;
-   review and explicitly retire stale rules when app outbound addresses change.
+   the approved subnet resource ID and no public IPv4 rules. Incremental deployment does not
+   remove omitted rules; use the reviewed legacy manifest and retirement script in the runbook.
 
 ## Dev validation recorded 2026-10-19
 

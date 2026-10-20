@@ -1,0 +1,102 @@
+﻿[
+  {
+    "endIpAddress": "172.179.80.209",
+    "name": "allowed-172-179-80-209",
+    "startIpAddress": "172.179.80.209"
+  },
+  {
+    "endIpAddress": "172.179.85.149",
+    "name": "allowed-172-179-85-149",
+    "startIpAddress": "172.179.85.149"
+  },
+  {
+    "endIpAddress": "172.194.168.132",
+    "name": "allowed-172-194-168-132",
+    "startIpAddress": "172.194.168.132"
+  },
+  {
+    "endIpAddress": "20.252.25.39",
+    "name": "allowed-20-252-25-39",
+    "startIpAddress": "20.252.25.39"
+  },
+  {
+    "endIpAddress": "20.3.32.145",
+    "name": "allowed-20-3-32-145",
+    "startIpAddress": "20.3.32.145"
+  },
+  {
+    "endIpAddress": "20.3.32.210",
+    "name": "allowed-20-3-32-210",
+    "startIpAddress": "20.3.32.210"
+  },
+  {
+    "endIpAddress": "40.64.128.231",
+    "name": "allowed-40-64-128-231",
+    "startIpAddress": "40.64.128.231"
+  },
+  {
+    "endIpAddress": "40.91.85.183",
+    "name": "allowed-40-91-85-183",
+    "startIpAddress": "40.91.85.183"
+  },
+  {
+    "endIpAddress": "4.155.178.241",
+    "name": "allowed-4-155-178-241",
+    "startIpAddress": "4.155.178.241"
+  },
+  {
+    "endIpAddress": "4.246.2.36",
+    "name": "allowed-4-246-2-36",
+    "startIpAddress": "4.246.2.36"
+  },
+  {
+    "endIpAddress": "4.246.2.62",
+    "name": "allowed-4-246-2-62",
+    "startIpAddress": "4.246.2.62"
+  },
+  {
+    "endIpAddress": "52.149.26.131",
+    "name": "allowed-52-149-26-131",
+    "startIpAddress": "52.149.26.131"
+  },
+  {
+    "endIpAddress": "52.156.92.168",
+    "name": "allowed-52-156-92-168",
+    "startIpAddress": "52.156.92.168"
+  },
+  {
+    "endIpAddress": "52.156.94.32",
+    "name": "allowed-52-156-94-32",
+    "startIpAddress": "52.156.94.32"
+  },
+  {
+    "endIpAddress": "52.156.94.33",
+    "name": "allowed-52-156-94-33",
+    "startIpAddress": "52.156.94.33"
+  },
+  {
+    "endIpAddress": "52.175.252.145",
+    "name": "allowed-52-175-252-145",
+    "startIpAddress": "52.175.252.145"
+  },
+  {
+    "endIpAddress": "52.175.252.238",
+    "name": "allowed-52-175-252-238",
+    "startIpAddress": "52.175.252.238"
+  },
+  {
+    "endIpAddress": "52.183.112.167",
+    "name": "allowed-52-183-112-167",
+    "startIpAddress": "52.183.112.167"
+  },
+  {
+    "endIpAddress": "52.250.80.223",
+    "name": "allowed-52-250-80-223",
+    "startIpAddress": "52.250.80.223"
+  },
+  {
+    "endIpAddress": "52.250.81.131",
+    "name": "allowed-52-250-81-131",
+    "startIpAddress": "52.250.81.131"
+  }
+]

@@ -21,8 +21,8 @@ names differ from live Dev; reconcile them before applying templates to the exis
 | Protected API scope | `Set-NsoAuditApiScope.ps1` | None after the App Registration exists |
 | SPA redirect | `Set-NsoAuditAppRedirect.ps1` | Supply the new Static Web App hostname |
 | Key Vault workload credentials | `Set-NsoAuditWorkloadCredentials.ps1` checks and creates the Graph secret and optional DLP certificate | Add secure import, end-to-end token validation, expiry alerts, and tested rotation cleanup |
-| Function runtime and CORS | `Set-NsoAuditApiRuntime.ps1` | Supply the new Function and Static Web App hostnames |
-| Function deployment | `.github/workflows/deploy-api.yml` or `Publish-NsoAuditApi.ps1` | Add the `AZURE_FUNCTIONAPP_PUBLISH_PROFILE` GitHub environment secret; prefer workload-identity deployment before production |
+| Flex API networking/runtime/CORS | `infra/api-network.bicep`, Dev parameters and deployment wrapper | Separate Prod parameterization and disposable full rebuild rehearsal |
+| Function deployment | `.github/workflows/deploy-api.yml` or `Publish-NsoAuditApi.ps1` | Provision the app-scoped federated deployment identity and public GitHub environment variables using the versioned template/script |
 | Web deployment | `.github/workflows/deploy-web.yml` | GitHub environment and Static Web App deployment token are still created manually |
 | Customer consent and Azure roles | Portal consent plus downloadable `Set-NsoAuditCustomerReaderRoles.ps1` | Must be completed independently in every customer tenant |
 
@@ -63,6 +63,71 @@ platform template to existing Dev as a shortcut to adding SQL.
 12. Complete a disposable customer-tenant test: sign in, grant admin consent, assign customer
     reader roles, run **Check access**, run an audit, reopen its report, and run it again.
 
+## Stable API-to-SQL networking
+
+The approved requirements are in `docs/networking-requirements.md`. The additive
+`infra/api-network.bicep` and `infra/api-network.dev.bicepparam` describe the planned Dev
+migration from `nso-audit-dev-api` to `nso-audit-dev-api-flex`; SQL, storage, vault, identity and
+SWA names are preserved. Do not use the legacy full `infra/main.bicep` for this migration.
+
+For a fresh environment, first create its isolated foundation and SQL using explicit operator
+access with `Deploy-NsoAuditSql.ps1 -BootstrapBeforeApiNetwork`; this leaves the subnet parameter
+empty until the VNet exists. Apply schema migrations through `010_dev_account_cleanup.sql`
+and the existing restricted runtime-identity SQL grant. Provision storage/Key Vault roles and
+email configuration as documented below. Then:
+
+1. Supply separate names, CIDRs, origins, identity IDs and endpoints for the environment in a
+   parameter file. Run `Deploy-NsoAuditApiNetwork.ps1 -SubscriptionId <id> -ResourceGroupName <rg>
+   -ParametersFile <file>` to compile and preview. Register Microsoft.App when required. Inspect
+   what-if before adding `-Apply`. Only the dedicated VNet/subnet, plan, API, deployment container
+   and SQL virtual network rule should be added in the existing Dev migration.
+2. Publish code using `Publish-NsoAuditApi.ps1 -SubscriptionId <id> -ResourceGroupName <rg>
+   -FunctionAppName <candidate>`. Confirm `/api/health` reports healthy SQL and that the API's
+   integrated subnet matches the Ready SQL virtual network rule. No SQL password or db_owner
+   permission is needed. The existing Dev runtime identity is reused only within Dev.
+3. Validate reads AND writes with `scripts/verify-customer-account-api.mjs`, using explicit Dev
+   SQL/API targets and `CONFIRM_DEV_WRITE_TEST=yes`. Its disposable fixtures are cleaned in finally;
+   no real customer or email-delivery operation is performed. Any exact operator-IP SQL access
+   used to prepare fixtures must be removed after the test, including on failure. The versioned
+   `Test-NsoAuditApiNetwork.ps1` wrapper takes an explicit operator IPv4, restricts targets to Dev,
+   creates a unique exact-IP rule and removes it in finally.
+4. Set the public frontend configuration in `config/environments/dev.public.json`, then deploy
+   via `Publish-NsoAuditWeb.ps1` with its mandatory `-PublicConfigurationFile` or the web workflow.
+   The process restores previous environment values and never writes deployment tokens to disk.
+   Future Front Door can use `/api` instead of a Function hostname; register its exact external
+   Entra callbacks/origins first. API CORS must match that public origin.
+5. Preview `Set-NsoAuditLegacySqlFirewall.ps1` with explicit subscription, resource group, server,
+   `-ManifestFile infra/legacy-sql-firewall.dev.json -Action Remove -FunctionAppName
+   nso-audit-dev-api-flex -SqlNetworkRuleName nso-audit-dev-api-subnet`; then add `-Apply` after
+   inspecting the named rules. It checks subnet/rule health and refuses changed manifest entries.
+   Incremental Bicep does NOT remove omitted firewall rules, so this step is mandatory. Final
+   `infra/sql.dev.bicepparam` has no permanent public IPv4 rules and preserves the subnet rule.
+6. Repeat SQL-backed API read/write checks after worker-IP rules are removed, restart the candidate
+   and repeat health and writes again. Remove temporary operator access. Validate staff sign-in,
+   customer save and existing audit access in the browser. Record checks actually completed.
+
+Rollback: retain the old API and package, restore only the recorded legacy rules using the same
+firewall script with `-Action Restore -Apply`, change the public API URL back and redeploy the
+web. Inspect the restore preview first. This restores the previous unstable worker-IP behavior
+and is temporary; do not drop databases, revoke customer access or reverse schema migrations.
+Code-only rollback on Flex should republish a retained known-good package instead.
+
+The API workflow targets Flex and authenticates with OIDC through the dedicated deployment
+identity. Provision it with `infra/github-api-deployment.bicep` and environment parameters using
+`Set-NsoAuditGitHubApiDeployment.ps1` (preview first, then `-Apply`). Its Website Contributor
+role is scoped only to the selected API app; it has no SQL or customer data roles. Federation
+is restricted to the exact repository and GitHub environment. The script sets only public
+`AZURE_API_DEPLOY_CLIENT_ID`, `AZURE_API_DEPLOY_TENANT_ID`, and
+`AZURE_API_DEPLOY_SUBSCRIPTION_ID` GitHub environment variables. No publish profile is needed.
+Dev and Prod must have separate identities, trust subjects and deployment targets. The shared
+web public configuration prevents a later GitHub build from restoring the old API endpoint.
+
+Optional `restrictToFrontDoor` + `frontDoorId` implement a service-tag AND exact-FDID inbound
+gate. Leave disabled until edge routes/probes and origin protection are validated. This work
+creates no Front Door resource. SQL uses a service endpoint, not Private Link; SQL's public
+endpoint is enabled but subnet restricted. A clean full-platform rebuild and Prod restore test
+remain outstanding; this additive Dev deployment does not certify the legacy foundation.
+
 ## Customer management deployment
 
 Apply versioned SQL migrations through `006_customer_management.sql` before deploying the
@@ -74,12 +139,14 @@ Preserve existing redirects, including `/management` for older releases. Registe
 page remains a compatibility redirect to `/clientmanagement`. Staff must also have an active SQL management-role assignment.
 
 Publish API with `scripts/Publish-NsoAuditApi.ps1`, then web via the workflow or
-`scripts/Publish-NsoAuditWeb.ps1 -SubscriptionId <id> -ResourceGroupName <rg> -StaticWebAppName <name>`.
+`scripts/Publish-NsoAuditWeb.ps1 -SubscriptionId <id> -ResourceGroupName <rg> -StaticWebAppName <name> -PublicConfigurationFile config/environments/dev.public.json`.
 The latter keeps the SWA deployment token in process memory/environment and clears it afterward.
 Its `production` slot means the primary slot of the selected resource; target the Dev resource
 for Dev and a separate resource for future Prod. Validate `/api/health`, unauthenticated
 management rejection, and the `/clientmanagement` sign-in page after deployment. Pending contacts
 do not establish client login accounts or Microsoft connector permissions.
+
+Dev migration validation is recorded in `docs/dev-network-migration-2026-10-20.md`.
 
 ## Acceptance checks for a rebuild
 

@@ -26,6 +26,10 @@ jobs:
       - name: Compile infrastructure and Dev SQL parameters
         run: |
           az bicep build --file infra/main.bicep --stdout > /dev/null
+          az bicep build --file infra/github-api-deployment.bicep --stdout > /dev/null
+          az bicep build-params --file infra/github-api-deployment.dev.bicepparam --stdout > /dev/null
+          az bicep build --file infra/api-network.bicep --stdout > /dev/null
+          az bicep build-params --file infra/api-network.dev.bicepparam --stdout > /dev/null
           az bicep build --file infra/sql.bicep --stdout > /dev/null
           az bicep build --file infra/migration-access.bicep --stdout > /dev/null
           az bicep build-params --file infra/sql.dev.bicepparam --stdout > /dev/null

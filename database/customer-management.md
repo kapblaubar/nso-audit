@@ -1,3 +1,8 @@
+> Networking update 2026-10-20: the historical worker-IP repairs below are superseded by the
+> approved VNet/Flex migration. Do not add more Function worker IP rules. Follow
+> [networking requirements](../docs/networking-requirements.md) and
+> [the deployment runbook](../docs/deploy-from-scratch.md). Historical entries are retained as incident evidence.
+
 # Customer management (Dev)
 
 ## Dev connectivity repair, 2026-10-20
@@ -14,7 +19,7 @@ under `nso_api_runtime`; the subsequent user screenshot confirmed management acc
 The temporary diagnostic operator firewall rule was removed.
 
 Linux Consumption worker egress has changed beyond the ARM-listed outbound addresses.
-If this recurs, inspect the Dev health response's `firewallDenied` reason and `clientIp`,
+Historical diagnostic procedure (superseded): inspect the Dev health response's `firewallDenied` reason and `clientIp`,
 record the observed exact IP in the environment parameters, review SQL infrastructure what-if,
 and apply its matching rule. Stable outbound networking remains required for reliable Prod hosting.
 To reverse this repair, remove only these two rules and their parameter entries; customer data
@@ -101,3 +106,10 @@ No database migration or access grant changed. Temporary operator diagnostic fir
 removed. API deployment exposed worker IP 172.179.85.149; added the exact address to Dev parameters,
 inspected what-if showing only its firewall rule, and applied that rule. Public SQL health then
 passed; this does not establish availability for every authenticated staff request.
+
+A subsequent save/activation failure on 2026-10-20 reported customer database unavailability.
+Public health independently showed firewallDenied for 20.3.32.145. Added it to Dev parameters,
+inspected what-if (only its firewall rule creation), then applied the exact-IP rule. Public health
+returned healthy. User screenshots confirm successful Microsoft authentication followed by a
+database-stage failure; authenticated-request diagnostics are pending. No customer edit, account
+activation, permission change or application deployment was performed during this repair.

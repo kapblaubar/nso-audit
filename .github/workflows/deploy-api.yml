@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: deploy-api-development
@@ -56,12 +57,18 @@ jobs:
           cd api-package
           npm install --omit=dev --ignore-scripts
 
+      - name: Sign in to Azure with the dedicated deployment identity
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_API_DEPLOY_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_API_DEPLOY_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_API_DEPLOY_SUBSCRIPTION_ID }}
+
       - name: Deploy Azure Function App
         uses: Azure/functions-action@v1
         with:
-          app-name: nso-audit-dev-api
+          app-name: nso-audit-dev-api-flex
           package: api-package
-          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
 
       - name: Check deployed runtime health
-        run: curl --fail --retry 8 --retry-delay 5 --retry-all-errors https://nso-audit-dev-api.azurewebsites.net/api/health
+        run: curl --fail --retry 8 --retry-delay 5 --retry-all-errors https://nso-audit-dev-api-flex.azurewebsites.net/api/health

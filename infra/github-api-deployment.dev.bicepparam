@@ -1,0 +1,7 @@
+using './github-api-deployment.bicep'
+param location = 'westus2'
+param environmentName = 'dev'
+param functionAppName = 'nso-audit-dev-api-flex'
+param deploymentIdentityName = 'nso-audit-dev-deploy'
+param githubRepository = 'kapblaubar/nso-audit'
+param githubEnvironment = 'development'

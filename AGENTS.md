@@ -20,3 +20,8 @@
   redeploying it will preserve current resources. Reconcile naming and configuration before
   applying it, and prove the rebuild process in a disposable environment before claiming that
   Prod can be recreated from code.
+
+- Normal API-to-SQL access must use the approved VNet subnet path; do not repair deployed
+  applications by accumulating changing Function worker IPs. Keep operator firewall access
+  temporary and exact-IP. See docs/networking-requirements.md for the hosting migration and
+  future Front Door origin/forwarded-header requirements.

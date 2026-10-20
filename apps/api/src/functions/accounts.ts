@@ -1,5 +1,6 @@
 import {app,type HttpRequest,type HttpResponseInit,type InvocationContext} from '@azure/functions';
 import sql from 'mssql';
+import {requestClientIp} from '../auth/clientIp.js';
 import {getSqlPool} from '../storage/sql.js';
 import {hashPassword,verifyPassword,validEmail,validPassword,newToken,tokenHash} from '../auth/passwords.js';
 import {emailConfiguration,sendAccountEmail} from '../auth/accountEmail.js';
@@ -29,8 +30,7 @@ export async function accounts(request:HttpRequest,context:InvocationContext):Pr
     let body:Record<string,unknown>;
     try{const parsed:unknown=JSON.parse(raw);if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error();body=parsed as Record<string,unknown>;}catch{return reply(400,{error:'Invalid request.'});}
     const email=typeof body.email==='string'?body.email.trim().toLowerCase():'';
-    // The platform appends the connecting peer; never trust a browser-supplied first hop.
-    const peer=(request.headers.get('x-forwarded-for')??'unknown').split(',').at(-1)!.trim().replace(/^(\d+\.\d+\.\d+\.\d+):\d+$/,'$1');
+    const peer=requestClientIp(request.headers,process.env.FRONT_DOOR_ID);
     for(const [bucket,limit] of [[`peer:${peer}`,50],[`email:${email||tokenHash(String(body.token??''))}`,10]] as const){
       const throttle=await pool.request().input('BucketHash',sql.Char(64),tokenHash(bucket)).input('Limit',sql.Int,limit).execute('security.AuthThrottle');
       if(!throttle.recordset[0]?.Allowed)return{...reply(429,{error:'Too many attempts. Try again in 15 minutes.'}),headers:{...headers,'Retry-After':'900'}};

@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory)][string] $SubscriptionId,
     [Parameter(Mandatory)][string] $ResourceGroupName,
     [Parameter(Mandatory)][string] $ParametersFile,
-    [Parameter(Mandatory)][string[]] $AllowedIpv4Addresses,
+    [string[]] $AllowedIpv4Addresses = @(),
+    [switch] $BootstrapBeforeApiNetwork,
     [switch] $Apply
 )
 $ErrorActionPreference = 'Stop'
@@ -21,6 +22,7 @@ try {
     $compiled = & az bicep build-params --file $parametersPath --stdout | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0) { throw 'SQL parameter compilation failed.' }
     $parameters = $compiled.parametersJson | ConvertFrom-Json
+    if($BootstrapBeforeApiNetwork){$parameters.parameters.apiSubnetResourceId=[pscustomobject]@{value=''}}
     $parameters.parameters.allowedIpv4Addresses.value = @($AllowedIpv4Addresses | Sort-Object -Unique)
     $parameters | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $parameterJsonPath -Encoding utf8
     $arguments = @('--subscription', $SubscriptionId, '--resource-group', $ResourceGroupName,
