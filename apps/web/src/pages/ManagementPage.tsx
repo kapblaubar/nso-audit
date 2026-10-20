@@ -2,6 +2,7 @@ import {useEffect,useRef,useState,type FormEvent} from 'react';
 import type {AccountInfo} from '@azure/msal-browser';
 import {initializeAuth,signInManagement,signOutManagement} from '../auth';
 import {activateCustomerContact,managementSession,listCustomers,getCustomer,saveCustomer,type ManagementSession,type CustomerProfile,type ClientContact,type CustomerSummary,type CustomerDetails} from '../managementApi';
+import {TestAccounts} from './TestAccounts';
 import {ThemeToggle} from '../components/ThemeToggle';
 
 const emptyProfile:CustomerProfile={companyName:'',primaryContactName:'',primaryContactEmail:'',phone:'',website:'',industry:'',country:'',state:'',employeeCount:null,deviceCount:null,notes:'',microsoftAccount:'',microsoftTenantId:'',subscriptionIds:[]};
@@ -89,6 +90,7 @@ export function ManagementPage(){
     <nav className="nav" aria-label="Management navigation"><a className="brand" href="/clientmanagement"><img className="brand-mark" src="/brand/nsosquare.png" width="40" height="40" alt=""/><span className="brand-name">NSO Audit <small>Management</small></span></a>
       <div className="account-menu"><span className="management-env">{session.environment}</span><span>{account?.name??session.name}</span><a href="/audit">Existing audit</a><ThemeToggle/><button className="text-button" onClick={logout}>Sign out</button></div></nav>
     <header className="management-header"><div><p className="eyebrow">NewSommer workspace</p><h1>Customer management</h1><p>Set up the company first. Connect its systems when it is ready.</p></div><button className="management-primary" onClick={create} disabled={saving}>+ New customer</button></header>
+    {session.environment==='dev'&&account?<details className="management-test-accounts"><summary>Test accounts ? delete and register again</summary><TestAccounts account={account} blocked={dirty||saving||loading} onBusyChange={setSaving} onDeleted={()=>{selectionRequest.current++;populate(undefined);void listCustomers(account).then(result=>setCustomers(result.customers)).catch(()=>setError('Refresh customers to reload changes.'));}}/></details>:null}
     <div className="management-layout">
       <aside className="management-customers" aria-label="Customers"><div className="management-list-heading"><h2>Customers</h2><span>{customers.length}</span></div>
         <label className="management-field"><span className="sr-only">Search customers</span><input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search company or contact"/></label>

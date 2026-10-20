@@ -146,3 +146,26 @@ To invalidate email sessions during recovery, revoke `identitydata.Sessions` thr
 SQL operator. Reverting the app does not remove users or customer data. Do not reverse migrations
 or delete the email domain as a routine application rollback. A disposable full rebuild and SQL
 restore rehearsal are still required before claiming Prod reproducibility.
+
+## Dev test-account cleanup
+
+Migration `010_dev_account_cleanup.sql` adds role-checked account listing/deletion procedures
+and makes answer attribution nullable so shared assessment content can survive account deletion.
+Validate the candidate transactionally using `CONFIRM_DEV_WRITE_TEST=yes node
+scripts/verify-account-cleanup.mjs --validate-migration` before applying it. Run the migration
+runner, repeat for checksum/idempotence, then publish API before web using the existing scripts.
+No infrastructure changes are required for this feature. The API returns 404 outside Dev and
+requires the exact approved Microsoft staff identity in Dev.
+
+In `/clientmanagement`, expand **Test accounts**, choose an email account and type that exact
+email to confirm deletion. This removes the account, sessions, account tokens, registration
+requests, memberships and matching roster entries. Shared customer workspaces, profile data,
+scans and answers remain; answer author references are cleared. Company profile fields and
+pending ownership nominations may still contain that email as company metadata. This is a
+login/account reset, not a complete customer-workspace purge or backup erasure. The registered
+email can be reused afterward. Existing Microsoft/Entra identities are unaffected.
+
+Validate only disposable fixture accounts with the versioned verifier. Do not delete a real
+account merely to verify deployment. Roll back API/web first on release failure; retain migration
+010 and nullable answer attribution. Actual deletions require database backup/restore recovery
+into a separate database, not an inverse migration; do not promise an undo button.

@@ -14,6 +14,7 @@ async function mockManagement(page:Page,authorized=true){
     if(path.endsWith('/bootstrap')){
       await route.fulfill({status:authorized?200:403,json:authorized?{role:'setupAdmin',name:'Test administrator',environment:'dev'}:{error:'NewSommer management access is required.'}});return;
     }
+    if(path.endsWith('/test-users')){await route.fulfill({json:{accounts:[]}});return;}
     customerRequests++;
     if(route.request().method()==='GET'&&path.endsWith('/customers')){
       await route.fulfill({json:{customers:saved?[{organizationId:saved.organizationId,companyName:saved.profile.companyName,primaryContactEmail:saved.profile.primaryContactEmail,version:saved.version}]:[]}});return;
@@ -61,4 +62,21 @@ test('a signed-in user without a management role cannot see customer forms',asyn
   await expect(page.getByRole('alert')).toContainText('management access is required');
   await expect(page.getByLabel(/^Company name/)).toHaveCount(0);
   expect(state.requests()).toBe(0);
+});
+
+test('Dev test account deletion requires the exact email and preserves the user until confirmed',async({page})=>{
+  await mockManagement(page);let deleted=false;
+  await page.route('**/api/management/test-users**',async route=>{
+    if(route.request().method()==='DELETE'){
+      expect(route.request().postDataJSON()).toEqual({confirmEmail:'repeat@example.test'});deleted=true;
+      return route.fulfill({json:{message:'Test account deleted. You can register this email again.'}});
+    }
+    await route.fulfill({json:{accounts:deleted?[]:[{id:'aa8333f3-cb60-4d4b-b095-2151cdcbdfb1',email:'repeat@example.test',name:'Tester',verified:false,membershipCount:0}]}});
+  });
+  await page.goto('/clientmanagement');await page.getByText('Test accounts ? delete and register again',{exact:true}).click();
+  await page.getByRole('button',{name:'Delete account',exact:true}).click();
+  const confirm=page.getByRole('button',{name:'Permanently delete account',exact:true});await expect(confirm).toBeDisabled();
+  await page.getByLabel('Type the email to confirm deletion').fill('wrong@example.test');await expect(confirm).toBeDisabled();expect(deleted).toBe(false);
+  await page.getByLabel('Type the email to confirm deletion').fill('repeat@example.test');await confirm.click();
+  await expect(page.getByRole('status')).toContainText('register this email again');expect(deleted).toBe(true);
 });

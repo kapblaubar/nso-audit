@@ -48,3 +48,15 @@ credentials. Unit validation and mocked browser tests cover the form and non-Mic
 Recovery: roll back API/web releases first and retain the additive tables and migration ledger.
 Do not delete customer records or reverse the migration to recover a frontend deployment.
 Use SQL backup/restore procedures for data recovery; no production restore has been rehearsed.
+
+## Dev staff sign-in connectivity recurrence, 2026-10-20
+
+A later staff sign-in attempt coincided with `/api/health` reporting SQL `firewallDenied`
+for worker egress `4.246.2.36`. The configured staff tenant/object ID remained correct.
+Added that exact IP to `infra/sql.dev.bicepparam`; inspected SQL what-if, which showed only
+its firewall rule creation, then applied the matching `allowed-4-246-2-36` rule.
+The live health check subsequently returned healthy SQL storage. No auth grants, application
+release or schema changed. Interactive staff sign-in still needs the user to retry.
+This recurrence reinforces that fixed outbound networking is still unresolved for the current
+Linux Consumption hosting; individual exact-IP repairs do not guarantee future worker connectivity.
+Rollback removes only that firewall rule and parameter entry, without changing customer data.

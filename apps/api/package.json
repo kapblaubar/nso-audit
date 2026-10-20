@@ -6,7 +6,7 @@
   "main": "dist/src/functions/*.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "npm run build && node --test dist/src/scoring/baseline.test.js dist/src/auth/managementPolicy.test.js dist/src/auth/passwords.test.js dist/src/management/customerInput.test.js",
+    "test": "npm run build && node --test dist/src/scoring/baseline.test.js dist/src/auth/managementPolicy.test.js dist/src/auth/passwords.test.js dist/src/management/customerInput.test.js dist/src/management/accountCleanup.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

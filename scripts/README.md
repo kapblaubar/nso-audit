@@ -114,3 +114,9 @@ keys, certificate private keys, or passwords to these files.
 
 See `database/customer-accounts.md` and `docs/deploy-from-scratch.md` for infrastructure,
 email configuration, deployment order, recovery and inbox checks.
+
+`verify-account-cleanup.mjs` validates Dev-only email-account reset with disposable transactional
+fixtures. Set explicit SQL server/database and `CONFIRM_DEV_WRITE_TEST=yes`. Before migration 010,
+use `--validate-migration`; afterward omit it. It checks that account credentials, tokens and access
+are removed, neighboring users and shared answers remain, and the same email can register again.
+No actual customer account should be used as a deployment smoke test.

@@ -81,3 +81,32 @@ an applied migration or copy Dev identities, users, sessions or credentials into
 Password complexity is enforced by the API for registration and reset, with matching browser guidance and validation. Existing passwords remain usable until changed; Microsoft passwords follow Microsoft tenant policy. This policy change requires API and web deployment only, with no database or infrastructure changes.
 
 Password-policy update validation (2026-10-20): 14 API tests, six browser tests and web type checks passed. API and web deployed to Dev. After deployment startup settled, live registration and reset requests missing uppercase letters both returned HTTP 400 with the new complexity guidance.
+
+## Repeat testing in Dev
+
+Staff can delete an email account from the **Test accounts** section of `/clientmanagement`.
+Both the API environment guard and staff authorization must pass. The exact email must be typed
+before deletion. Migration 010 removes credentials, sessions, verification/reset tokens, registration
+requests, memberships, matching roster entries and user-actor audit records in one transaction.
+Completed ownership records referencing the deleted account are removed. Shared answers retain
+their content with nullable attribution; customer workspaces and company profile metadata remain.
+Per-email and account-token throttling buckets are removed; shared IP throttle buckets remain.
+Backups and already delivered emails are not altered. Re-registering creates a new user ID and
+requires fresh email verification and staff access activation. Staff cleanup audit events contain
+no target email or user ID. Existing customer editors become stale when their roster changes.
+
+Use `scripts/verify-account-cleanup.mjs` for rolled-back fixture validation, including same-email
+re-registration, session/token/grant removal and preservation of a neighboring user and shared
+assessment answer. The deployment/recovery order is in `docs/deploy-from-scratch.md`.
+
+Dev cleanup release validated 2026-10-20: candidate migration 010 passed transactional runtime
+verification, was applied, and a repeat migrate run confirmed checksums/idempotence. The verifier
+passed again after application. Fifteen API tests, seven browser tests and type checks passed.
+API and web were published through the versioned scripts. Live cleanup endpoints reject anonymous
+requests (403); CORS preflight allows DELETE from the configured portal. The live web bundle contains
+the typed-email deletion controls. No real account, including kapblaubar@gmail.com, was deleted
+as a deployment test. Temporary diagnostic operator firewall access was removed.
+
+Deployment exposed worker egress addresses 52.175.252.238 and 172.179.80.209. Each was added to
+Dev Bicep parameters; SQL what-if showed only the corresponding new firewall rule before its exact-IP
+rule was applied. SQL health subsequently returned healthy. Stable egress remains unresolved.

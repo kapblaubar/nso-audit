@@ -601,3 +601,7 @@ html[data-theme="light"] .management-remove { color:#9c3929; }
 .customer-workspace-back { padding:12px 24px; background:#0c181f; color:#e8edf3; }
 html[data-theme="light"] .customer-workspace-back { background:#f1f6f3; color:#172d26; }
 .customer-workspaces li { flex-wrap:wrap; align-items:center; }
+
+.management-test-accounts { margin:0 24px 28px; }
+.management-test-accounts summary { cursor:pointer; padding:12px 0; }
+.management-test-accounts li { margin:16px 0; overflow-wrap:anywhere; }

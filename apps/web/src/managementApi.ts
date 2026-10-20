@@ -27,3 +27,7 @@ export const saveCustomer=(account:AccountInfo,id:string|undefined,profile:Custo
 
 export const activateCustomerContact=(account:AccountInfo,organizationId:string,contactId:string)=>
   call<{message:string}>(account,`customers/${encodeURIComponent(organizationId)}/contacts/${encodeURIComponent(contactId)}/activate`,'POST',{});
+
+export interface TestAccount{id:string;email:string;name:string;verified:boolean;membershipCount:number}
+export const listTestAccounts=(account:AccountInfo)=>call<{accounts:TestAccount[]}>(account,'test-users');
+export const deleteTestAccount=(account:AccountInfo,id:string,confirmEmail:string)=>call<{message:string}>(account,`test-users/${encodeURIComponent(id)}`,'DELETE',{confirmEmail});
