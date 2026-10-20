@@ -358,6 +358,16 @@ and deployment targets. Infrastructure as code is part of each feature's complet
 - Data residency, retention, attachment limits, reviewer authority and initial export formats.
 - Which carrier forms to map first and whether broker/insurer collaboration is in scope.
 
+## Dev customer administration implemented
+
+The `/management` page uses staff Entra authentication plus an explicit management role.
+Admins can create and edit customers and their pending user roster. Company name, primary
+contact name and email are required; general business details, Microsoft account, Entra tenant
+ID and Azure subscription IDs are optional. Non-Microsoft customers are supported. User roles
+are intended roles only until verified client-account activation is implemented. Profile data
+is stored in SQL with organization isolation, audit events and concurrent-edit protection.
+See `database/customer-management.md` for deployment and recovery details.
+
 ## 10. Research sources
 
 Reviewed 2026-10-19. Validate exact carrier, jurisdiction, edition and connector requirements

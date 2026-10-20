@@ -17,6 +17,7 @@ param allowedIpv4Addresses = [
   // Observed Linux Consumption worker egress; not included in ARM outboundIpAddresses.
   '20.3.32.210'
   '172.194.168.132'
+  '52.175.252.145'
 ]
 // Deployment wrapper supplies the current operator IP and exact Function outbound addresses.
 // All values are public configuration, not credentials.
