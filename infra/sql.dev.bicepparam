@@ -23,6 +23,8 @@ param allowedIpv4Addresses = [
   '4.246.2.36'
   '52.175.252.238'
   '172.179.80.209'
+  '20.252.25.39'
+  '52.183.112.167'
 ]
 // Deployment wrapper supplies the current operator IP and exact Function outbound addresses.
 // All values are public configuration, not credentials.

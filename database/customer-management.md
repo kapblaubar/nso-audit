@@ -60,3 +60,19 @@ release or schema changed. Interactive staff sign-in still needs the user to ret
 This recurrence reinforces that fixed outbound networking is still unresolved for the current
 Linux Consumption hosting; individual exact-IP repairs do not guarantee future worker connectivity.
 Rollback removes only that firewall rule and parameter entry, without changing customer data.
+
+A later customer-load failure on 2026-10-20 coincided with SQL rejecting observed worker egress
+20.252.25.39. Recorded the exact address in Dev Bicep parameters, inspected what-if (only that
+firewall rule creation), and applied its matching rule. SQL health returned healthy. A read-only
+lookup found kapblaubar@gmail.com in the NewSommer customer directory as primary contact but no
+identitydata.Users account or membership for that email. No account or access grant was created.
+Temporary operator diagnostic access was removed. Stable outbound networking remains unresolved.
+
+A subsequent staff sign-in report on 2026-10-20 coincided with SQL firewall denial for
+52.183.112.167. Added the exact address to Dev parameters, inspected what-if (only that
+rule creation), and applied its matching firewall rule. SQL health returned healthy.
+No application, identity, credential or schema changed. This is a temporary connectivity repair.
+Further IP enumeration cannot establish reliable connectivity for Linux Consumption.
+The next infrastructure investigation should assess Flex Consumption with virtual network
+integration and subnet-based SQL access, preserving the current resources until an explicit
+migration and rollback plan is validated. Do not enable a broad Azure-wide firewall bypass.
