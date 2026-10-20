@@ -1,6 +1,6 @@
 # Customer management (Dev)
 
-Staff use Microsoft Entra sign-in at `/management`. Access additionally requires an active
+Staff use Microsoft Entra sign-in at `/clientmanagement`. Access additionally requires an active
 `security.ManagementUsers` entry; a Microsoft account alone does not grant management access.
 
 Apply migrations through `006_customer_management.sql` before publishing the customer API.

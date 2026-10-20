@@ -13,7 +13,7 @@ export function LandingPage({ authReady, authError, onSignIn }: LandingPageProps
           <span className="brand-name">NSO Audit</span>
         </a>
         <div className="nav-actions">
-          <a className="nav-link" href="/management">Staff sign in</a>
+          <a className="nav-link" href="/clientmanagement">Staff sign in</a>
           <a className="nav-link" href="#how-it-works">How it works</a>
           <a className="nav-link" href="#trust">Security & privacy</a>
           <ThemeToggle />

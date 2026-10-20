@@ -22,7 +22,7 @@ export function ManagementPage(){
         const authorized=await managementSession(state.account);
         if(cancelled)return;
         setSession(authorized);
-        window.history.replaceState({},'','/management');
+        window.history.replaceState({},'','/clientmanagement');
         sessionStorage.removeItem('nso.managementLogin');
         const result=await listCustomers(state.account);
         if(!cancelled)setCustomers(result.customers);
@@ -78,7 +78,7 @@ export function ManagementPage(){
       {account?<button className="management-secondary" onClick={logout}>Sign out of {account.username}</button>:null}
       <a className="management-back" href="/">Back to NSO Audit</a></section></main>;
   return <main className="management-page">
-    <nav className="nav" aria-label="Management navigation"><a className="brand" href="/management"><img className="brand-mark" src="/brand/nsosquare.png" width="40" height="40" alt=""/><span className="brand-name">NSO Audit <small>Management</small></span></a>
+    <nav className="nav" aria-label="Management navigation"><a className="brand" href="/clientmanagement"><img className="brand-mark" src="/brand/nsosquare.png" width="40" height="40" alt=""/><span className="brand-name">NSO Audit <small>Management</small></span></a>
       <div className="account-menu"><span className="management-env">{session.environment}</span><span>{account?.name??session.name}</span><a href="/audit">Existing audit</a><ThemeToggle/><button className="text-button" onClick={logout}>Sign out</button></div></nav>
     <header className="management-header"><div><p className="eyebrow">NewSommer workspace</p><h1>Customer management</h1><p>Set up the company first. Connect its systems when it is ready.</p></div><button className="management-primary" onClick={create} disabled={saving}>+ New customer</button></header>
     <div className="management-layout">

@@ -30,7 +30,7 @@ async function mockManagement(page:Page,authorized=true){
 test('staff can create and edit a non-Microsoft customer with a pending owner',async({page})=>{
   const state=await mockManagement(page);
   await page.setViewportSize({width:1440,height:1000});
-  await page.goto('/management');
+  await page.goto('/clientmanagement');
   await expect(page.getByRole('heading',{name:'Customer management'})).toBeVisible();
   await page.getByLabel(/^Company name/).fill('Independent customer');
   await page.getByLabel(/^Primary contact name/).fill('Client owner');
@@ -57,7 +57,7 @@ test('staff can create and edit a non-Microsoft customer with a pending owner',a
 
 test('a signed-in user without a management role cannot see customer forms',async({page})=>{
   const state=await mockManagement(page,false);
-  await page.goto('/management');
+  await page.goto('/clientmanagement');
   await expect(page.getByRole('alert')).toContainText('management access is required');
   await expect(page.getByLabel(/^Company name/)).toHaveCount(0);
   expect(state.requests()).toBe(0);

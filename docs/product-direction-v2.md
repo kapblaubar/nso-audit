@@ -360,7 +360,7 @@ and deployment targets. Infrastructure as code is part of each feature's complet
 
 ## Dev customer administration implemented
 
-The `/management` page uses staff Entra authentication plus an explicit management role.
+The `/clientmanagement` page uses staff Entra authentication plus an explicit management role.
 Admins can create and edit customers and their pending user roster. Company name, primary
 contact name and email are required; general business details, Microsoft account, Entra tenant
 ID and Azure subscription IDs are optional. Non-Microsoft customers are supported. User roles

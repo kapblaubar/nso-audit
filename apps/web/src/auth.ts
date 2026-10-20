@@ -68,14 +68,14 @@ export async function signIn(): Promise<void> {
 
 export async function signInManagement():Promise<void>{
   sessionStorage.setItem('nso.managementLogin','1');
-  try{await getClient().loginRedirect({scopes:signInScopes,prompt:'select_account',redirectStartPage:`${window.location.origin}/management`});}
+  try{await getClient().loginRedirect({scopes:signInScopes,prompt:'select_account',redirectStartPage:`${window.location.origin}/clientmanagement`});}
   catch(error){sessionStorage.removeItem('nso.managementLogin');throw error;}
 }
 
 export async function signOutManagement():Promise<void>{
   sessionStorage.removeItem('nso.managementLogin');
   const authClient=getClient(),account=authClient.getActiveAccount();
-  await authClient.logoutRedirect({...(account?{account}:{}),postLogoutRedirectUri:`${window.location.origin}/management`});
+  await authClient.logoutRedirect({...(account?{account}:{}),postLogoutRedirectUri:`${window.location.origin}/clientmanagement`});
 }
 
 export async function getApiAccessToken(account: AccountInfo): Promise<string> {

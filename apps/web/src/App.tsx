@@ -8,7 +8,10 @@ import { ReportPage } from "./pages/ReportPage";
 import {ManagementPage} from './pages/ManagementPage';
 
 export function App() {
-  const management=window.location.pathname==='/management'||window.location.pathname.startsWith('/management/')||
+  if(window.location.pathname==='/management'||window.location.pathname.startsWith('/management/')){
+    window.history.replaceState({},'',`/clientmanagement${window.location.search}${window.location.hash}`);
+  }
+  const management=window.location.pathname==='/clientmanagement'||window.location.pathname.startsWith('/clientmanagement/')||
     (window.location.pathname==='/auth/callback'&&sessionStorage.getItem('nso.managementLogin')==='1');
   return management?<ManagementPage/>:<LegacyApp/>;
 }

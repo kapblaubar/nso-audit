@@ -67,16 +67,18 @@ platform template to existing Dev as a shortcut to adding SQL.
 
 Apply versioned SQL migrations through `006_customer_management.sql` before deploying the
 management API. See `database/customer-management.md`. Register the environment's exact
-`https://<portal-host>/management` SPA redirect for management logout, alongside its existing
+`https://<portal-host>/clientmanagement` SPA redirect for management logout, alongside its existing
 `/auth/callback`, using `scripts/Set-NsoAuditAppRedirect.ps1` (Azure CLI authentication).
-Preserve existing redirects. Staff must also have an active SQL management-role assignment.
+Preserve existing redirects, including `/management` for older releases. Register the new
+`/clientmanagement` logout redirect before publishing the web update. The old `/management`
+page remains a compatibility redirect to `/clientmanagement`. Staff must also have an active SQL management-role assignment.
 
 Publish API with `scripts/Publish-NsoAuditApi.ps1`, then web via the workflow or
 `scripts/Publish-NsoAuditWeb.ps1 -SubscriptionId <id> -ResourceGroupName <rg> -StaticWebAppName <name>`.
 The latter keeps the SWA deployment token in process memory/environment and clears it afterward.
 Its `production` slot means the primary slot of the selected resource; target the Dev resource
 for Dev and a separate resource for future Prod. Validate `/api/health`, unauthenticated
-management rejection, and the `/management` sign-in page after deployment. Pending contacts
+management rejection, and the `/clientmanagement` sign-in page after deployment. Pending contacts
 do not establish client login accounts or Microsoft connector permissions.
 
 ## Acceptance checks for a rebuild
