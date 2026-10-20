@@ -4,11 +4,12 @@ import {CustomerInputError,validateCustomerInput} from '../management/customerIn
 import {listCustomers,getCustomer,saveCustomer} from '../management/customerStore.js';
 import {uuidPattern,getSqlPool} from '../storage/sql.js';
 import sql from 'mssql';
+import {managementFailure} from '../auth/managementFailure.js';
 
 export async function manageCustomers(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
   const headers={'Cache-Control':'no-store'};
   let actor;
-  try{actor=await requireManagementUser(request);}catch{return{status:403,headers,jsonBody:{error:'NewSommer management access is required.'}};}
+  try{actor=await requireManagementUser(request);}catch(error){return{...managementFailure(error),headers};}
   try{
     const id=request.params.organizationId;
     if(id&&!uuidPattern.test(id))return{status:400,headers,jsonBody:{error:'Invalid customer identifier.'}};
@@ -35,7 +36,7 @@ app.http('managementCustomer',{methods:['GET','PUT'],authLevel:'anonymous',route
 
 export async function activateContact(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
   const headers={'Cache-Control':'no-store'};
-  let actor;try{actor=await requireManagementUser(request);}catch{return{status:403,headers,jsonBody:{error:'Management access is required.'}};}
+  let actor;try{actor=await requireManagementUser(request);}catch(error){return{...managementFailure(error),headers};}
   const {organizationId,contactId}=request.params;
   if(!uuidPattern.test(organizationId??'')||!uuidPattern.test(contactId??''))return{status:400,headers,jsonBody:{error:'Invalid contact.'}};
   try{

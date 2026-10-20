@@ -1,4 +1,5 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from '@azure/functions';
+import {managementFailure} from '../auth/managementFailure.js';
 import { requireManagementUser } from '../auth/requireManagementUser.js';
 
 export async function managementBootstrap(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -8,9 +9,9 @@ export async function managementBootstrap(request: HttpRequest, context: Invocat
       status: 200, headers: { 'Cache-Control': 'no-store' },
       jsonBody: { role: user.role, name: user.name ?? 'NewSommer administrator', environment: process.env.APP_ENVIRONMENT ?? 'unknown' },
     };
-  } catch {
+  } catch (error) {
     context.warn('Management bootstrap denied or unavailable.');
-    return { status: 403, headers: { 'Cache-Control': 'no-store' }, jsonBody: { error: 'Management access is unavailable or not authorized.' } };
+    return {...managementFailure(error),headers:{'Cache-Control':'no-store'}};
   }
 }
 

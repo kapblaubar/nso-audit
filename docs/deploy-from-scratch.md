@@ -169,3 +169,13 @@ Validate only disposable fixture accounts with the versioned verifier. Do not de
 account merely to verify deployment. Roll back API/web first on release failure; retain migration
 010 and nullable answer attribution. Actual deletions require database backup/restore recovery
 into a separate database, not an inverse migration; do not promise an undo button.
+
+## Staff access diagnostics
+
+Staff endpoints distinguish invalid Microsoft sessions (401), unauthorized staff identity/role
+(403), and unavailable configuration/database (503). Database failures must not be presented as
+proof that a user lacks a role. Dev may return the observed blocked worker IP in a diagnostic field
+without exposing tokens or raw SQL errors. A signed-in staff user can use **Retry access** without
+starting another Microsoft login. Publish the API before web for this message/retry update.
+No schema or infrastructure change is required; current Linux Consumption SQL networking remains
+unresolved. A healthy public health request does not verify the user's authenticated staff request.

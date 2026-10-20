@@ -76,3 +76,28 @@ Further IP enumeration cannot establish reliable connectivity for Linux Consumpt
 The next infrastructure investigation should assess Flex Consumption with virtual network
 integration and subnet-based SQL access, preserving the current resources until an explicit
 migration and rollback plan is validated. Do not enable a broad Azure-wide firewall bypass.
+
+After refreshing GitHub refs on 2026-10-20, local main matched origin/main at 4b61d2b.
+The remaining sign-in failure was independently reproduced by SQL health: firewallDenied for
+4.155.178.241. Added it to Dev parameters, inspected what-if (only its new firewall rule), and
+applied the matching exact-IP rule. SQL health returned healthy. This does not establish reliable
+future connectivity; no staff identity, account grant or application release was changed.
+
+## Staff access diagnostic release, 2026-10-20
+
+Verified the configured staff tenant/object retains setupAdmin when GetManagementRole is called
+under nso_api_runtime. Entra app configuration still requests v2 access tokens and includes both
+management redirect routes. The browser's authenticated request remains unverified.
+
+API now returns distinct session-invalid (401), staff identity/role denial (403), and database or
+configuration unavailable (503) results. Signed-in staff can Retry access without another Microsoft
+login. Dev support details contain only a failure code and, for observed SQL firewall denials, the
+blocked public worker IP. They never contain tokens, claims or raw SQL exceptions.
+
+Sixteen API tests, eight browser tests, web type checks and targeted retry/support-control checks
+passed. API and web were deployed through versioned scripts, and the live bundle contains Retry
+access and Copy support details. Unauthenticated staff bootstrap returns session_invalid/401.
+No database migration or access grant changed. Temporary operator diagnostic firewall access was
+removed. API deployment exposed worker IP 172.179.85.149; added the exact address to Dev parameters,
+inspected what-if showing only its firewall rule, and applied that rule. Public SQL health then
+passed; this does not establish availability for every authenticated staff request.

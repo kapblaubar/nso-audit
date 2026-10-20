@@ -1,12 +1,13 @@
 import {app,type HttpRequest,type HttpResponseInit,type InvocationContext} from '@azure/functions';
 import sql from 'mssql';
+import {managementFailure} from '../auth/managementFailure.js';
 import {requireManagementUser} from '../auth/requireManagementUser.js';
 import {getSqlPool,uuidPattern} from '../storage/sql.js';
 import {validEmail,tokenHash} from '../auth/passwords.js';
 export async function testAccounts(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
   const headers={'Cache-Control':'no-store'};
   if(process.env.APP_ENVIRONMENT!=='dev')return{status:404,headers,jsonBody:{error:'Not found.'}};
-  let actor;try{actor=await requireManagementUser(request);}catch{return{status:403,headers,jsonBody:{error:'Management access is required.'}};}
+  let actor;try{actor=await requireManagementUser(request);}catch(error){return{...managementFailure(error),headers};}
   try{
     const pool=await getSqlPool();
     const query=pool.request().input('TenantId',sql.UniqueIdentifier,actor.tenantId).input('ObjectId',sql.UniqueIdentifier,actor.objectId);

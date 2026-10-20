@@ -13,6 +13,6 @@ test('test-account cleanup is unavailable outside Dev and denies unauthenticated
     }
     process.env.APP_ENVIRONMENT='dev';
     const response=await testAccounts(new HttpRequest({url:'https://example.test/api/management/test-users',method:'GET'}),new InvocationContext({functionName:'test'}));
-    assert.equal(response.status,403);
+    assert.equal(response.status,401);
   }finally{if(previous===undefined)delete process.env.APP_ENVIRONMENT;else process.env.APP_ENVIRONMENT=previous;}
 });

@@ -33,7 +33,7 @@ try{
   assert.equal((await call('account/session')).status,401);
   const login=await call('account/login',{email,password});assert.equal(login.status,200,'Fixture login failed');const session=login.body.token;
   const me=await call('account/session',undefined,session);assert.equal(me.status,200);assert.equal(me.body.workspaces[0].id.toLowerCase(),org);
-  assert.equal((await call('management/bootstrap',undefined,session)).status,403);
+  assert.equal((await call('management/bootstrap',undefined,session)).status,401);
   assert.equal((await call('me/bootstrap',undefined,session,randomUUID())).status,403);
   assert.equal((await call('me/bootstrap',undefined,session,org)).status,200);
   assert.equal((await call('me/scans',{subscriptionId:randomUUID()},session,org)).status,403);

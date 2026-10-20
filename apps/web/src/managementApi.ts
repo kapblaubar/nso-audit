@@ -11,12 +11,15 @@ export interface ClientContact {id:string;displayName:string;email:string;role:'
 export interface CustomerSummary {organizationId:string;companyName:string;primaryContactEmail:string;version:string}
 export interface CustomerDetails {organizationId:string;version:string;profile:Partial<CustomerProfile>;users:ClientContact[];pendingOwnerEmail:string|null}
 export interface ManagementSession {name:string;role:string;environment:string}
+export class ManagementRequestError extends Error{
+  constructor(message:string,public readonly code?:string,public readonly diagnostic?:{reason?:string;clientIp?:string}){super(message);}
+}
 async function call<T>(account:AccountInfo,path:string,method='GET',body?:unknown):Promise<T>{
   if(!appConfig.apiBaseUrl)throw new Error('The management API is not configured.');
   const token=await getApiAccessToken(account);
   const response=await fetch(`${appConfig.apiBaseUrl}/management/${path}`,{method,headers:{Authorization:`Bearer ${token}`,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
-  const result=await response.json() as T&{error?:string};
-  if(!response.ok)throw new Error(result.error??`Management request failed (${response.status}).`);
+  const result=await response.json() as T&{error?:string;code?:string;diagnostic?:{reason?:string;clientIp?:string}};
+  if(!response.ok)throw new ManagementRequestError(result.error??`Management request failed (${response.status}).`,result.code,result.diagnostic);
   return result;
 }
 export const managementSession=(account:AccountInfo)=>call<ManagementSession>(account,'bootstrap');

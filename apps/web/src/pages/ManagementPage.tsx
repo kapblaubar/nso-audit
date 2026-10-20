@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState,type FormEvent} from 'react';
 import type {AccountInfo} from '@azure/msal-browser';
 import {initializeAuth,signInManagement,signOutManagement} from '../auth';
-import {activateCustomerContact,managementSession,listCustomers,getCustomer,saveCustomer,type ManagementSession,type CustomerProfile,type ClientContact,type CustomerSummary,type CustomerDetails} from '../managementApi';
+import {ManagementRequestError,activateCustomerContact,managementSession,listCustomers,getCustomer,saveCustomer,type ManagementSession,type CustomerProfile,type ClientContact,type CustomerSummary,type CustomerDetails} from '../managementApi';
 import {TestAccounts} from './TestAccounts';
 import {ThemeToggle} from '../components/ThemeToggle';
 
@@ -12,6 +12,7 @@ export function ManagementPage(){
   const [customers,setCustomers]=useState<CustomerSummary[]>([]),[selected,setSelected]=useState<CustomerDetails>(),[profile,setProfile]=useState<CustomerProfile>({...emptyProfile});
   const [users,setUsers]=useState<ClientContact[]>([]),[subscriptions,setSubscriptions]=useState(''),[search,setSearch]=useState('');
   const [loading,setLoading]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[dirty,setDirty]=useState(false);
+  const [supportDetails,setSupportDetails]=useState('');
   const selectionRequest=useRef(0);
   useEffect(()=>{
     let cancelled=false;
@@ -28,7 +29,7 @@ export function ManagementPage(){
         const result=await listCustomers(state.account);
         if(!cancelled)setCustomers(result.customers);
       }
-    }).catch((cause:unknown)=>{if(!cancelled)setError(cause instanceof Error?cause.message:'Management sign-in failed.');})
+    }).catch((cause:unknown)=>{if(!cancelled){setError(cause instanceof Error?cause.message:'Management sign-in failed.');if(cause instanceof ManagementRequestError&&cause.code)setSupportDetails(JSON.stringify({code:cause.code,...cause.diagnostic},null,2));}})
       .finally(()=>{if(!cancelled)setReady(true);});
     return()=>{cancelled=true;};
   },[]);
@@ -83,7 +84,8 @@ export function ManagementPage(){
   if(!session)return <main className="management-login"><a className="brand" href="/"><img src="/brand/nsosquare.png" width="44" height="44" alt=""/><span>NSO Audit</span></a>
     <section><p className="eyebrow">NewSommer management</p><h1>Set up your clients.</h1><p>Manage customer workspaces and their users. Sign in with your authorized NewSommer Microsoft work account.</p>
       {error?<p className="management-error" role="alert">{error}</p>:null}
-      <button className="management-primary" onClick={authenticate}>Sign in with Microsoft</button>
+      {account?<button className="management-primary" onClick={()=>window.location.reload()}>Retry access</button>:<button className="management-primary" onClick={authenticate}>Sign in with Microsoft</button>}
+      {supportDetails?<button className="management-secondary" onClick={()=>void navigator.clipboard.writeText(supportDetails).catch(()=>setError('Could not copy support details.'))}>Copy support details</button>:null}
       {account?<button className="management-secondary" onClick={logout}>Sign out of {account.username}</button>:null}
       <a className="management-back" href="/">Back to NSO Audit</a></section></main>;
   return <main className="management-page">

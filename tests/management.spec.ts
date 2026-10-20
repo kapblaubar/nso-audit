@@ -80,3 +80,15 @@ test('Dev test account deletion requires the exact email and preserves the user 
   await page.getByLabel('Type the email to confirm deletion').fill('repeat@example.test');await confirm.click();
   await expect(page.getByRole('status')).toContainText('register this email again');expect(deleted).toBe(true);
 });
+
+test('signed-in staff can retry a database outage without another Microsoft login',async({page})=>{
+  await mockManagement(page);
+  let unavailable=true;
+  await page.route('**/api/management/bootstrap',route=>route.fulfill({status:unavailable?503:200,json:unavailable?{error:'Your Microsoft sign-in succeeded, but the customer database is temporarily unavailable. Retry access shortly.',code:'staff_directory_unavailable',diagnostic:{reason:'firewallDenied',clientIp:'192.0.2.1'}}:{role:'setupAdmin',name:'Administrator',environment:'dev'}}));
+  await page.goto('/clientmanagement');
+  await expect(page.getByRole('alert')).toContainText('database is temporarily unavailable');
+  await expect(page.getByRole('button',{name:'Sign in with Microsoft',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Copy support details',exact:true})).toBeVisible();
+  unavailable=false;await page.getByRole('button',{name:'Retry access',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Customer management'})).toBeVisible();
+});
