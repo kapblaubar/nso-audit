@@ -11,8 +11,10 @@ const pool=await new sql.ConnectionPool({server:process.env.SQL_SERVER,database:
 const tx=new sql.Transaction(pool);await tx.begin();
 try{
   if(process.argv.includes('--validate-migration')){
-    const source=await readFile(new URL('../database/migrations/010_dev_account_cleanup.sql',import.meta.url),'utf8');
-    for(const batch of source.split(/^\s*GO\s*$/gmi).filter(x=>x.trim()))await new sql.Request(tx).batch(batch);
+    // Requires schema 013; optionally validate the latest cleanup procedure inside this rollback.
+    const source=await readFile(new URL('../database/migrations/013_questionnaires.sql',import.meta.url),'utf8');
+    const procedure=source.slice(source.indexOf('ALTER PROCEDURE security.ManagementDeleteAccount'));
+    for(const batch of procedure.split(/^\s*GO\s*$/gmi).filter(x=>x.trim()))await new sql.Request(tx).batch(batch);
   }
   const user=randomUUID(),other=randomUUID(),org=randomUUID(),staffTenant=randomUUID(),staffObject=randomUUID(),email=`cleanup-${user}@example.invalid`;
   const bucket=createHash('sha256').update(`email:${email}`).digest('hex');
@@ -30,6 +32,9 @@ try{
     INSERT app.CustomerContacts(OrganizationId,ContactId,DisplayName,Email,IntendedRole) VALUES(@org,NEWID(),'Fixture',@email,'owner');
     INSERT app.Assessments(OrganizationId,AssessmentId,TemplateVersion) VALUES(@org,@org,'fixture');
     INSERT app.Answers(OrganizationId,AssessmentId,QuestionId,AnswerJson,UpdatedBy) VALUES(@org,@org,'fixture','{"value":1}',@user);
+    INSERT app.QuestionnaireScopes(OrganizationId,AssessmentId,ScopeName,AssetClass) VALUES(@org,@org,'Cleanup fixture','END');
+    INSERT app.QuestionnaireAnswers(OrganizationId,AssessmentId,QuestionId,QuestionVersion,AnswerType,AnswerState,BooleanValue,UpdatedBy)
+      VALUES(@org,@org,'BKP-01',1,'yn','answered',1,@user);
     INSERT app.AuditEvents(OrganizationId,ActorType,ActorId,Action) VALUES(@org,'user',CONVERT(nvarchar(36),@user),'fixture');
     EXEC sys.sp_set_session_context @key=N'organizationId',@value=NULL;
     EXECUTE AS USER='nso_api_runtime';`);
@@ -46,9 +51,10 @@ try{
       (SELECT COUNT(*) FROM identitydata.Users WHERE UserId=@other) AS Neighbor,
       (SELECT COUNT(*) FROM security.Memberships WHERE OrganizationId=@org AND UserId=@other) AS NeighborAccess,
       (SELECT COUNT(*) FROM app.Answers WHERE OrganizationId=@org AND UpdatedBy IS NULL AND AnswerJson='{"value":1}') AS PreservedAnswer,
+      (SELECT COUNT(*) FROM app.QuestionnaireAnswers WHERE OrganizationId=@org AND UpdatedBy IS NULL AND BooleanValue=1) AS PreservedQuestionnaireAnswer,
       (SELECT COUNT(*) FROM app.Organizations WHERE OrganizationId=@org) AS PreservedWorkspace;
     EXEC sys.sp_set_session_context @key=N'organizationId',@value=NULL;`);
-  assert.deepEqual(result.recordset[0],{Target:0,Tokens:0,Sessions:0,Requests:0,Memberships:0,Contacts:0,Neighbor:1,NeighborAccess:1,PreservedAnswer:1,PreservedWorkspace:1});
+  assert.deepEqual(result.recordset[0],{Target:0,Tokens:0,Sessions:0,Requests:0,Memberships:0,Contacts:0,Neighbor:1,NeighborAccess:1,PreservedAnswer:1,PreservedQuestionnaireAnswer:1,PreservedWorkspace:1});
   await req().query("EXECUTE AS USER='nso_api_runtime';");
   const registered=await new sql.Request(tx).input('Email',sql.NVarChar(254),email).input('DisplayName',sql.NVarChar(150),'Re-register').input('PasswordHash',sql.NVarChar(512),'new-fixture').input('TokenHash',sql.Char(64),'c'.repeat(64)).execute('security.AuthRegister');
   assert.equal(registered.recordset[0].Email,email);

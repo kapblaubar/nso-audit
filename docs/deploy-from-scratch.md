@@ -6,6 +6,12 @@ for the target environment; credentials and deployment tokens must never be comm
 
 ## Current automation status
 
+For the backup questionnaire feature, apply versioned migration 013 before deploying API code,
+then deploy the web application. The existing deployment workflows do not run SQL migrations.
+Follow [questionnaire deployment and validation](../database/questionnaires.md#deployment-validation-and-recovery)
+for candidate validation, isolation checks, smoke tests and recovery. No additional Azure
+resources or runtime grants are needed; preserve the approved API-to-SQL VNet path.
+
 The existing `NSO-Audit` resource group is **Dev**. Future Prod must use the same maintained
 infrastructure modules with isolated environment parameters, identities, credentials and data.
 Every infrastructure-dependent feature must update its infrastructure code, versioned database

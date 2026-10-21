@@ -3,6 +3,7 @@ import {signIn,initializeAuth} from '../auth';
 import {appConfig} from '../config';
 import {CustomerAudit} from './CustomerAudit';
 import {ThemeToggle} from '../components/ThemeToggle';
+import {QuestionnairePage} from './QuestionnairePage';
 
 type Mode='login'|'register'|'forgot'|'resend'|'verify'|'reset';
 interface CustomerSession{user:{id:string;email:string;name:string};workspaces:{id:string;name:string;role:string;tenantId?:string|null}[]}
@@ -10,6 +11,7 @@ const storageKey='nso.customerSession';
 export function CustomerEntry(){
   const initial:Mode=window.location.pathname==='/account/reset'?'reset':window.location.pathname==='/account/verify'?'verify':'login';
   const [activeOrg,setActiveOrg]=useState(()=>window.location.pathname!=='/signin'&&window.location.pathname!=='/account'?sessionStorage.getItem('nso.customerWorkspace')??'':'');
+  const [questionnaire,setQuestionnaire]=useState(window.location.pathname==='/account/questionnaires');
   const [mode,setMode]=useState<Mode>(initial),[name,setName]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState('');
   const [token]=useState(()=>new URLSearchParams(window.location.hash.slice(1)).get('token')??'');
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[error,setError]=useState(''),[session,setSession]=useState<CustomerSession>(),[ready,setReady]=useState(false);
@@ -25,7 +27,7 @@ export function CustomerEntry(){
     if(window.location.hash)window.history.replaceState({},'',window.location.pathname);
     let cancelled=false;
     const existing=sessionStorage.getItem(storageKey);
-    if(existing&&initial==='login')void call<CustomerSession>('session',undefined,existing).then(result=>{if(!cancelled){setSession(result);window.history.replaceState({},'','/account');}})
+    if(existing&&initial==='login')void call<CustomerSession>('session',undefined,existing).then(result=>{if(!cancelled){setSession(result);window.history.replaceState({},'',window.location.pathname==='/account/questionnaires'?'/account/questionnaires':'/account');}})
       .catch(()=>sessionStorage.removeItem(storageKey)).finally(()=>{if(!cancelled)setReady(true);});
     else setReady(true);
     return()=>{cancelled=true;};
@@ -48,6 +50,7 @@ export function CustomerEntry(){
   async function logout(){setBusy(true);setError('');try{await call('logout',{},sessionStorage.getItem(storageKey)??'');sessionStorage.removeItem(storageKey);setSession(undefined);setActiveOrg('');sessionStorage.removeItem('nso.customerWorkspace');change('login');}catch{setError('Could not sign out. Please try again.');}finally{setBusy(false);}}
   const title={login:'Sign in to NSO Audit',register:'Create your account',forgot:'Reset your password',resend:'Verify your email',verify:'Confirm your email',reset:'Choose a new password'}[mode];
   const workspace=session?.workspaces.find(item=>item.id===activeOrg);
+  if(session&&workspace&&questionnaire)return <QuestionnairePage key={workspace.id} organizationId={workspace.id} workspaceName={workspace.name} role={workspace.role} onBack={()=>{setQuestionnaire(false);setActiveOrg('');window.history.replaceState({},'','/account');}}/>;
   if(session&&workspace?.tenantId)return <CustomerAudit account={{kind:'email',organizationId:workspace.id,tenantId:workspace.tenantId,name:session.user.name,username:session.user.email,role:workspace.role}} onSignOut={()=>void logout()} onBack={()=>{setActiveOrg('');window.history.replaceState({},'','/account');}}/>;
   if(!ready)return <main className="route-loading">Loading your account?</main>;
   return <main className="customer-entry"><nav className="nav"><a className="brand" href="/"><img className="brand-mark" src="/brand/nsosquare.png" width="40" height="40" alt=""/><span className="brand-name">NSO Audit</span></a><div className="nav-actions"><ThemeToggle/>{session?<button className="text-button" onClick={()=>void logout()} disabled={busy}>Sign out</button>:null}</div></nav>
@@ -56,7 +59,7 @@ export function CustomerEntry(){
       <h1>{session?`Welcome, ${session.user.name}`:title}</h1>
       {error?<p className="management-error" role="alert">{error}</p>:null}
       {notice?<p className="management-success" role="status">{notice}</p>:null}
-      {session?<><p>Signed in as {session.user.email}</p><h2>Your workspaces</h2>{session.workspaces.length?<ul className="customer-workspaces">{session.workspaces.map(workspace=><li key={workspace.id}><strong>{workspace.name}</strong><span>{workspace.role}</span>{workspace.tenantId?<button className="management-secondary" onClick={()=>{sessionStorage.setItem('nso.customerWorkspace',workspace.id);setActiveOrg(workspace.id);window.history.replaceState({},'','/account/workspace');}}>Open workspace</button>:<span>Microsoft connection pending</span>}</li>)}</ul>:<p>Your email is verified. Your workspace will appear here after NewSommer approves your access.</p>}<p className="management-help">Your portal account does not grant Microsoft assessment permissions. Microsoft connections are authorized separately by your organization?s administrator.</p></>:<>
+      {session?<><p>Signed in as {session.user.email}</p><h2>Your workspaces</h2>{session.workspaces.length?<ul className="customer-workspaces">{session.workspaces.map(workspace=><li key={workspace.id}><strong>{workspace.name}</strong><span>{workspace.role}</span><button className="management-secondary" onClick={()=>{sessionStorage.setItem('nso.customerWorkspace',workspace.id);setActiveOrg(workspace.id);setQuestionnaire(true);window.history.replaceState({},'','/account/questionnaires');}}>Questionnaire</button>{workspace.tenantId?<button className="management-secondary" onClick={()=>{sessionStorage.setItem('nso.customerWorkspace',workspace.id);setActiveOrg(workspace.id);window.history.replaceState({},'','/account/workspace');}}>Open workspace</button>:<span>Microsoft connection pending</span>}</li>)}</ul>:<p>Your email is verified. Your workspace will appear here after NewSommer approves your access.</p>}<p className="management-help">Your portal account does not grant Microsoft assessment permissions. Microsoft connections are authorized separately by your organization?s administrator.</p></>:<>
         {mode==='login'?<><p>Use your Microsoft work account or your NSO Audit email and password.</p><button className="management-primary customer-microsoft" onClick={()=>void microsoft()} disabled={busy}>Continue with Microsoft</button><div className="customer-divider">or sign in with email</div></>:null}
         {mode==='register'?<p>Use any email address and create a separate NSO Audit password. We?ll email you a verification link.</p>:null}
         {mode==='forgot'||mode==='resend'?<p>Enter your email address to request a new link.</p>:null}

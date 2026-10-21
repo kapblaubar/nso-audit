@@ -1,5 +1,8 @@
 # SQL foundation
 
+The initial backup questionnaire schema, API/form, deployment order and recovery steps are in
+[questionnaires.md](questionnaires.md). Apply migration 013 before deploying that feature.
+
 The existing `NSO-Audit` resource group is Dev. `infra/sql.bicep` adds SQL independently of the
 legacy platform template, preserving the live Function, Static Web App, vault and Storage.
 The full legacy template remains unreconciled; do not apply it to live Dev.

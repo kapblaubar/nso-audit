@@ -1,4 +1,6 @@
 name: Deploy API
+# Deployment prerequisite: database migration 013 must be applied before questionnaire code.
+# SQL migrations are operator-managed; see database/questionnaires.md for order and validation.
 
 on:
   push:

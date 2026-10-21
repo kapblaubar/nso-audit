@@ -14,6 +14,12 @@ review, not a claim of implemented functionality or a replacement of the current
 
 ## Multiple assessment views requirement (2026-10-21)
 
+The [client assessment questionnaire v1](docs/client-assessment-questionnaire-v1.md) defines the
+initial draft question catalog. Each client assessment must support scoped tenant/system answers,
+repeated question groups (including backups for endpoints, servers and databases), save/resume,
+evidence and reviewer conclusions. Retain structured answers for later versioned grading; the
+initial questionnaire does not establish a validated score or framework-compliance result.
+
 The product must present shared security and configuration evidence through four selectable
 view families: AI agent readiness / Copilot readiness; insurance company views; general security
 and configuration; and CMMC and NIST views. Reuse scoped evidence across views while retaining

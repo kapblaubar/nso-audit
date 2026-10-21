@@ -608,3 +608,17 @@ html[data-theme="light"] .customer-workspace-back { background:#f1f6f3; color:#1
 
 .management-invitation-actions { display:flex; flex-direction:column; gap:6px; align-items:flex-start; }
 .management-invitation-status { font-size:.78rem; color:var(--mg-muted); }
+
+.questionnaire-page { --mg-panel:#102020; --mg-field:#0c181e; --mg-border:#50645f; --mg-muted:#a9bbb5; --mg-text:#e8edf3; max-width:1000px; margin:auto; padding:24px; color:var(--mg-text); }
+html[data-theme="light"] .questionnaire-page { --mg-panel:#fff; --mg-field:#f7faf9; --mg-border:#a5bbb1; --mg-muted:#566e68; --mg-text:#172d26; background:#f1f6f3; }
+.questionnaire-page fieldset { border:0; margin:0; padding:0; min-width:0; }
+.questionnaire-page h1 { margin-top:32px; }
+.questionnaire-page .management-field { max-width:100%; margin:12px 0; }
+.questionnaire-page input,.questionnaire-page select,.questionnaire-page textarea { max-width:100%; box-sizing:border-box; }
+.questionnaire-page textarea { width:100%; padding:12px; border:1px solid #6b7b80; border-radius:8px; font:inherit; color:inherit; background:transparent; }
+.questionnaire-question { margin:24px 0; padding:20px; border:1px solid #6b7b80; border-radius:12px; }
+.questionnaire-question h3 { margin-top:0; }
+.questionnaire-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.questionnaire-choice { display:flex; align-items:center; gap:10px; margin:10px 0; }
+.questionnaire-save { position:sticky; bottom:0; display:flex; align-items:center; gap:20px; padding:16px; background:var(--mg-panel); border:1px solid #6b7b80; border-radius:8px; }
+@media(max-width:600px) { .questionnaire-page { padding:16px; } .questionnaire-grid { grid-template-columns:1fr; } .questionnaire-page .nav { flex-wrap:wrap; gap:12px; } }

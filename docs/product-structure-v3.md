@@ -234,6 +234,10 @@ Use manual document review to learn what needs extracting before investing in OC
 
 Define the initial question/control list and report example first. Then settle:
 
+The [client questionnaire v1](client-assessment-questionnaire-v1.md) supplies the first review
+draft, including repeated asset-class backup questions, structured answers and future grading
+requirements. Review it before defining the implementation schema and profile-specific mappings.
+
 - Initial free-service scope, expected customer effort and NewSommer review effort.
 - Which critical system types and company profiles to support first.
 - Who reviews and approves the report and who owns unresolved answers/actions.
