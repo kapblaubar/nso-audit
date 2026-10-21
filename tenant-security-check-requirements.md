@@ -5,6 +5,13 @@
 > connector credentials, and SQL storage. It is a discussion draft; the requirements below
 > describe the existing Microsoft-focused baseline until the replacement scope is agreed.
 
+## Expanded product structure discussion (2026-10-20)
+
+[Product structure v3](docs/product-structure-v3.md) organizes the requested free company
+assessment, insurance readiness, manual/document evidence and automated collection into a
+shared assessment model with several report views. The detailed structure is a proposal for
+review, not a claim of implemented functionality or a replacement of the current scan baseline.
+
 ## API/SQL networking amendment (2026-10-20)
 
 The API, rather than the Static Web App or browser, is the SQL client. Its managed identity must

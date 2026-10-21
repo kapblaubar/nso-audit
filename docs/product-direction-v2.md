@@ -1,5 +1,9 @@
 # NSO Audit: expanded product requirements proposal
 
+> Updated discussion structure (2026-10-20): [product structure v3](product-structure-v3.md)
+> organizes the latest business goals, mixed evidence paths and report views. This older draft
+> remains background; its implementation-status sections should not override later amendments.
+
 Status: discussion draft, 2026-10-19. This document records the requested direction and
 proposed requirements. It does not represent implemented functionality or replace the existing
 requirements until the open product decisions are resolved.
