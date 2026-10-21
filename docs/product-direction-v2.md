@@ -404,3 +404,7 @@ IP allowlists are retired after validated cutover. The approved Front Door integ
 identity boundaries, separate Dev/Prod configuration and recovery requirements are maintained
 in [networking requirements](networking-requirements.md); implementation and deployment order
 are in [the deployment runbook](deploy-from-scratch.md).
+
+Customer onboarding now uses the approved [workspace invitation flow](customer-invitations.md):
+staff save the contact and send an invitation; recipient acceptance verifies email and activates
+the assigned role. Existing verified accounts sign in rather than replacing their password.

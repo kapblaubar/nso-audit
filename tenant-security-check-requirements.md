@@ -15,6 +15,14 @@ existing Dev resources. Front Door remains a future inbound edge; it must not ch
 or replace user authorization. Full requirements and the Front Door integration contract are in
 [networking requirements](docs/networking-requirements.md).
 
+## Customer invitation amendment (2026-10-20)
+
+Saved client users can be invited from management. Invitation acceptance verifies their email,
+lets new users set a password, and grants the saved workspace role without separate registration
+or activation. Existing verified accounts must sign in; their passwords remain unchanged.
+See [customer invitation requirements](docs/customer-invitations.md) for delivery, token security,
+revocation, infrastructure configuration and deployment requirements.
+
 ## 1. Purpose
 
 A self-service web product that lets an authorized Microsoft 365 / Azure tenant user run a

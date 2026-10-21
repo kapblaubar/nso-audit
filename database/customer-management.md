@@ -113,3 +113,32 @@ inspected what-if (only its firewall rule creation), then applied the exact-IP r
 returned healthy. User screenshots confirm successful Microsoft authentication followed by a
 database-stage failure; authenticated-request diagnostics are pending. No customer edit, account
 activation, permission change or application deployment was performed during this repair.
+
+## Customer version encoding repair (2026-10-20)
+
+`rowversion` converted directly to varchar returned raw bytes despite the conversion style.
+The API requires an 18-character hexadecimal concurrency token, so every update was rejected
+with "Reload this customer before saving." Migration `011_customer_version_encoding.sql`
+casts Revision to binary(8) before hexadecimal conversion in list/get/save procedures and the
+optimistic concurrency comparison. It preserves role checks, locks, RLS and contact revocation.
+No customer data migration, grants or infrastructure changes are needed.
+
+Deploy with `node scripts/database.mjs migrate` against explicit Dev SQL using temporary exact
+operator access, then run `scripts/verify-customer-management.mjs` with
+`CONFIRM_DEV_WRITE_TEST=yes`. The regression now validates returned list/get versions through
+the API input validator and performs two successive saves while still rejecting an older token.
+The old verifier bypassed input validation and therefore missed this failure. Fixtures and
+operator firewall access must be removed in finally. Reopen existing browser forms once; their
+in-memory version tokens predate the repair. Preserve unsaved edits before reopening.
+
+Deployment order: migration first; existing API/web work with the corrected format immediately.
+Recovery: the migration is transactional and rolls back all procedure changes if it fails.
+If a later issue occurs, use a forward migration preserving the hex-token contract; reverting
+to raw-byte output restores the save failure. No database restore or schema rollback is needed.
+
+## Invitation onboarding
+
+Migration 012 supersedes the manual register/verify/activate instructions for new invitations.
+See [customer invitations](../docs/customer-invitations.md). Contacts saved before deployment
+are retained; Chris explicitly chooses Send invitation. No automatic mail or access grants run
+during migration.

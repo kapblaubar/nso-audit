@@ -20,11 +20,15 @@ try{
   await assert.rejects(()=>store.saveCustomer(badActor,organizationId,input,true),error=>error.number===51003);
   const saved=await store.saveCustomer(actor,organizationId,input,true);created=true;
   assert.equal(saved.profile.microsoftTenantId,'');assert.deepEqual(saved.profile.subscriptionIds,[]);assert.equal(saved.users.length,1);
-  assert.ok((await store.listCustomers(actor)).some(row=>row.organizationId===organizationId));
+  const listed=(await store.listCustomers(actor)).find(row=>row.organizationId===organizationId);
+  assert.ok(listed);assert.equal(listed.version,saved.version);
   await assert.rejects(()=>store.getCustomer(badActor,organizationId),error=>error.number===51003);
-  const revised={...input,profile:{...input.profile,notes:'Updated'},version:saved.version};
+  assert.match(saved.version,/^0x[0-9a-f]{16}$/i,`Unexpected SQL customer version: ${JSON.stringify(saved.version)}`);
+  const revised=validateCustomerInput({...input,profile:{...input.profile,notes:'Updated'},version:saved.version},false);
   const updated=await store.saveCustomer(actor,organizationId,revised,false);
   assert.notEqual(updated.version,saved.version);
+  const again=await store.saveCustomer(actor,organizationId,validateCustomerInput({...revised,version:updated.version},false),false);
+  assert.notEqual(again.version,updated.version);
   await assert.rejects(()=>store.saveCustomer(actor,organizationId,revised,false),error=>error.number===51001);
   assert.equal((await store.getCustomer(actor,organizationId)).profile.notes,'Updated');
   const grants=await pool.request().input('org',sql.UniqueIdentifier,organizationId).query(`

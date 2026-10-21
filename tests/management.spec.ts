@@ -15,6 +15,10 @@ async function mockManagement(page:Page,authorized=true){
       await route.fulfill({status:authorized?200:403,json:authorized?{role:'setupAdmin',name:'Test administrator',environment:'dev'}:{error:'NewSommer management access is required.'}});return;
     }
     if(path.endsWith('/test-users')){await route.fulfill({json:{accounts:[]}});return;}
+    if(path.endsWith('/invite')){
+      expect(route.request().method()).toBe('POST');
+      await route.fulfill({json:{message:'Invitation sent to owner@example.test.'}});return;
+    }
     customerRequests++;
     if(route.request().method()==='GET'&&path.endsWith('/customers')){
       await route.fulfill({json:{customers:saved?[{organizationId:saved.organizationId,companyName:saved.profile.companyName,primaryContactEmail:saved.profile.primaryContactEmail,version:saved.version}]:[]}});return;
@@ -49,6 +53,10 @@ test('staff can create and edit a non-Microsoft customer with a pending owner',a
   await expect(page.getByRole('status')).toContainText('Customer details saved');
   expect(state.saved().version).toBe('0x0000000000000002');
   expect(state.saved().profile.notes).toBe('Insurance renewal assessment');
+  page.once('dialog',dialog=>dialog.accept());
+  await page.getByRole('button',{name:'Send invitation',exact:true}).click();
+  await expect(page.getByRole('status')).toContainText('Invitation sent');
+  await expect(page.getByRole('button',{name:'Resend invitation',exact:true})).toBeEnabled();
   await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:'.azure/browser-results/management-desktop.png',fullPage:true});
   await page.setViewportSize({width:390,height:844});

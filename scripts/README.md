@@ -135,3 +135,7 @@ read/write validation, operator-access removal and rollback sequence in
 `Set-NsoAuditGitHubApiDeployment.ps1` and `infra/github-api-deployment.bicep`; no API publish
 profile is required. `Test-NsoAuditApiNetwork.ps1` wraps disposable Dev read/write checks with
 exact operator-IP access and automatic firewall cleanup.
+
+`verify-workspace-invitations.mjs` checks disposable Dev invitation acceptance and revocation,
+with optional live API validation. It never sends mail. See `../docs/customer-invitations.md`
+for explicit targets, operator access cleanup, deployment order and recovery.

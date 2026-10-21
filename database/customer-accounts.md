@@ -1,5 +1,10 @@
 # Customer accounts
 
+Staff-created contacts now use the [workspace invitation flow](../docs/customer-invitations.md)
+introduced in migration 012: choose a password and verify email while accepting the workspace
+invitation, or sign in if already verified. The standalone registration/verification flow below
+remains available for self-registration.
+
 Customers enter through `/signin`, choosing Microsoft work sign-in or an NSO Audit email/password
 account with any email provider. Staff enter at `/clientmanagement` and require the configured
 Entra tenant, exact staff object ID and active SQL management role. Email accounts cannot authenticate

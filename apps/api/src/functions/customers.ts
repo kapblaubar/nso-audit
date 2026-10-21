@@ -4,6 +4,8 @@ import {CustomerInputError,validateCustomerInput} from '../management/customerIn
 import {listCustomers,getCustomer,saveCustomer} from '../management/customerStore.js';
 import {uuidPattern,getSqlPool} from '../storage/sql.js';
 import sql from 'mssql';
+import {emailConfiguration,invitationLifetimeHours,sendInvitationEmail} from '../auth/accountEmail.js';
+import {newToken,tokenHash} from '../auth/passwords.js';
 import {managementFailure} from '../auth/managementFailure.js';
 
 export async function manageCustomers(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
@@ -50,3 +52,30 @@ export async function activateContact(request:HttpRequest,context:InvocationCont
   }
 }
 app.http('activateCustomerContact',{methods:['POST'],authLevel:'anonymous',route:'management/customers/{organizationId}/contacts/{contactId}/activate',handler:activateContact});
+
+export async function inviteContact(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
+  const headers={'Cache-Control':'no-store'};
+  let actor;try{actor=await requireManagementUser(request);}catch(error){return{...managementFailure(error),headers};}
+  const {organizationId,contactId}=request.params;
+  if(!uuidPattern.test(organizationId??'')||!uuidPattern.test(contactId??''))return{status:400,headers,jsonBody:{error:'Invalid contact.'}};
+  try{
+    emailConfiguration();const hours=invitationLifetimeHours();
+    const pool=await getSqlPool(),token=newToken(),hash=tokenHash(token);
+    const result=await pool.request().input('TenantId',sql.UniqueIdentifier,actor.tenantId).input('ObjectId',sql.UniqueIdentifier,actor.objectId)
+      .input('OrganizationId',sql.UniqueIdentifier,organizationId).input('ContactId',sql.UniqueIdentifier,contactId)
+      .input('TokenHash',sql.Char(64),hash).input('LifetimeHours',sql.Int,hours).execute('security.ManagementInviteContact');
+    const contact=result.recordset[0];
+    const delivery=async(succeeded:boolean)=>pool.request().input('TenantId',sql.UniqueIdentifier,actor.tenantId).input('ObjectId',sql.UniqueIdentifier,actor.objectId)
+      .input('TokenHash',sql.Char(64),hash).input('Succeeded',sql.Bit,succeeded).execute('security.ManagementInvitationDelivery');
+    try{await sendInvitationEmail(contact.Email,token,contact.CompanyName,hours);await delivery(true);}
+    catch(error){await delivery(false).catch(()=>{});throw error;}
+    return{status:200,headers,jsonBody:{message:`Invitation sent to ${contact.Email}. They can accept it to verify their email and activate workspace access.`}};
+  }catch(error){
+    const number=typeof error==='object'&&error!==null&&'number'in error?error.number:undefined;
+    if(number===51014)return{status:429,headers:{...headers,'Retry-After':'60'},jsonBody:{error:'Wait a minute before resending this invitation.'}};
+    if(number===51004)return{status:404,headers,jsonBody:{error:'Save this client user before sending an invitation.'}};
+    context.error('Customer invitation could not be delivered.');
+    return{status:503,headers,jsonBody:{error:'The invitation could not be sent. No access was granted. Please try again.'}};
+  }
+}
+app.http('inviteCustomerContact',{methods:['POST'],authLevel:'anonymous',route:'management/customers/{organizationId}/contacts/{contactId}/invite',handler:inviteContact});

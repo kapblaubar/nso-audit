@@ -18,3 +18,5 @@ param keyVaultUri = 'https://nso-audit-dev-kv.vault.azure.net/'
 param emailEndpoint = 'https://nso-audit-dev-communication.unitedstates.communication.azure.com'
 param emailSender = 'DoNotReply@3af01091-e156-4e91-a638-3cc56386996d.azurecomm.net'
 param restrictToFrontDoor = false
+
+param invitationLifetimeHours = 72

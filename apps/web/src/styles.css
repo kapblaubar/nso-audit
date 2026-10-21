@@ -605,3 +605,6 @@ html[data-theme="light"] .customer-workspace-back { background:#f1f6f3; color:#1
 .management-test-accounts { margin:0 24px 28px; }
 .management-test-accounts summary { cursor:pointer; padding:12px 0; }
 .management-test-accounts li { margin:16px 0; overflow-wrap:anywhere; }
+
+.management-invitation-actions { display:flex; flex-direction:column; gap:6px; align-items:flex-start; }
+.management-invitation-status { font-size:.78rem; color:var(--mg-muted); }

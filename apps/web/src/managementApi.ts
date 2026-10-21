@@ -7,7 +7,7 @@ export interface CustomerProfile {
   industry:string;country:string;state:string;employeeCount:number|null;deviceCount:number|null;notes:string;
   microsoftAccount:string;microsoftTenantId:string;subscriptionIds:string[];
 }
-export interface ClientContact {id:string;displayName:string;email:string;role:'owner'|'admin'|'contributor'|'viewer'}
+export interface ClientContact {id:string;displayName:string;email:string;role:'owner'|'admin'|'contributor'|'viewer';invitationStatus?:'active'|'invited'|'notInvited'}
 export interface CustomerSummary {organizationId:string;companyName:string;primaryContactEmail:string;version:string}
 export interface CustomerDetails {organizationId:string;version:string;profile:Partial<CustomerProfile>;users:ClientContact[];pendingOwnerEmail:string|null}
 export interface ManagementSession {name:string;role:string;environment:string}
@@ -26,7 +26,7 @@ export const managementSession=(account:AccountInfo)=>call<ManagementSession>(ac
 export const listCustomers=(account:AccountInfo)=>call<{customers:CustomerSummary[]}>(account,'customers');
 export const getCustomer=(account:AccountInfo,id:string)=>call<CustomerDetails>(account,`customers/${encodeURIComponent(id)}`);
 export const saveCustomer=(account:AccountInfo,id:string|undefined,profile:CustomerProfile,users:ClientContact[],version?:string)=>
-  call<CustomerDetails>(account,id?`customers/${encodeURIComponent(id)}`:'customers',id?'PUT':'POST',{profile,users,...(version?{version}:{})});
+  call<CustomerDetails>(account,id?`customers/${encodeURIComponent(id)}`:'customers',id?'PUT':'POST',{profile,users:users.map(({id,displayName,email,role})=>({id,displayName,email,role})),...(version?{version}:{})});
 
 export const activateCustomerContact=(account:AccountInfo,organizationId:string,contactId:string)=>
   call<{message:string}>(account,`customers/${encodeURIComponent(organizationId)}/contacts/${encodeURIComponent(contactId)}/activate`,'POST',{});
@@ -34,3 +34,6 @@ export const activateCustomerContact=(account:AccountInfo,organizationId:string,
 export interface TestAccount{id:string;email:string;name:string;verified:boolean;membershipCount:number}
 export const listTestAccounts=(account:AccountInfo)=>call<{accounts:TestAccount[]}>(account,'test-users');
 export const deleteTestAccount=(account:AccountInfo,id:string,confirmEmail:string)=>call<{message:string}>(account,`test-users/${encodeURIComponent(id)}`,'DELETE',{confirmEmail});
+
+export const inviteCustomerContact=(account:AccountInfo,organizationId:string,contactId:string)=>
+  call<{message:string}>(account,`customers/${encodeURIComponent(organizationId)}/contacts/${encodeURIComponent(contactId)}/invite`,'POST',{});

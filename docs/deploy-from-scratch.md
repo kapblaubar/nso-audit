@@ -72,7 +72,7 @@ SWA names are preserved. Do not use the legacy full `infra/main.bicep` for this 
 
 For a fresh environment, first create its isolated foundation and SQL using explicit operator
 access with `Deploy-NsoAuditSql.ps1 -BootstrapBeforeApiNetwork`; this leaves the subnet parameter
-empty until the VNet exists. Apply schema migrations through `010_dev_account_cleanup.sql`
+empty until the VNet exists. Apply schema migrations through `012_workspace_invitations.sql`
 and the existing restricted runtime-identity SQL grant. Provision storage/Key Vault roles and
 email configuration as documented below. Then:
 
@@ -130,8 +130,8 @@ remain outstanding; this additive Dev deployment does not certify the legacy fou
 
 ## Customer management deployment
 
-Apply versioned SQL migrations through `006_customer_management.sql` before deploying the
-management API. See `database/customer-management.md`. Register the environment's exact
+Apply versioned SQL migrations through `012_workspace_invitations.sql` before deploying the
+current management and invitation API. See `database/customer-management.md`. Register the environment's exact
 `https://<portal-host>/clientmanagement` SPA redirect for management logout, alongside its existing
 `/auth/callback`, using `scripts/Set-NsoAuditAppRedirect.ps1` (Azure CLI authentication).
 Preserve existing redirects, including `/management` for older releases. Register the new
@@ -246,3 +246,18 @@ without exposing tokens or raw SQL errors. A signed-in staff user can use **Retr
 starting another Microsoft login. Publish the API before web for this message/retry update.
 No schema or infrastructure change is required; current Linux Consumption SQL networking remains
 unresolved. A healthy public health request does not verify the user's authenticated staff request.
+
+Customer save tokens require `011_customer_version_encoding.sql` before management validation.
+See `database/customer-management.md` for validation and recovery; the regression test must
+pass returned SQL versions through the same input validation used by HTTP saves.
+
+## Workspace invitation deployment
+
+Follow `docs/customer-invitations.md`. Apply migrations through 012 (including the version-token
+repair in 011), compile and inspect `infra/api-network.bicep` with environment parameters, then
+publish API and web in that order. The existing ACS sender/role is reused; the per-environment
+`invitationLifetimeHours` parameter defaults to 72 and sets `ACCOUNT_INVITATION_HOURS`.
+No real invitations are sent by migration or deployment. The staff Send invitation action
+replaces separate registration/verification/activation for the recipient. Validate using
+`verify-workspace-invitations.mjs` and the invitation/browser regressions; preserve accepted
+memberships during code rollback and use forward schema repairs.

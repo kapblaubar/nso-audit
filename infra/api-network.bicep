@@ -21,6 +21,9 @@ param managementObjectId string
 param keyVaultUri string
 param emailEndpoint string
 param emailSender string
+@minValue(1)
+@maxValue(168)
+param invitationLifetimeHours int = 72
 param entraClientSecretName string = 'nso-audit-app-client-secret'
 param entraClientCertificateName string = 'nso-audit-dlp-certificate'
 @allowed([512,2048,4096])
@@ -176,6 +179,7 @@ resource api 'Microsoft.Web/sites@2024-04-01' = {
       PORTAL_ORIGIN: portalOrigin
       ACCOUNT_EMAIL_ENDPOINT: emailEndpoint
       ACCOUNT_EMAIL_SENDER: emailSender
+      ACCOUNT_INVITATION_HOURS: string(invitationLifetimeHours)
       FRONT_DOOR_ID: restrictToFrontDoor ? frontDoorId : ''
     }
   }

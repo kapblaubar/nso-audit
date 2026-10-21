@@ -75,3 +75,52 @@ test('registration and reset reject passwords missing the required character cla
   await page.getByLabel('New password',{exact:true}).fill('LongerPassword1!');
   await page.getByRole('button',{name:'Save new password'}).click();await expect(page.getByRole('status')).toContainText('Accepted');expect(submissions).toBe(1);
 });
+
+
+test('a new user accepts an invitation by choosing a password, without separate registration',async({page})=>{
+  let accepted=0;
+  await page.route('**/api/account/**',async route=>{
+    const action=new URL(route.request().url()).pathname.split('/').at(-1);
+    if(action==='invitation')return route.fulfill({json:{email:'invited@example.test',name:'Invited client',company:'Existing customer',role:'owner',needsPassword:true}});
+    expect(action).toBe('accept-invitation');
+    const body=route.request().postDataJSON();expect(body.token).toBe('i'.repeat(43));expect(body.password).toBe('Long invitation Password1!');
+    accepted++;return route.fulfill({json:{message:'Invitation accepted.'}});
+  });
+  await page.goto(`/account/invitation#token=${'i'.repeat(43)}`);
+  await expect(page.getByRole('heading',{name:'Set your password',exact:true})).toBeVisible();
+  await expect(page).toHaveURL(/\/account\/invitation$/);expect(accepted).toBe(0);
+  await expect(page.getByLabel('Email address')).toHaveValue('invited@example.test');
+  await page.getByLabel('New password',{exact:true}).fill('Long invitation Password1!');
+  await page.getByLabel('Confirm password',{exact:true}).fill('Another Password1!');
+  await page.getByRole('button',{name:'Set password and accept invitation'}).click();
+  await expect(page.getByRole('alert')).toContainText('do not match');expect(accepted).toBe(0);
+  await page.getByLabel('Confirm password',{exact:true}).fill('Long invitation Password1!');
+  await page.getByRole('button',{name:'Set password and accept invitation'}).click();
+  await expect(page.getByRole('heading',{name:'Invitation accepted',exact:true})).toBeVisible();expect(accepted).toBe(1);
+  await expect(page.getByRole('status')).toContainText('workspace access is active');
+});
+
+test('existing users sign in to accept an invitation without submitting a replacement password',async({page})=>{
+  await mockAuth(page);let accepted=false;
+  await page.route('**/api/account/**',async route=>{
+    const action=new URL(route.request().url()).pathname.split('/').at(-1);
+    if(action==='invitation')return route.fulfill({json:{email:'existing@example.test',company:'Existing customer',role:'viewer',needsPassword:false}});
+    if(action==='login'){expect(route.request().postDataJSON().email).toBe('existing@example.test');return route.fulfill({json:{token:'s'.repeat(43)}});}
+    if(action==='accept-invitation'){
+      expect(route.request().headers().authorization).toBe('Bearer '+'s'.repeat(43));
+      expect(route.request().postDataJSON()).toEqual({token:'i'.repeat(43)});accepted=true;return route.fulfill({json:{message:'Accepted.'}});
+    }
+    return route.fulfill({json:{user:{name:'Existing client',email:'existing@example.test'},workspaces:[{id:'workspace',name:'Existing customer',role:'viewer'}]}});
+  });
+  await page.goto(`/account/invitation#token=${'i'.repeat(43)}`);
+  await page.getByLabel('Password',{exact:true}).fill('Existing Password1!');
+  await page.getByRole('button',{name:'Sign in and accept invitation'}).click();
+  await expect(page.getByRole('heading',{name:'Welcome, Existing client'})).toBeVisible();expect(accepted).toBe(true);
+});
+
+test('an expired invitation offers no password or acceptance form',async({page})=>{
+  await page.route('**/api/account/invitation',route=>route.fulfill({status:400,json:{error:'This invitation is invalid or expired. Ask NewSommer to send a new one.'}}));
+  await page.goto(`/account/invitation#token=${'i'.repeat(43)}`);
+  await expect(page.getByRole('alert')).toContainText('invalid or expired');
+  await expect(page.getByRole('button',{name:'Set password and accept invitation'})).toHaveCount(0);
+});

@@ -12,7 +12,7 @@ function bearer(request:HttpRequest){const value=request.headers.get('authorizat
 export async function accounts(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
   try{
     const action=request.params.action??'';
-    if(!['register','login','forgot','resend','verify','reset','session','logout'].includes(action))return reply(404,{error:'Not found.'});
+    if(!['register','login','forgot','resend','verify','reset','session','logout','invitation','accept-invitation'].includes(action))return reply(404,{error:'Not found.'});
     const pool=await getSqlPool();
     if(action==='session'||action==='logout'){
       if((action==='session'&&request.method!=='GET')||(action==='logout'&&request.method!=='POST'))return reply(405,{error:'Method not allowed.'});
@@ -34,6 +34,22 @@ export async function accounts(request:HttpRequest,context:InvocationContext):Pr
     for(const [bucket,limit] of [[`peer:${peer}`,50],[`email:${email||tokenHash(String(body.token??''))}`,10]] as const){
       const throttle=await pool.request().input('BucketHash',sql.Char(64),tokenHash(bucket)).input('Limit',sql.Int,limit).execute('security.AuthThrottle');
       if(!throttle.recordset[0]?.Allowed)return{...reply(429,{error:'Too many attempts. Try again in 15 minutes.'}),headers:{...headers,'Retry-After':'900'}};
+    }
+    if(action==='invitation'||action==='accept-invitation'){
+      if(typeof body.token!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(body.token))return reply(400,{error:'This invitation is invalid or expired. Ask NewSommer to send a new one.'});
+      const hash=tokenHash(body.token);
+      if(action==='invitation'){
+        const result=await pool.request().input('TokenHash',sql.Char(64),hash).execute('security.AuthInspectInvitation');
+        const invitation=result.recordset[0];
+        if(!invitation)return reply(400,{error:'This invitation is invalid or expired. Ask NewSommer to send a new one.'});
+        return reply(200,{email:invitation.Email,name:invitation.DisplayName,company:invitation.CompanyName,role:invitation.IntendedRole,needsPassword:Boolean(invitation.NeedsPassword)});
+      }
+      if(body.password!==undefined&&!validPassword(body.password))return reply(400,{error:'Use 15 to 128 characters with an uppercase letter, a lowercase letter, a number and a special character.'});
+      const session=bearer(request);
+      await pool.request().input('TokenHash',sql.Char(64),hash)
+        .input('PasswordHash',sql.NVarChar(512),body.password===undefined?null:await hashPassword(body.password as string))
+        .input('SessionHash',sql.Char(64),session?tokenHash(session):null).execute('security.AuthAcceptInvitation');
+      return reply(200,{message:'Invitation accepted. Your email is verified and workspace access is active. You can now sign in.'});
     }
     if(['register','login','forgot','resend'].includes(action)&&!validEmail(email))return reply(400,{error:'Enter a valid email address.'});
     if(['register','reset'].includes(action)&&!validPassword(body.password))return reply(400,{error:'Use 15 to 128 characters with an uppercase letter, a lowercase letter, a number and a special character.'});
@@ -71,7 +87,11 @@ export async function accounts(request:HttpRequest,context:InvocationContext):Pr
       .input('PasswordHash',sql.NVarChar(512),action==='reset'?await hashPassword(body.password as string):null).execute('security.AuthCompleteToken');
     return reply(200,{message:action==='verify'?'Email verified. You can now sign in.':'Password changed. Sign in with your new password.'});
   }catch(error){
-    if(typeof error==='object'&&error!==null&&'number'in error&&error.number===51010)return reply(400,{error:'This link is invalid or expired. Request a new one.'});
+    if(typeof error==='object'&&error!==null&&'number'in error){
+      if(error.number===51015)return reply(401,{error:'Sign in with the invited email account to accept this invitation.'});
+      if(error.number===51016)return reply(400,{error:'Choose a password to accept this invitation.'});
+    }
+    if(typeof error==='object'&&error!==null&&'number'in error&&error.number===51010)return reply(400,{error:'This link is invalid or expired. Ask for a new invitation or account link.'});
     context.error('Customer account operation failed.');
     return reply(503,{error:'Account service is temporarily unavailable. Please try again shortly.'});
   }

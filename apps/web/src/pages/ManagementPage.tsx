@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState,type FormEvent} from 'react';
 import type {AccountInfo} from '@azure/msal-browser';
 import {initializeAuth,signInManagement,signOutManagement} from '../auth';
-import {ManagementRequestError,activateCustomerContact,managementSession,listCustomers,getCustomer,saveCustomer,type ManagementSession,type CustomerProfile,type ClientContact,type CustomerSummary,type CustomerDetails} from '../managementApi';
+import {ManagementRequestError,inviteCustomerContact,managementSession,listCustomers,getCustomer,saveCustomer,type ManagementSession,type CustomerProfile,type ClientContact,type CustomerSummary,type CustomerDetails} from '../managementApi';
 import {TestAccounts} from './TestAccounts';
 import {ThemeToggle} from '../components/ThemeToggle';
 
@@ -61,16 +61,20 @@ export function ManagementPage(){
       const saved=await saveCustomer(account,selected?.organizationId,{...profile,subscriptionIds:subscriptions.split(/[\s,;]+/).filter(Boolean)},users,selected?.version);
       populate(saved);
       const result=await listCustomers(account);setCustomers(result.customers);
-      setNotice('Customer details saved. Activate access separately after each client verifies their email account.');
+      setNotice('Customer details saved. Send an invitation beside each client user to let them set their password and accept access.');
     }catch(cause){setError(cause instanceof Error?cause.message:'Customer could not be saved.');}
     finally{setSaving(false);}
   }
-  async function activate(contactId:string){
+  async function invite(contactId:string){
     if(!account||!selected||dirty||saving)return;
-    if(!window.confirm('Grant this verified email account access to this customer using the saved intended role?'))return;
+    const user=users.find(user=>user.id===contactId);
+    if(!user||!window.confirm(`Send an invitation to ${user.email} for ${selected.profile.companyName} as ${user.role}? Any previous pending link will be replaced.`))return;
     setSaving(true);setError('');setNotice('');
-    try{const result=await activateCustomerContact(account,selected.organizationId,contactId);setNotice(result.message);}
-    catch(cause){setError(cause instanceof Error?cause.message:'Access could not be activated.');}
+    try{
+      const result=await inviteCustomerContact(account,selected.organizationId,contactId);
+      setUsers(previous=>previous.map(item=>item.id===contactId?{...item,invitationStatus:item.invitationStatus==='active'?'active':'invited'}:item));
+      setNotice(result.message);
+    }catch(cause){setError(cause instanceof Error?cause.message:'Invitation could not be sent.');}
     finally{setSaving(false);}
   }
   const authenticate=()=>{setError('');void signInManagement().catch(cause=>setError(cause instanceof Error?cause.message:'Microsoft sign-in failed.'));};
@@ -110,13 +114,13 @@ export function ManagementPage(){
               {(['employeeCount','deviceCount'] as const).map(key=><label className="management-field" key={key}><span>{key==='employeeCount'?'Employees':'Devices'} <small>Optional</small></span><input type="number" min="0" max="10000000" step="1" value={profile[key]??''} onChange={event=>update(key,event.target.value===''?null:Number(event.target.value))}/></label>)}
             </div></section>
             <section className="management-card"><div className="management-section-heading"><div><h3>Client users</h3><p>Record names, email addresses and intended workspace roles.</p></div><button type="button" className="management-secondary" onClick={()=>addUser()}>+ Add user</button></div>
-              <p className="management-help">Save each contact, then ask them to create an email account and verify their email at the customer sign-in page. Activate access when they are ready. Saving a contact removal also revokes that email account?s workspace access. Do not enter passwords here.</p>
+              <p className="management-help">Save each client user, then send an invitation. They follow the email link to choose a password or sign in, verify their email and activate the saved role. Removing a saved user revokes their workspace access and pending invitations. Do not enter passwords here.</p>
               {selected?.pendingOwnerEmail?<p className="management-owner-note">Pending ownership handover: <strong>{selected.pendingOwnerEmail}</strong></p>:null}
               {!users.length?<div className="management-empty"><p>No client users recorded.</p><button className="management-secondary" type="button" disabled={!profile.primaryContactName||!profile.primaryContactEmail} onClick={()=>addUser(true)}>Add primary contact as owner</button></div>:null}
               {users.map((user,index)=><div className="management-user" key={user.id}><label className="management-field"><span>Name <small>Required</small></span><input aria-label={`User ${index+1} name`} value={user.displayName} required maxLength={150} onChange={event=>updateUser(user.id,{displayName:event.target.value})}/></label>
                 <label className="management-field"><span>Email <small>Required</small></span><input aria-label={`User ${index+1} email`} type="email" required maxLength={254} value={user.email} onChange={event=>updateUser(user.id,{email:event.target.value})}/></label>
                 <label className="management-field"><span>Intended role</span><select aria-label={`User ${index+1} role`} value={user.role} onChange={event=>updateUser(user.id,{role:event.target.value as ClientContact['role']})}><option value="owner">Owner</option><option value="admin">Client admin</option><option value="contributor">Contributor</option><option value="viewer">Viewer</option></select></label>
-                <button type="button" className="management-secondary" disabled={!selected||dirty||saving} onClick={()=>void activate(user.id)}>Activate access</button><button type="button" className="management-remove" aria-label={`Remove user ${index+1}`} onClick={()=>{setUsers(previous=>previous.filter(item=>item.id!==user.id));setDirty(true);}}>Remove</button></div>)}
+                <div className="management-invitation-actions"><button type="button" className="management-secondary" disabled={!selected||dirty||saving||!user.displayName.trim()} onClick={()=>void invite(user.id)}>{user.invitationStatus==='invited'?'Resend invitation':'Send invitation'}</button><span className="management-invitation-status">{user.invitationStatus==='active'?'Access active':user.invitationStatus==='invited'?'Invitation pending':'Not invited'}</span></div><button type="button" className="management-remove" aria-label={`Remove user ${index+1}`} onClick={()=>{setUsers(previous=>previous.filter(item=>item.id!==user.id));setDirty(true);}}>Remove</button></div>)}
             </section>
             <section className="management-card"><div className="management-section-heading"><h3>Microsoft environment</h3><span className="management-badge">Entirely optional</span></div><p>Leave these fields empty for clients that do not use Microsoft. Saving identifiers does not grant consent or start a scan.</p>
               <div className="management-fields">{textField('microsoftAccount','Microsoft account',false,'email')}

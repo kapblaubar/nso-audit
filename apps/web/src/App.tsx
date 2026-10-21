@@ -6,9 +6,11 @@ import { LandingPage } from "./pages/LandingPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { ReportPage } from "./pages/ReportPage";
 import {CustomerEntry} from "./pages/CustomerEntry";
+import {InvitationPage} from './pages/InvitationPage';
 import {ManagementPage} from './pages/ManagementPage';
 
 export function App() {
+  if(window.location.pathname==='/account/invitation')return <InvitationPage/>;
   if(window.location.pathname==='/management'||window.location.pathname.startsWith('/management/')){
     window.history.replaceState({},'',`/clientmanagement${window.location.search}${window.location.hash}`);
   }
