@@ -12,6 +12,20 @@ assessment, insurance readiness, manual/document evidence and automated collecti
 shared assessment model with several report views. The detailed structure is a proposal for
 review, not a claim of implemented functionality or a replacement of the current scan baseline.
 
+## Multiple assessment views requirement (2026-10-21)
+
+The product must present shared security and configuration evidence through four selectable
+view families: AI agent readiness / Copilot readiness; insurance company views; general security
+and configuration; and CMMC and NIST views. Reuse scoped evidence across views while retaining
+profile-specific criteria, additional evidence needs, conclusions and gaps. Identify the selected
+product, insurer/form, framework/publication, version and applicable level/scope rather than
+treating these as interchangeable compliance checklists. View selection does not grant access
+or establish certification, approval or insurance acceptance.
+
+See [required assessment views](docs/product-structure-v3.md#required-assessment-views-2026-10-21)
+for profile versioning, report requirements and acceptance criteria. This is a requirement for
+the expanded product, not a claim that these views are currently implemented.
+
 ## API/SQL networking amendment (2026-10-20)
 
 The API, rather than the Static Web App or browser, is the SQL client. Its managed identity must

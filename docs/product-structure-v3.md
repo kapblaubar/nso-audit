@@ -39,6 +39,44 @@ reviews and authorizes sharing; no automatic submission or promise of insurance 
 Keep the product name NSO Audit if desired, while describing outputs as an assessment and
 readiness report rather than implying an independent certification.
 
+### Required assessment views (2026-10-21)
+
+The product must present shared security and configuration data through selectable views for
+different purposes. These four view families are requested product requirements; their detailed
+criteria, mappings and delivery sequence still require definition. They are not implemented features.
+
+| View family | Purpose and required presentation |
+| --- | --- |
+| AI agent readiness / Copilot readiness | Present readiness to adopt and operate AI agents and Copilot, including identity and access, data exposure and sharing, information governance, agent permissions, oversight and relevant configuration. Distinguish general AI agent readiness from a selected Copilot product/use case; show prerequisites, observed settings, evidence gaps and recommended preparation. |
+| Insurance company views | Present answers, evidence, exceptions and unresolved items in the structure needed by a selected insurance provider and questionnaire/form edition. Support multiple provider profiles using the same underlying assessment. |
+| General security and configuration | Present platform/domain posture, configuration findings, coverage, strengths, gaps and prioritized remediation for business and technical audiences. |
+| CMMC and NIST views | Present evidence and gaps against explicitly selected CMMC or NIST profiles. Identify the framework/publication, version, applicable scope and, where relevant, level. Treat CMMC and individual NIST frameworks/publications as distinct profiles with reviewed mappings. |
+
+These purpose-based views complement the audience/report views above. A user must be able to
+switch between applicable views for the same assessment without re-entering shared answers or
+recollecting valid evidence. View availability must state whether its criteria and mappings are
+supported; a proposed profile must not appear as a completed assessment.
+
+Each profile must have a stable identifier and version, applicability rules, criteria and reviewed
+mappings to shared controls/evidence. A view may require additional questions or evidence.
+Reusing evidence must preserve its scope, freshness, provenance and review status; a mapping
+alone does not establish that a requirement is satisfied. Profile-specific conclusions and gaps
+must remain distinguishable from shared observations and other profiles' conclusions.
+
+Each view and export must identify the selected profile/version, assessment scope, evidence
+coverage, unknowns, exceptions and prioritized actions. Switching views must preserve customer
+authorization and evidence-sharing restrictions; an insurance-provider view does not grant an
+insurer access. Record the profile/mapping versions in approved report snapshots.
+
+Readiness and gap reports must not claim formal CMMC certification, NIST approval, insurance
+acceptance or guaranteed safe AI deployment. Exact framework editions, CMMC scope/levels,
+insurer forms and Copilot products/use cases must be selected and validated before their detailed
+assessment criteria are published.
+
+Acceptance: use one sample assessment to demonstrate switching among all four supported view
+families, trace a reused evidence item to each relevant criterion, show additional evidence needs
+and differing conclusions, and export reports with the correct profile/version and access scope.
+
 ## 3. Assessment modules
 
 | Module | What it establishes | Typical evidence |
