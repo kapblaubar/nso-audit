@@ -6,11 +6,21 @@ for the target environment; credentials and deployment tokens must never be comm
 
 ## Current automation status
 
+The full client questionnaire requires migrations through 014 before API/web deployment. Follow
+[the client-assessment runbook](../database/client-assessments.md) for the Markdown/catalog build,
+disposable validation, deployment order, live checks and recovery. The deployment wrapper now
+validates the 013 baseline plus candidate 014; earlier backup-only data is preserved.
+See the [full questionnaire Dev deployment record](client-questionnaire-deployment-2026-10-21.md)
+for the applied migration and successful live API/browser checks.
+
 For the backup questionnaire feature, apply versioned migration 013 before deploying API code,
 then deploy the web application. The existing deployment workflows do not run SQL migrations.
 Follow [questionnaire deployment and validation](../database/questionnaires.md#deployment-validation-and-recovery)
-for candidate validation, isolation checks, smoke tests and recovery. No additional Azure
-resources or runtime grants are needed; preserve the approved API-to-SQL VNet path.
+for candidate validation, isolation checks, smoke tests and recovery. No permanent Azure
+resources or manual runtime grants are needed; SQL permissions are delivered by migration 013.
+Preserve the approved API-to-SQL VNet path.
+The [2026-10-21 Dev deployment record](questionnaire-deployment-2026-10-21.md) records the applied
+migration and successful live API/browser verification for this feature.
 
 The existing `NSO-Audit` resource group is **Dev**. Future Prod must use the same maintained
 infrastructure modules with isolated environment parameters, identities, credentials and data.

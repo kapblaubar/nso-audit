@@ -1,5 +1,11 @@
 # Questionnaire storage and first form
 
+Superseded for the current client experience by [full client assessments](client-assessments.md)
+and migration 014. The notes below document the preserved migration-013 backup-only release.
+
+Dev deployment and live validation are recorded in
+[2026-10-21 deployment notes](../docs/questionnaire-deployment-2026-10-21.md).
+
 Implementation scope: backup questionnaires, one named asset/environment scope per assessment.
 The full questionnaire in `docs/client-assessment-questionnaire-v1.md` remains the expansion
 backlog. Other domains, automatic grading, evidence uploads and reviewer/report approval screens
@@ -43,8 +49,9 @@ do not automatically reinterpret legacy JSON answers as typed answers.
 
 The browser calls the configured Function API; it never connects to SQL or receives SQL credentials.
 Dev uses `nso-audit-dev-api-flex` over the approved VNet/subnet SQL path. The older Dev API was
-retained for rollback, not as a second database service. This slice needs no new Azure resources,
-roles, settings or firewall rules. Existing shared Bicep/network parameters remain authoritative;
+retained for rollback, not as a second database service. This slice needs no new permanent Azure
+resources, Azure role assignments, runtime settings or persistent firewall rules; SQL grants are
+part of migration 013. Existing shared Bicep/network parameters remain authoritative;
 Prod must supply separate API/SQL targets and identities.
 
 The customer workspace list includes a **Questionnaire** button, even without a Microsoft tenant.
@@ -80,6 +87,21 @@ explicitly confirmed test-account deletion removes a login. The migration update
 to detach the respondent inside each authorized organization context without deleting answers.
 
 ## Deployment, validation and recovery
+
+The Dev-specific wrapper `scripts/Deploy-NsoAuditQuestionnaires.ps1` plans a uniquely named
+disposable database and exact-IP operator rule using `infra/sql-validation.bicep`; it does not
+redeploy the existing SQL server or application infrastructure. Run without `-Apply`, inspect
+what-if, then repeat with the same explicit subscription, validation database name, operator IP
+and runtime client ID plus `-Apply`. It verifies migrations in the disposable database, applies
+013 to Dev, publishes API then web, and verifies the live API/browser with synthetic fixtures.
+Its finally block removes the disposable database and temporary firewall access. It is restricted
+to the existing Dev resources and is not a Prod deployment script.
+
+For the disposable baseline, `node scripts/database.mjs migrate --through=012_workspace_invitations.sql`
+applies only through 012. Normal `migrate` still applies all pending migrations and verifies their
+checksums. `scripts/verify-questionnaire-api.mjs` requires explicit Dev SQL/API targets and
+`CONFIRM_DEV_WRITE_TEST=yes`; setting `QUESTIONNAIRE_TEST_PORTAL_URL` also runs the deployed
+browser save/reopen test. Fixtures contain no real customer data or email delivery.
 
 1. Confirm the environment-specific SQL/API targets and recovery point. Follow the existing
    networking runbook for temporary operator exact-IP access; never add Function worker IPs.

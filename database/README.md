@@ -2,6 +2,9 @@
 
 The initial backup questionnaire schema, API/form, deployment order and recovery steps are in
 [questionnaires.md](questionnaires.md). Apply migration 013 before deploying that feature.
+The complete 12-section client questionnaire uses migration 014; see
+[client-assessments.md](client-assessments.md) for source-catalog generation, storage, validation,
+deployment and recovery. Earlier backup IDs and answers remain available.
 
 The existing `NSO-Audit` resource group is Dev. `infra/sql.bicep` adds SQL independently of the
 legacy platform template, preserving the live Function, Static Web App, vault and Storage.

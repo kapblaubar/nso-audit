@@ -1,109 +1,56 @@
-import {useEffect,useState,type FormEvent,type ChangeEvent} from 'react';
+import {useEffect,useState,type FormEvent} from 'react';
 import {appConfig} from '../config';
+import {AssessmentQuestion,RecordField} from '../components/AssessmentQuestion';
+import {groupQuestions,type ClientAnswer,type ClientAssessment,type Review} from '../clientAssessmentApi';
+import {LegacyQuestionnairePage} from './LegacyQuestionnairePage';
 
-type AnswerType='yn'|'status'|'coverage'|'select'|'multi'|'date'|'text'|'number';
-interface Question{id:string;version:number;prompt:string;help:string;type:AnswerType;options:{id:string;label:string}[]}
-interface Answer{
-  questionId:string;questionVersion:number;state:string;justification?:string;evidenceReference?:string;
-  booleanValue?:boolean;textValue?:string;numberValue?:number;unit?:string;dateValue?:string;
-  selectedOptionId?:string;selections?:string[];totalInScope?:number;totalCovered?:number;
-  estimatedPercentage?:number;measurementDate?:string;measurementSource?:string;
-}
-interface Assessment{id:string;scopeName:string;assetClass:string;tenantId:string|null;revision:number;status:string;questions:Question[];answers:Answer[]}
-interface Summary{id:string;scopeName:string;assetClass:string;updatedAt:string}
-const classes=[['END','Endpoints'],['SRV','Servers'],['DB','Databases'],['SaaS','Email / collaboration / SaaS'],['CLD','Cloud workloads / storage'],['NET','Network / security configuration']];
-const valueKeys=['booleanValue','textValue','numberValue','unit','dateValue','selectedOptionId','selections','totalInScope','totalCovered','estimatedPercentage','measurementDate','measurementSource'] as const;
+interface Listing{assessments:{id:string;name:string;templateVersion:string}[];earlierAssessments:{id:string;name:string;assetClass:string}[]}
 export function QuestionnairePage({organizationId,workspaceName,role,onBack}:{organizationId:string;workspaceName:string;role:string;onBack:()=>void}){
-  const [list,setList]=useState<Summary[]>([]),[assessment,setAssessment]=useState<Assessment>();
-  const [answers,setAnswers]=useState<Record<string,Answer>>({}),[scopeName,setScopeName]=useState(''),[assetClass,setAssetClass]=useState('END'),[tenantId,setTenantId]=useState('');
-  const [busy,setBusy]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState(''),[dirty,setDirty]=useState(false);
-  const [coverageModes,setCoverageModes]=useState<Record<string,string>>({});
-  const canWrite=['owner','admin','contributor'].includes(role);
+  const [listing,setListing]=useState<Listing>({assessments:[],earlierAssessments:[]}),[assessment,setAssessment]=useState<ClientAssessment>();
+  const [sectionId,setSectionId]=useState('company'),[groupId,setGroupId]=useState(''),[answers,setAnswers]=useState<Record<string,ClientAnswer>>({});
+  const [name,setName]=useState(''),[owner,setOwner]=useState(''),[reviewer,setReviewer]=useState('');
+  const [groupName,setGroupName]=useState(''),[groupContext,setGroupContext]=useState<Record<string,string|number|null>>({});
+  const [legacyId,setLegacyId]=useState(''),[busy,setBusy]=useState(true),[dirty,setDirty]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+  const canWrite=['owner','admin','contributor'].includes(role),canReview=['owner','admin'].includes(role);
+  const section=assessment?.sections.find(s=>s.id===sectionId);
+  const suggestedEvidence=section?.description?.match(/Suggested evidence:[\s\S]*/)?.[0];
+  const groups=assessment?.groups.filter(g=>g.sectionId===sectionId)??[];
+  const group=groups.find(g=>g.id===groupId)??groups[0];
+  const questions=assessment&&group?groupQuestions(assessment,group):[];
+  const readOnly=!canWrite||assessment?.status!=='draft';
   async function call<T>(suffix='',body?:object,method='GET'):Promise<T>{
     if(!appConfig.apiBaseUrl)throw new Error('The questionnaire service is not configured.');
-    const response=await fetch(`${appConfig.apiBaseUrl}/me/questionnaires${suffix}`,{method,headers:{
-      Authorization:`Bearer ${sessionStorage.getItem('nso.customerSession')??''}`,'X-Nso-Organization-Id':organizationId,
-      ...(body?{'Content-Type':'application/json'}:{}),
-    },...(body?{body:JSON.stringify(body)}:{})});
-    const result=await response.json() as T&{error?:string};
-    if(!response.ok)throw new Error(result.error??'The questionnaire request failed.');
-    return result;
+    const response=await fetch(`${appConfig.apiBaseUrl}/me/client-assessments${suffix}`,{method,headers:{Authorization:`Bearer ${sessionStorage.getItem('nso.customerSession')??''}`,'X-Nso-Organization-Id':organizationId,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
+    const result=await response.json() as T&{error?:string};if(!response.ok)throw new Error(result.error??'The questionnaire request failed.');return result;
   }
-  useEffect(()=>{let cancelled=false;void call<{assessments:Summary[]}>().then(data=>{if(!cancelled)setList(data.assessments);})
-    .catch(cause=>{if(!cancelled)setError(cause instanceof Error?cause.message:'Could not load questionnaires.');}).finally(()=>{if(!cancelled)setBusy(false);});return()=>{cancelled=true;};},[organizationId]);
+  useEffect(()=>{let cancelled=false;void call<Listing>().then(result=>{if(!cancelled)setListing(result);}).catch(cause=>{if(!cancelled)setError((cause as Error).message);}).finally(()=>{if(!cancelled)setBusy(false);});return()=>{cancelled=true;};},[organizationId]);
   useEffect(()=>{const warn=(event:BeforeUnloadEvent)=>{if(dirty){event.preventDefault();event.returnValue='';}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
-  function accept(data:Assessment){setAssessment(data);setAnswers(Object.fromEntries(data.answers.map(a=>[a.questionId,a])));setCoverageModes(Object.fromEntries(data.answers.map(a=>[a.questionId,a.estimatedPercentage!==undefined?'estimate':'counts'])));setDirty(false);}
+  function accept(data:ClientAssessment,nextSection=sectionId,nextGroup=groupId){
+    setAssessment(data);setSectionId(nextSection);const selected=data.groups.find(g=>g.sectionId===nextSection&&g.id===nextGroup)??data.groups.find(g=>g.sectionId===nextSection);setGroupId(selected?.id??'');setAnswers(Object.fromEntries((selected?.answers??[]).map(a=>[a.questionId,a])));setDirty(false);
+  }
   function leave(action:()=>void){if(!dirty||window.confirm('Discard unsaved questionnaire changes?')){setDirty(false);action();}}
-  async function open(id:string){setBusy(true);setError('');setNotice('');try{accept(await call<Assessment>(`/${id}`));}catch(cause){setError((cause as Error).message);}finally{setBusy(false);}}
-  async function create(event:FormEvent){event.preventDefault();setBusy(true);setError('');setNotice('');try{
-    const created=await call<Assessment>('',{scopeName,assetClass,...(tenantId?{tenantId}:{})},'POST');accept(created);
-    setList(current=>[{id:created.id,scopeName:created.scopeName,assetClass:created.assetClass,updatedAt:new Date().toISOString()},...current]);
-  }catch(cause){setError((cause as Error).message);}finally{setBusy(false);}}
-  async function save(event:FormEvent){event.preventDefault();if(!assessment)return;setBusy(true);setError('');setNotice('');try{
-    const saved=await call<Assessment>(`/${assessment.id}`,{revision:assessment.revision,answers:Object.values(answers)},'PUT');
-    accept(saved);setNotice('Draft saved. You can return later to continue.');
-  }catch(cause){setError((cause as Error).message);}finally{setBusy(false);}}
-  function change(question:Question,patch:Partial<Answer>){setAnswers(current=>({...current,[question.id]:{
-    questionId:question.id,questionVersion:question.version,state:'answered',...current[question.id],...patch,
-  }}));setDirty(true);setNotice('');}
-  function state(question:Question,value:string){
-    setAnswers(current=>{const updated={...current};if(!value)delete updated[question.id];else{
-      const next={...current[question.id],questionId:question.id,questionVersion:question.version,state:value};
-      for(const key of valueKeys)delete next[key];updated[question.id]=next;
-    }return updated;});setDirty(true);setNotice('');
-  }
-  function stringField(question:Question,answer:Answer,key:'textValue'|'unit'|'dateValue'|'measurementDate'|'measurementSource'|'justification'|'evidenceReference',label:string,type='text',required=false,maxLength=2000){
-    const props={id:`${question.id}-${key}`,value:answer[key]??'',required,maxLength,onChange:(event:ChangeEvent<HTMLInputElement|HTMLTextAreaElement>)=>{
-      const next={...answer};if(event.target.value)next[key]=event.target.value;else delete next[key];setAnswers(current=>({...current,[question.id]:next}));setDirty(true);setNotice('');
-    }};
-    return <label className="management-field"><span>{label}</span>{key==='textValue'||key==='justification'?<textarea {...props} rows={3}/>:<input {...props} type={type}/>}</label>;
-  }
-  function numeric(question:Question,answer:Answer,key:'numberValue'|'totalInScope'|'totalCovered'|'estimatedPercentage',label:string,max:number,integer=false){return <label className="management-field"><span>{label}</span><input type="number" min={0} max={max} step={integer?1:0.0001} required value={answer[key]??''} onChange={event=>{
-    setAnswers(current=>{const next={...current[question.id]!};if(event.target.value==='')delete next[key];else next[key]=Number(event.target.value);return {...current,[question.id]:next};});setDirty(true);setNotice('');
-  }}/></label>;}
-  function input(question:Question,answer:Answer){switch(question.type){
-    case 'yn':return <label className="management-field"><span>Answer</span><select required value={answer.booleanValue===undefined?'':String(answer.booleanValue)} onChange={event=>change(question,{booleanValue:event.target.value==='true'})}><option value="" disabled>Choose</option><option value="true">Yes</option><option value="false">No</option></select></label>;
-    case 'status':case 'select':return <label className="management-field"><span>Answer</span><select required value={answer.selectedOptionId??''} onChange={event=>change(question,{selectedOptionId:event.target.value})}><option value="" disabled>Choose</option>{question.options.map(option=><option key={option.id} value={option.id}>{option.label}</option>)}</select></label>;
-    case 'text':return stringField(question,answer,'textValue','Answer','text',true,4000);
-    case 'date':return stringField(question,answer,'dateValue','Date','date',true);
-    case 'number':return <div className="questionnaire-grid">{numeric(question,answer,'numberValue','Value',99999999999999)}{stringField(question,answer,'unit','Unit (for example, days)','text',true,32)}</div>;
-    case 'multi':return <div>{question.options.map(option=><label className="questionnaire-choice" key={option.id}><input type="checkbox" checked={answer.selections?.includes(option.id)??false} onChange={event=>{
-      const selected=answer.selections??[];change(question,{selections:event.target.checked?(option.id==='none'?['none']:[...selected.filter(id=>id!=='none'),option.id]):selected.filter(id=>id!==option.id)});
-    }}/>{option.label}</label>)}</div>;
-    case 'coverage':{
-      const estimate=coverageModes[question.id]==='estimate';
-      const percentage=answer.totalInScope && answer.totalCovered!==undefined ? answer.totalCovered/answer.totalInScope*100 : undefined;
-      return <><label className="management-field"><span>Measurement method</span><select value={estimate?'estimate':'counts'} onChange={event=>{
-        setCoverageModes(current=>({...current,[question.id]:event.target.value}));setAnswers(current=>{const next={...current[question.id]!};delete next.totalInScope;delete next.totalCovered;delete next.estimatedPercentage;return {...current,[question.id]:next};});setDirty(true);setNotice('');
-      }}><option value="counts">Actual counts</option><option value="estimate">Estimated percentage</option></select></label><div className="questionnaire-grid">{estimate?numeric(question,answer,'estimatedPercentage','Estimated coverage (%)',100):<>{numeric(question,answer,'totalInScope','Total systems in scope',2147483647,true)}{numeric(question,answer,'totalCovered','Covered systems',2147483647,true)}</>}</div>
-      {percentage!==undefined?<p>Calculated coverage: {percentage.toFixed(1)}%</p>:null}
-      <p className="management-help">Zero systems requires an applicability review. Covered systems cannot exceed total systems.</p>
-      <div className="questionnaire-grid">{stringField(question,answer,'measurementDate','Measurement date','date',true)}{stringField(question,answer,'measurementSource','Measurement source','text',true,500)}</div></>;
-    }
-  }}
-  const readOnly=!canWrite || assessment?.status!=='draft';
-  return <main className="questionnaire-page"><nav className="nav"><strong>NSO Audit · {workspaceName}</strong><button className="text-button" disabled={busy} onClick={()=>leave(onBack)}>Your workspaces</button></nav>
-    <h1>Backup questionnaire</h1><p>Record protection for one asset class and environment at a time. Save a draft and return later. No Microsoft connection is required.</p>
-    {error?<p className="management-error" role="alert">{error}</p>:null}{notice?<p className="management-success" role="status">{notice}</p>:null}
-    {busy?<p role="status">Loading or saving questionnaire…</p>:null}
-    {!assessment?<><h2>Saved assessments</h2>{!busy&&!list.length?<p>No backup assessments yet.</p>:null}<ul className="customer-workspaces">{list.map(item=><li key={item.id}><strong>{item.scopeName}</strong><span>{classes.find(c=>c[0]===item.assetClass)?.[1]}</span><button className="management-secondary" disabled={busy} onClick={()=>void open(item.id)}>Open assessment</button></li>)}</ul>
-    {canWrite?<form onSubmit={event=>void create(event)}><fieldset disabled={busy}><legend>Start a backup assessment</legend>
-      <label className="management-field"><span>Scope name</span><input value={scopeName} maxLength={200} required placeholder="For example, head office laptops" onChange={event=>setScopeName(event.target.value)}/></label>
-      <label className="management-field"><span>Asset class</span><select value={assetClass} onChange={event=>setAssetClass(event.target.value)}>{classes.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
-      <label className="management-field"><span>Microsoft tenant ID (optional)</span><input value={tenantId} maxLength={36} pattern="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}" onChange={event=>setTenantId(event.target.value)}/></label>
-      <button className="management-primary" type="submit">Create assessment</button></fieldset></form>:<p>Your role allows you to view saved assessments.</p>}</>:<>
-      <button className="text-button" disabled={busy} onClick={()=>leave(()=>{setAssessment(undefined);setNotice('');setError('');})}>All backup assessments</button>
-      <h2>{assessment.scopeName}</h2><p>{classes.find(c=>c[0]===assessment.assetClass)?.[1]} · {Object.keys(answers).length} of {assessment.questions.length} questions have a response. This is completion, not a security grade.</p>
-      {readOnly?<p>This assessment is read-only.</p>:null}
-      <form onSubmit={event=>void save(event)}><fieldset disabled={busy||readOnly}>
-        {assessment.questions.map(question=>{const answer=answers[question.id];return <section className="questionnaire-question" key={question.id} aria-labelledby={`${question.id}-title`}>
-          <h3 id={`${question.id}-title`}>{question.prompt}</h3><p className="management-help">{question.help}</p>
-          <label className="management-field"><span>Response status</span><select value={answer?.state??''} onChange={event=>state(question,event.target.value)}><option value="">Unanswered</option><option value="answered">Provide answer</option><option value="unknown">Unknown</option><option value="notApplicable">Not applicable</option>{question.type==='date'?<option value="never">Never</option>:null}</select></label>
-          {answer?.state==='answered'?input(question,answer):null}
-          {answer?<>{stringField(question,answer,'justification',answer.state==='notApplicable'?'Why is this not applicable?':'Explanation / exceptions / owner','text',answer.state==='notApplicable'||answer.selectedOptionId==='other')}{stringField(question,answer,'evidenceReference','Evidence reference (optional)')}</>:null}
-        </section>;})}
-        {!readOnly?<div className="questionnaire-save"><button className="management-primary" type="submit" disabled={!dirty}>Save draft</button><span>{dirty?'Unsaved changes':'No unsaved changes'}</span></div>:null}
-      </fieldset></form>
+  function navigate(nextSection:string,nextGroup=''){if(!assessment)return;leave(()=>{accept(assessment,nextSection,nextGroup);setGroupName('');setGroupContext({});setError('');setNotice('');});}
+  async function run(action:()=>Promise<void>){setBusy(true);setError('');setNotice('');try{await action();}catch(cause){setError((cause as Error).message);}finally{setBusy(false);}}
+  async function create(event:FormEvent){event.preventDefault();await run(async()=>{const created=await call<ClientAssessment>('',{name,answerOwner:owner,reviewer},'POST');accept(created,'company','');setListing(current=>({...current,assessments:[{id:created.id,name:created.name,templateVersion:created.templateVersion},...current.assessments]}));});}
+  async function addGroup(event:FormEvent){event.preventDefault();if(!assessment)return;await run(async()=>{const data=await call<ClientAssessment>(`/${assessment.id}/groups`,{revision:assessment.revision,sectionId,name:groupName,context:groupContext},'POST');const added=data.groups.find(g=>!assessment.groups.some(old=>old.id===g.id));accept(data,sectionId,added?.id??'');setGroupName('');setGroupContext({});setNotice('Scope group added. Its answers are kept separate from other groups.');});}
+  async function save(event:FormEvent){event.preventDefault();if(!assessment||!group)return;await run(async()=>{const editable=questions.filter(q=>!q.reviewerOnly||canReview);const data=await call<ClientAssessment>(`/${assessment.id}/groups/${group.id}`,{revision:assessment.revision,answers:Object.values(answers).filter(answer=>editable.some(q=>q.id===answer.questionId))},'PUT');accept(data);setNotice('Draft saved. You can return later to continue.');});}
+  async function saveReview(review:Review){if(!assessment||!group)return;if(dirty){setError('Save your answers before recording a reviewer conclusion.');return;}await run(async()=>{const data=await call<ClientAssessment>(`/${assessment.id}/groups/${group.id}/reviews/${encodeURIComponent(review.questionId)}`,{revision:assessment.revision,questionVersion:review.questionVersion,review},'PUT');accept(data);setNotice('Reviewer conclusion saved separately from the original answer.');});}
+  if(legacyId)return <LegacyQuestionnairePage organizationId={organizationId} workspaceName={workspaceName} role={role} initialAssessmentId={legacyId} onBack={()=>setLegacyId('')}/>;
+  return <main className="questionnaire-page assessment-page"><nav className="nav"><strong>NSO Audit · {workspaceName}</strong><button type="button" className="text-button" disabled={busy} onClick={()=>leave(onBack)}>Your workspaces</button></nav>
+    <h1>Client assessment questionnaire</h1><p>Company, security, configuration and readiness questions in one assessment. Save each section as you go. No Microsoft connection is required.</p>
+    {error?<p role="alert" className="management-error">{error}</p>:null}{notice?<p role="status" className="management-success">{notice}</p>:null}{busy?<p role="status">Loading or saving assessment…</p>:null}
+    {!assessment?<><h2>Saved client assessments</h2>{!busy&&!listing.assessments.length?<p>No client assessments yet.</p>:null}<ul className="customer-workspaces">{listing.assessments.map(item=><li key={item.id}><strong>{item.name}</strong><button type="button" className="management-secondary" disabled={busy} onClick={()=>void run(async()=>accept(await call<ClientAssessment>(`/${item.id}`),'company',''))}>Open assessment</button></li>)}</ul>
+      {canWrite?<form onSubmit={event=>void create(event)}><fieldset disabled={busy}><legend>Start a client assessment</legend><label className="management-field"><span>Assessment name</span><input required maxLength={200} placeholder="For example, NewSommer company assessment" value={name} onChange={event=>setName(event.target.value)}/></label><div className="questionnaire-grid"><label className="management-field"><span>Answer owner (optional)</span><input maxLength={200} value={owner} onChange={event=>setOwner(event.target.value)}/></label><label className="management-field"><span>Reviewer (optional)</span><input maxLength={200} value={reviewer} onChange={event=>setReviewer(event.target.value)}/></label></div><p className="management-help">Owner and reviewer names record responsibilities. Workspace permissions determine who can enter data or record conclusions.</p><button className="management-primary" type="submit">Create assessment</button></fieldset></form>:<p>Your role allows you to read saved assessments.</p>}
+      {listing.earlierAssessments.length?<details className="assessment-earlier"><summary>Earlier backup-only assessments ({listing.earlierAssessments.length})</summary><p>Your original assessment IDs and saved answers are preserved.</p><ul className="customer-workspaces">{listing.earlierAssessments.map(item=><li key={item.id}><strong>{item.name}</strong><button type="button" className="management-secondary" onClick={()=>setLegacyId(item.id)}>Open earlier assessment</button></li>)}</ul></details>:null}
+    </>:<><button className="text-button" type="button" disabled={busy} onClick={()=>leave(()=>{setAssessment(undefined);setError('');setNotice('');})}>All client assessments</button><h2>{assessment.name}</h2><p>{assessment.answerOwner?`Answer owner: ${assessment.answerOwner}. `:''}{assessment.reviewer?`Reviewer: ${assessment.reviewer}. `:''}Questionnaire progress describes completion, not a security grade.</p>
+      <div className="assessment-layout"><nav className="assessment-sections" aria-label="Assessment sections">{assessment.sections.map(item=>{const scoped=assessment.groups.filter(g=>g.sectionId===item.id);const total=scoped.reduce((sum,g)=>sum+groupQuestions(assessment,g).length,0);const answered=scoped.reduce((sum,g)=>sum+g.answers.length,0);return <button type="button" key={item.id} className={sectionId===item.id?'is-selected':''} aria-current={sectionId===item.id?'step':undefined} disabled={busy} onClick={()=>navigate(item.id)}><strong>{item.position}. {item.title}</strong><span>{!scoped.length?'Scope not set':`${answered} / ${total} responses · ${scoped.length} group${scoped.length===1?'':'s'}`}</span></button>;})}</nav>
+      <div className="assessment-section"><h2>{section?.title}</h2><p>{section?.help}</p>{suggestedEvidence?<details><summary>Suggested evidence</summary><p className="assessment-guidance">{suggestedEvidence}</p></details>:null}
+        {groups.length>1?<label className="management-field"><span>Scope group</span><select disabled={busy} value={group?.id??''} onChange={event=>navigate(sectionId,event.target.value)}>{groups.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>:group?<h3>{group.name}</h3>:<p>No scope groups yet. Add the applicable environments or asset groups below. Missing scope is not a pass.</p>}
+        {group?<form onSubmit={event=>void save(event)}><fieldset disabled={busy||readOnly}>{questions.map(question=><AssessmentQuestion key={`${group.id}:${question.id}:${assessment.revision}`} question={question} answer={answers[question.id]} disabled={readOnly||busy} canReview={canReview&&!readOnly} review={group.reviews.find(review=>review.questionId===question.id)} onReview={review=>void saveReview(review)} onChange={answer=>{setAnswers(current=>{const next={...current};if(answer)next[question.id]=answer;else delete next[question.id];return next;});setDirty(true);setNotice('');}}/>)}
+          {!readOnly?<div className="questionnaire-save"><button type="submit" className="management-primary" disabled={!dirty}>Save draft</button><span>{dirty?'Unsaved changes':`${group.answers.length} / ${questions.length} responses saved`}</span></div>:<p>This assessment is read-only.</p>}
+        </fieldset></form>:null}
+        {section?.repeatable&&!readOnly?<details className="assessment-add-group" open={!groups.length}><summary>Add a scope group</summary><form onSubmit={event=>void addGroup(event)}><fieldset disabled={busy||dirty}><label className="management-field"><span>Group name / environment</span><input required maxLength={200} placeholder="For example, head office laptops or production tenant" value={groupName} onChange={event=>setGroupName(event.target.value)}/></label><div className="questionnaire-grid">{section.groupFields.map(field=><RecordField key={`${section.id}:${field.id}`} field={field} value={groupContext[field.id]} allowUnknown={false} onChange={value=>setGroupContext(current=>{const next={...current};if(value===undefined)delete next[field.id];else next[field.id]=value;return next;})}/>)}</div><button className="management-primary" type="submit">Add scope group</button></fieldset>{dirty?<p>Save the current group's answers before adding another group.</p>:null}</form></details>:null}
+      </div></div>
     </>}
   </main>;
 }

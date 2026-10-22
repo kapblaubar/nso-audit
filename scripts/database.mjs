@@ -24,7 +24,10 @@ async function migrate() {
     CREATE TABLE dbo.SchemaMigrations (Name nvarchar(200) PRIMARY KEY, Sha256 char(64) NOT NULL,
     AppliedAt datetime2 NOT NULL DEFAULT SYSUTCDATETIME());`);
   const directory = new URL('../database/migrations/', import.meta.url);
-  for (const name of (await readdir(directory)).filter((item) => /^\d+_.+\.sql$/.test(item)).sort()) {
+  const names=(await readdir(directory)).filter((item) => /^\d+_.+\.sql$/.test(item)).sort();
+  const through=process.argv.find(value=>value.startsWith('--through='))?.slice('--through='.length);
+  if(through && !names.includes(through))throw new Error('The --through target must name an existing migration.');
+  for (const name of names.filter(name=>!through || name<=through)) {
     const source = (await readFile(new URL(name, directory), 'utf8')).replace(/\r\n/g, '\n');
     const checksum = createHash('sha256').update(source).digest('hex');
     const transaction = new sql.Transaction(pool);
@@ -50,7 +53,7 @@ async function migrate() {
       await transaction.commit();
     } catch (error) { await transaction.rollback().catch(() => undefined); throw error; }
   }
-  console.log('Schema is current.');
+  console.log(through?`Schema is current through ${through}.`:'Schema is current.');
 }
 
 async function bootstrap(repair = false) {

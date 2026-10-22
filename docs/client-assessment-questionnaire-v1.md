@@ -3,9 +3,11 @@
 Draft for review, 2026-10-21. This is the initial question catalog for the expanded assessment;
 it does not establish a validated scoring method or a complete framework checklist.
 
-Implementation note: the first backup form and migration 013 are described in
-[questionnaire storage](../database/questionnaires.md). Other sections below remain proposed
-questions. Implementation in source does not mean the schema or feature has been deployed.
+Implementation note: all 12 question sections below are compiled into the `client-v1` catalog
+and migration 014, described in [client assessment storage](../database/client-assessments.md).
+Compound questions have separate inputs and repeating lists have structured rows. The form reads
+the SQL catalog, not this file at runtime. Migration 013 backup-only assessments remain available
+with their original IDs and answers. Deployment validation is recorded separately from source changes.
 
 ## How an assessment works
 

@@ -10,6 +10,7 @@ async function setup(page:Page,role='contributor',conflict=false){
   let stored:any[]=[];let revision=0;let saves=0;
   await page.addInitScript(()=>sessionStorage.setItem('nso.customerSession','a'.repeat(43)));
   await page.route('**/api/account/session',route=>route.fulfill({json:{user:{id:'user',name:'Client',email:'client@example.test'},workspaces:[{id:org,name:'Manual client',role,tenantId:null}]}}));
+  await page.route('**/api/me/client-assessments',route=>route.fulfill({json:{assessments:[],earlierAssessments:[{id,name:'Office laptops',assetClass:'END'}]}}));
   await page.route('**/api/me/questionnaires**',async route=>{
     expect(route.request().headers()['x-nso-organization-id']).toBe(org);
     expect(route.request().headers().authorization).toBe(`Bearer ${'a'.repeat(43)}`);
@@ -23,11 +24,11 @@ async function setup(page:Page,role='contributor',conflict=false){
     return route.fulfill({json:{id,scopeName:'Office laptops',assetClass:'END',tenantId:null,revision,status:'draft',questions,answers:stored}});
   });
   await page.goto('/signin');await page.getByRole('button',{name:'Questionnaire',exact:true}).click();
+  await page.getByText('Earlier backup-only assessments (1)',{exact:true}).click();await page.getByRole('button',{name:'Open earlier assessment'}).click();
   return {saved:()=>stored,saves:()=>saves};
 }
 test('a client without a Microsoft tenant can save and reopen typed backup answers',async({page})=>{
   const result=await setup(page);
-  await page.getByLabel('Scope name').fill('Office laptops');await page.getByRole('button',{name:'Create assessment'}).click();
   const strategy=page.getByRole('region',{name:'Do you have a backup strategy?'});
   await strategy.getByLabel('Response status').selectOption('answered');
   await strategy.getByRole('combobox',{name:'Answer',exact:true}).selectOption('true');
@@ -41,13 +42,13 @@ test('a client without a Microsoft tenant can save and reopen typed backup answe
   await page.getByRole('region',{name:'When was the last restore?'}).getByLabel('Response status').selectOption('never');
   await page.getByRole('button',{name:'Save draft'}).click();await expect(page.getByRole('status')).toContainText('Draft saved');
   expect(result.saves()).toBe(1);expect(result.saved()).toContainEqual({questionId:'BKP-02',questionVersion:1,state:'answered',totalInScope:100,totalCovered:80,measurementDate:'2026-10-21',measurementSource:'Backup console'});
-  await page.getByRole('button',{name:'All backup assessments'}).click();await page.getByRole('button',{name:'Open assessment'}).click();
+  await page.getByRole('button',{name:'All client assessments'}).click();await page.getByText('Earlier backup-only assessments (1)',{exact:true}).click();await page.getByRole('button',{name:'Open earlier assessment'}).click();
   await expect(coverage.getByLabel('Covered systems')).toHaveValue('80');await expect(strategy.getByRole('combobox',{name:'Answer',exact:true})).toHaveValue('true');
   await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'.azure/browser-results/questionnaire-mobile.png',fullPage:true});
 });
 test('stale saves preserve edited answers and do not report success',async({page})=>{
-  await setup(page,'contributor',true);await page.getByLabel('Scope name').fill('Office laptops');await page.getByRole('button',{name:'Create assessment'}).click();
+  await setup(page,'contributor',true);
   const strategy=page.getByRole('region',{name:'Do you have a backup strategy?'});
   await strategy.getByLabel('Response status').selectOption('answered');await strategy.getByRole('combobox',{name:'Answer',exact:true}).selectOption('false');
   await page.getByRole('button',{name:'Save draft'}).click();await expect(page.getByRole('alert')).toContainText('Reopen');
@@ -55,7 +56,7 @@ test('stale saves preserve edited answers and do not report success',async({page
 });
 test('viewers can reopen questionnaires but cannot create or edit them',async({page})=>{
   await setup(page,'viewer');await expect(page.getByRole('button',{name:'Create assessment'})).toHaveCount(0);
-  await page.getByRole('button',{name:'Open assessment'}).click();await expect(page.getByText('This assessment is read-only.')).toBeVisible();
+  await expect(page.getByText('This assessment is read-only.')).toBeVisible();
   for(const select of await page.getByLabel('Response status').all())await expect(select).toBeDisabled();
   await expect(page.getByRole('button',{name:'Save draft'})).toHaveCount(0);
 });

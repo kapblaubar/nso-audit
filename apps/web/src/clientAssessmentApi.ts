@@ -1,0 +1,8 @@
+export interface Field{id:string;label:string;type:'text'|'number'|'date'|'select';required:boolean;options?:{id:string;label:string}[]}
+export interface ClientQuestion{id:string;version:number;sourceId:string;sectionId:string;prompt:string;help:string;type:'yn'|'status'|'coverage'|'select'|'multi'|'date'|'text'|'number'|'records';options:{id:string;label:string}[];fields:Field[];units:string[];reviewerOnly:boolean;assetClass:string|null}
+export interface ClientAnswer{questionId:string;questionVersion:number;state:string;justification?:string;evidenceReference?:string;booleanValue?:boolean;textValue?:string;numberValue?:number;unit?:string;dateValue?:string;selectedOptionId?:string;selections?:string[];totalInScope?:number;totalCovered?:number;estimatedPercentage?:number;measurementDate?:string;measurementSource?:string;records?:Record<string,string|number|null>[]}
+export interface Review{questionId:string;questionVersion:number;conclusion:string;evidenceState:string;collectionState:string;notes:string;actionOwner:string;targetDate:string}
+export interface ClientGroup{id:string;sectionId:string;name:string;context:Record<string,unknown>;answers:ClientAnswer[];reviews:Review[]}
+export interface ClientSection{id:string;title:string;position:number;repeatable:boolean;help:string;description?:string;groupFields:Field[]}
+export interface ClientAssessment{id:string;name:string;answerOwner:string;reviewer:string;revision:number;status:string;templateVersion:string;sections:ClientSection[];questions:ClientQuestion[];groups:ClientGroup[]}
+export const groupQuestions=(assessment:ClientAssessment,group:ClientGroup)=>assessment.questions.filter(q=>q.sectionId===group.sectionId&&(!q.assetClass||q.assetClass===group.context.assetClass));

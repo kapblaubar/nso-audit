@@ -15,6 +15,13 @@ try{
     const source=await readFile(new URL('../database/migrations/013_questionnaires.sql',import.meta.url),'utf8');
     const procedure=source.slice(source.indexOf('ALTER PROCEDURE security.ManagementDeleteAccount'));
     for(const batch of procedure.split(/^\s*GO\s*$/gmi).filter(x=>x.trim()))await new sql.Request(tx).batch(batch);
+    const clientSchema=(await new sql.Request(tx).query("SELECT OBJECT_ID('app.ClientAssessmentAnswers') AS ObjectId")).recordset[0].ObjectId;
+    if(clientSchema){
+      const clientSource=await readFile(new URL('../database/migrations/014_client_assessment.sql',import.meta.url),'utf8');
+      const repair=clientSource.split(/^\s*GO\s*$/gmi).find(batch=>batch.includes('DECLARE @procedure nvarchar(max)'));
+      if(!repair)throw new Error('Migration 014 cleanup procedure update was not found.');
+      await new sql.Request(tx).batch(repair);
+    }
   }
   const user=randomUUID(),other=randomUUID(),org=randomUUID(),staffTenant=randomUUID(),staffObject=randomUUID(),email=`cleanup-${user}@example.invalid`;
   const bucket=createHash('sha256').update(`email:${email}`).digest('hex');
@@ -38,6 +45,17 @@ try{
     INSERT app.AuditEvents(OrganizationId,ActorType,ActorId,Action) VALUES(@org,'user',CONVERT(nvarchar(36),@user),'fixture');
     EXEC sys.sp_set_session_context @key=N'organizationId',@value=NULL;
     EXECUTE AS USER='nso_api_runtime';`);
+  await req().query('REVERT;');
+  const hasClientSchema=(await req().query("SELECT CASE WHEN OBJECT_ID('app.ClientAssessmentAnswers') IS NULL THEN 0 ELSE 1 END AS Present")).recordset[0].Present;
+  if(hasClientSchema)await req().query(`
+    EXEC sys.sp_set_session_context @key=N'organizationId',@value=@org;
+    INSERT app.Assessments(OrganizationId,AssessmentId,TemplateVersion) VALUES(@org,@other,'client-v1');
+    INSERT app.ClientAssessmentDetails(OrganizationId,AssessmentId,Name) VALUES(@org,@other,'Cleanup client fixture');
+    INSERT app.ClientAssessmentGroups(OrganizationId,AssessmentId,GroupId,TemplateVersion,SectionId,Name) VALUES(@org,@other,@other,'client-v1','company','Company');
+    INSERT app.ClientAssessmentAnswers(OrganizationId,AssessmentId,GroupId,QuestionId,QuestionVersion,AnswerType,AnswerState,TextValue,UpdatedBy) VALUES(@org,@other,@other,'SCP-01',2,'text','answered','Preserve company',@user);
+    INSERT app.ClientAssessmentReviews(OrganizationId,AssessmentId,GroupId,QuestionId,QuestionVersion,Conclusion,EvidenceState,CollectionState,Notes,UpdatedBy) VALUES(@org,@other,@other,'SCP-01',2,'unknown','declared','notRequested','Preserve review',@user);
+    EXEC sys.sp_set_session_context @key=N'organizationId',@value=NULL;`);
+  await req().query("EXECUTE AS USER='nso_api_runtime';");
   await new sql.Request(tx).input('TenantId',sql.UniqueIdentifier,staffTenant).input('ObjectId',sql.UniqueIdentifier,staffObject).input('UserId',sql.UniqueIdentifier,user).input('ConfirmationEmail',sql.NVarChar(254),email).input('EmailBucketHash',sql.Char(64),bucket).execute('security.ManagementDeleteAccount');
   await req().query('REVERT;');
   const result=await req().query(`
@@ -55,6 +73,13 @@ try{
       (SELECT COUNT(*) FROM app.Organizations WHERE OrganizationId=@org) AS PreservedWorkspace;
     EXEC sys.sp_set_session_context @key=N'organizationId',@value=NULL;`);
   assert.deepEqual(result.recordset[0],{Target:0,Tokens:0,Sessions:0,Requests:0,Memberships:0,Contacts:0,Neighbor:1,NeighborAccess:1,PreservedAnswer:1,PreservedQuestionnaireAnswer:1,PreservedWorkspace:1});
+  if(hasClientSchema){
+    const preserved=await req().query(`EXEC sys.sp_set_session_context @key=N'organizationId',@value=@org;
+      SELECT (SELECT COUNT(*) FROM app.ClientAssessmentAnswers WHERE OrganizationId=@org AND UpdatedBy IS NULL AND TextValue='Preserve company') AS Answers,
+        (SELECT COUNT(*) FROM app.ClientAssessmentReviews WHERE OrganizationId=@org AND UpdatedBy IS NULL AND Notes='Preserve review') AS Reviews;
+      EXEC sys.sp_set_session_context @key=N'organizationId',@value=NULL;`);
+    assert.deepEqual(preserved.recordset[0],{Answers:1,Reviews:1});
+  }
   await req().query("EXECUTE AS USER='nso_api_runtime';");
   const registered=await new sql.Request(tx).input('Email',sql.NVarChar(254),email).input('DisplayName',sql.NVarChar(150),'Re-register').input('PasswordHash',sql.NVarChar(512),'new-fixture').input('TokenHash',sql.Char(64),'c'.repeat(64)).execute('security.AuthRegister');
   assert.equal(registered.recordset[0].Email,email);

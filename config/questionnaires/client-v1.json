@@ -1,0 +1,3356 @@
+{
+  "templateVersion": "client-v1",
+  "source": "docs/client-assessment-questionnaire-v1.md",
+  "sections": [
+    {
+      "id": "company",
+      "position": 1,
+      "title": "Company and assessment scope",
+      "repeatable": false,
+      "groupFields": [],
+      "help": "Answer for the company and assessment scope.",
+      "description": ""
+    },
+    {
+      "id": "assets",
+      "position": 2,
+      "title": "Asset inventory and ownership",
+      "repeatable": true,
+      "groupFields": [
+        {
+          "id": "assetClass",
+          "label": "Asset class",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "id": "endpoints",
+              "label": "Endpoints"
+            },
+            {
+              "id": "servers",
+              "label": "Servers"
+            },
+            {
+              "id": "databases",
+              "label": "Databases"
+            },
+            {
+              "id": "network-devices",
+              "label": "Network devices"
+            },
+            {
+              "id": "cloud-workloads",
+              "label": "Cloud workloads"
+            },
+            {
+              "id": "business-applications",
+              "label": "Business applications"
+            },
+            {
+              "id": "saas-services",
+              "label": "SaaS services"
+            }
+          ]
+        },
+        {
+          "id": "management",
+          "label": "Management",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "id": "managed",
+              "label": "Managed"
+            },
+            {
+              "id": "unmanaged",
+              "label": "Unmanaged"
+            }
+          ]
+        }
+      ],
+      "help": "Add groups for each asset class, environment and management boundary.",
+      "description": "Repeat AST-01 through AST-06 for endpoints, physical/virtual servers, databases, network devices,\ncloud workloads, business applications and SaaS services. Separate managed and unmanaged assets.\n\n\nSuggested evidence: inventory export, discovery summary, ownership and lifecycle records.\n"
+    },
+    {
+      "id": "backups",
+      "position": 3,
+      "title": "Backups and recovery",
+      "repeatable": true,
+      "groupFields": [
+        {
+          "id": "assetClass",
+          "label": "Asset class",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "id": "endpoints",
+              "label": "Endpoints"
+            },
+            {
+              "id": "servers",
+              "label": "Servers"
+            },
+            {
+              "id": "databases",
+              "label": "Databases"
+            },
+            {
+              "id": "email-and-collaboration-saas",
+              "label": "Email and collaboration / SaaS"
+            },
+            {
+              "id": "cloud-workloads-and-storage",
+              "label": "Cloud workloads and storage"
+            },
+            {
+              "id": "network-and-security-configuration",
+              "label": "Network and security configuration"
+            }
+          ]
+        }
+      ],
+      "help": "Add groups for endpoints, servers, databases, SaaS, cloud workloads and network configurations as applicable. Keep differing strategies separate.",
+      "description": "Create a separate backup group for each of these classes:\n\n\nRepeat by product, environment or criticality where strategies differ. Question IDs combine the\nbase ID and class, for example `BKP-01.END` and `BKP-01.DB`; each repeated group also has a stable\nscope ID. Avoid double-counting assets across groups in later reporting.\n\n\nIf BKP-01 is No, still establish actual protection and coverage: ad hoc backups may exist.\nIf coverage is zero, capture business impact and recovery alternatives. For databases, add:\n\n\nSuggested evidence: strategy, coverage/job summaries, retention settings, deletion protections,\nrestore-test results and recovery runbooks. A successful backup job does not prove restoration;\nsynchronization or replication alone must not be automatically accepted as recoverable backup.\n"
+    },
+    {
+      "id": "identity",
+      "position": 4,
+      "title": "Identity and access",
+      "repeatable": true,
+      "groupFields": [
+        {
+          "id": "population",
+          "label": "Account population",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "id": "administrators",
+              "label": "Administrators"
+            },
+            {
+              "id": "ordinary-users",
+              "label": "Ordinary users"
+            },
+            {
+              "id": "service-identities",
+              "label": "Service identities"
+            }
+          ]
+        }
+      ],
+      "help": "Add separate groups for administrators and ordinary users in each identity environment.",
+      "description": "Repeat coverage questions for each identity environment and separately for administrators and\nordinary users. Distinguish policy configuration from actual enforcement and exceptions.\n\n\nSuggested evidence: scoped identity/policy summaries, access reviews and onboarding/offboarding records.\n"
+    },
+    {
+      "id": "devices",
+      "position": 5,
+      "title": "Endpoints, servers and vulnerability management",
+      "repeatable": true,
+      "groupFields": [
+        {
+          "id": "assetClass",
+          "label": "Asset class",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "id": "endpoints",
+              "label": "Endpoints"
+            },
+            {
+              "id": "servers",
+              "label": "Servers"
+            }
+          ]
+        }
+      ],
+      "help": "Add separate endpoint and server groups, including remote devices.",
+      "description": "Repeat relevant coverage questions separately for endpoints and servers, including remote devices.\n\n\nSuggested evidence: management/EDR health, encryption and patch summaries, vulnerability report and baseline.\n"
+    },
+    {
+      "id": "network",
+      "position": 6,
+      "title": "Network, remote access and configuration",
+      "repeatable": false,
+      "groupFields": [],
+      "help": "Answer for the company and assessment scope.",
+      "description": "Suggested evidence: redacted diagrams, exposure inventory, remote-access policy and rule/change reviews.\n"
+    },
+    {
+      "id": "cloud",
+      "position": 7,
+      "title": "Cloud, email and collaboration",
+      "repeatable": true,
+      "groupFields": [
+        {
+          "id": "platform",
+          "label": "Platform / tenant",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "help": "Add a group for each tenant or platform.",
+      "description": "Repeat by tenant/platform. Automated observations can supplement answers where supported.\n\n\nSuggested evidence: configuration summaries, sharing reviews, email protection/domain reports and logging settings.\n"
+    },
+    {
+      "id": "data",
+      "position": 8,
+      "title": "Data protection and privacy",
+      "repeatable": false,
+      "groupFields": [],
+      "help": "Answer for the company and assessment scope.",
+      "description": "Suggested evidence: data inventory, access/retention policies, control summaries and disposal records.\n"
+    },
+    {
+      "id": "response",
+      "position": 9,
+      "title": "Monitoring, incident response and continuity",
+      "repeatable": false,
+      "groupFields": [],
+      "help": "Answer for the company and assessment scope.",
+      "description": "Suggested evidence: alert coverage, escalation runbooks, redacted exercise results and continuity plans.\n"
+    },
+    {
+      "id": "governance",
+      "position": 10,
+      "title": "Governance, people and suppliers",
+      "repeatable": false,
+      "groupFields": [],
+      "help": "Answer for the company and assessment scope.",
+      "description": "Suggested evidence: policy register, training summary, supplier reviews, risk register and action plan.\n"
+    },
+    {
+      "id": "ai",
+      "position": 11,
+      "title": "AI agent and Copilot readiness",
+      "repeatable": true,
+      "groupFields": [
+        {
+          "id": "product",
+          "label": "AI product / use case",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "help": "Add a group for each proposed or deployed AI product/use case.",
+      "description": "Repeat for each proposed or deployed AI product/use case. Do not assume every Copilot product\nhas the same prerequisites or that licensing alone establishes readiness.\n\n\nSuggested evidence: use-case register, access review, permission inventory, product-specific readiness\nchecklist, pilot/test results and operating procedures. General findings require product-specific validation.\n"
+    },
+    {
+      "id": "profiles",
+      "position": 12,
+      "title": "Insurance and framework profile intake",
+      "repeatable": false,
+      "groupFields": [],
+      "help": "Answer for the company and assessment scope.",
+      "description": "These questions select the appropriate view and additional questionnaire. They do not establish\nthat this core catalog covers any insurer form, CMMC level or NIST publication in full.\n\n\nOnly publish detailed profile conclusions after the selected criteria and mappings have been\nreviewed. Framework scope and applicability require explicit review; generic security answers\nalone cannot establish compliance or certification.\n"
+    }
+  ],
+  "questions": [
+    {
+      "id": "SCP-01",
+      "version": 2,
+      "sourceId": "SCP-01",
+      "sourcePrompt": "What company, business units and locations does this assessment cover?",
+      "sectionId": "company",
+      "position": 1,
+      "prompt": "What company, business units and locations does this assessment cover?",
+      "type": "text",
+      "help": "Text",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "SCP-02",
+      "version": 2,
+      "sourceId": "SCP-02",
+      "sourcePrompt": "Who owns this assessment, IT operations and security decisions?",
+      "sectionId": "company",
+      "position": 2,
+      "prompt": "Who owns this assessment, IT operations and security decisions?",
+      "type": "text",
+      "help": "Text: roles and contacts",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "SCP-03.EMP",
+      "version": 2,
+      "sourceId": "SCP-03",
+      "sourcePrompt": "How many employees, contractors and IT administrators are in scope?",
+      "sectionId": "company",
+      "position": 3,
+      "prompt": "How many employees are in scope?",
+      "type": "number",
+      "help": "Number for each",
+      "options": [],
+      "fields": [],
+      "units": [
+        "people"
+      ],
+      "reviewerOnly": false
+    },
+    {
+      "id": "SCP-03.CON",
+      "version": 2,
+      "sourceId": "SCP-03",
+      "sourcePrompt": "How many employees, contractors and IT administrators are in scope?",
+      "sectionId": "company",
+      "position": 4,
+      "prompt": "How many contractors are in scope?",
+      "type": "number",
+      "help": "Number for each",
+      "options": [],
+      "fields": [],
+      "units": [
+        "people"
+      ],
+      "reviewerOnly": false
+    },
+    {
+      "id": "SCP-03.ADM",
+      "version": 2,
+      "sourceId": "SCP-03",
+      "sourcePrompt": "How many employees, contractors and IT administrators are in scope?",
+      "sectionId": "company",
+      "position": 5,
+      "prompt": "How many IT administrators are in scope?",
+      "type": "number",
+      "help": "Number for each",
+      "options": [],
+      "fields": [],
+      "units": [
+        "people"
+      ],
+      "reviewerOnly": false
+    },
+    {
+      "id": "SCP-04",
+      "version": 2,
+      "sourceId": "SCP-04",
+      "sourcePrompt": "Which environments are included?",
+      "sectionId": "company",
+      "position": 6,
+      "prompt": "Which environments are included?",
+      "type": "multi",
+      "help": "Multi: Microsoft 365, Azure, AWS, Google Workspace, Google Cloud, on-premises, other",
+      "options": [
+        {
+          "id": "microsoft-365",
+          "label": "Microsoft 365"
+        },
+        {
+          "id": "azure",
+          "label": "Azure"
+        },
+        {
+          "id": "aws",
+          "label": "AWS"
+        },
+        {
+          "id": "google-workspace",
+          "label": "Google Workspace"
+        },
+        {
+          "id": "google-cloud",
+          "label": "Google Cloud"
+        },
+        {
+          "id": "on-premises",
+          "label": "on-premises"
+        },
+        {
+          "id": "other",
+          "label": "other"
+        },
+        {
+          "id": "none",
+          "label": "None"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "SCP-05",
+      "version": 2,
+      "sourceId": "SCP-05",
+      "sourcePrompt": "What tenants/accounts, domains and locations belong to each environment?",
+      "sectionId": "company",
+      "position": 7,
+      "prompt": "What tenants/accounts, domains and locations belong to each environment?",
+      "type": "records",
+      "help": "Repeating scope list",
+      "options": [],
+      "fields": [
+        {
+          "id": "environment",
+          "label": "Environment / platform",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "account",
+          "label": "Tenant / account identifier",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "domains",
+          "label": "Domains",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "locations",
+          "label": "Locations",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "SCP-06",
+      "version": 2,
+      "sourceId": "SCP-06",
+      "sourcePrompt": "Which business services are critical, and which systems support them?",
+      "sectionId": "company",
+      "position": 8,
+      "prompt": "Which business services are critical, and which systems support them?",
+      "type": "records",
+      "help": "Repeating service/system list with owner and criticality",
+      "options": [],
+      "fields": [
+        {
+          "id": "service",
+          "label": "Business service",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "systems",
+          "label": "Supporting systems",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "owner",
+          "label": "Owner",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "criticality",
+          "label": "Criticality",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "id": "critical",
+              "label": "Critical"
+            },
+            {
+              "id": "high",
+              "label": "High"
+            },
+            {
+              "id": "standard",
+              "label": "Standard"
+            },
+            {
+              "id": "unknown",
+              "label": "Unknown"
+            }
+          ]
+        }
+      ],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "SCP-07",
+      "version": 2,
+      "sourceId": "SCP-07",
+      "sourcePrompt": "What sensitive data do you handle, and where is it stored?",
+      "sectionId": "company",
+      "position": 9,
+      "prompt": "What sensitive data do you handle, and where is it stored?",
+      "type": "multi",
+      "help": "Multi: personal, health, payment, financial, intellectual property, contract-designated sensitive data, other; locations",
+      "options": [
+        {
+          "id": "personal",
+          "label": "personal"
+        },
+        {
+          "id": "health",
+          "label": "health"
+        },
+        {
+          "id": "payment",
+          "label": "payment"
+        },
+        {
+          "id": "financial",
+          "label": "financial"
+        },
+        {
+          "id": "intellectual-property",
+          "label": "intellectual property"
+        },
+        {
+          "id": "contract-designated-sensitive-data",
+          "label": "contract-designated sensitive data"
+        },
+        {
+          "id": "other",
+          "label": "other"
+        },
+        {
+          "id": "none",
+          "label": "None"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "SCP-08",
+      "version": 2,
+      "sourceId": "SCP-08",
+      "sourcePrompt": "Which MSPs or suppliers operate systems, and what responsibilities do they hold?",
+      "sectionId": "company",
+      "position": 10,
+      "prompt": "Which MSPs or suppliers operate systems, and what responsibilities do they hold?",
+      "type": "records",
+      "help": "Repeating provider/responsibility list",
+      "options": [],
+      "fields": [
+        {
+          "id": "provider",
+          "label": "MSP / supplier",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "responsibilities",
+          "label": "Operating responsibilities",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "systems",
+          "label": "Systems / services",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "contact",
+          "label": "Contact / escalation",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "SCP-09",
+      "version": 2,
+      "sourceId": "SCP-09",
+      "sourcePrompt": "What is excluded, why, and who approved the exclusion?",
+      "sectionId": "company",
+      "position": 11,
+      "prompt": "What is excluded, why, and who approved the exclusion?",
+      "type": "text",
+      "help": "Text",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "SCP-10",
+      "version": 2,
+      "sourceId": "SCP-10",
+      "sourcePrompt": "Which report views are requested?",
+      "sectionId": "company",
+      "position": 12,
+      "prompt": "Which report views are requested?",
+      "type": "multi",
+      "help": "Multi: general security/configuration, insurance, AI agent/Copilot readiness, CMMC, NIST; selected profile/version or To be selected",
+      "options": [
+        {
+          "id": "general-security-configuration",
+          "label": "general security/configuration"
+        },
+        {
+          "id": "insurance",
+          "label": "insurance"
+        },
+        {
+          "id": "ai-agent-copilot-readiness",
+          "label": "AI agent/Copilot readiness"
+        },
+        {
+          "id": "cmmc",
+          "label": "CMMC"
+        },
+        {
+          "id": "nist",
+          "label": "NIST"
+        },
+        {
+          "id": "none",
+          "label": "None"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "AST-01",
+      "version": 2,
+      "sourceId": "AST-01",
+      "sourcePrompt": "Do you maintain an inventory for this asset class?",
+      "sectionId": "assets",
+      "position": 13,
+      "prompt": "Do you maintain an inventory for this asset class?",
+      "type": "status",
+      "help": "Status",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "AST-02",
+      "version": 2,
+      "sourceId": "AST-02",
+      "sourcePrompt": "What proportion is included in the inventory?",
+      "sectionId": "assets",
+      "position": 14,
+      "prompt": "What proportion is included in the inventory?",
+      "type": "coverage",
+      "help": "Coverage",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "AST-03",
+      "version": 2,
+      "sourceId": "AST-03",
+      "sourcePrompt": "What proportion has an assigned business and technical owner?",
+      "sectionId": "assets",
+      "position": 15,
+      "prompt": "What proportion has an assigned business and technical owner?",
+      "type": "coverage",
+      "help": "Coverage",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "AST-04",
+      "version": 2,
+      "sourceId": "AST-04",
+      "sourcePrompt": "What proportion uses supported software/firmware or a supported service?",
+      "sectionId": "assets",
+      "position": 16,
+      "prompt": "What proportion uses supported software/firmware or a supported service?",
+      "type": "coverage",
+      "help": "Coverage; unsupported exceptions",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "AST-05",
+      "version": 2,
+      "sourceId": "AST-05",
+      "sourcePrompt": "How often is the inventory reconciled with actual systems?",
+      "sectionId": "assets",
+      "position": 17,
+      "prompt": "How often is the inventory reconciled with actual systems?",
+      "type": "select",
+      "help": "Select: continuously, daily, weekly, monthly, quarterly, annually, never, other",
+      "options": [
+        {
+          "id": "continuously",
+          "label": "continuously"
+        },
+        {
+          "id": "daily",
+          "label": "daily"
+        },
+        {
+          "id": "weekly",
+          "label": "weekly"
+        },
+        {
+          "id": "monthly",
+          "label": "monthly"
+        },
+        {
+          "id": "quarterly",
+          "label": "quarterly"
+        },
+        {
+          "id": "annually",
+          "label": "annually"
+        },
+        {
+          "id": "never",
+          "label": "never"
+        },
+        {
+          "id": "other",
+          "label": "other"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "AST-06",
+      "version": 2,
+      "sourceId": "AST-06",
+      "sourcePrompt": "When was the inventory last reviewed?",
+      "sectionId": "assets",
+      "position": 18,
+      "prompt": "When was the inventory last reviewed?",
+      "type": "date",
+      "help": "Date",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-01",
+      "version": 2,
+      "sourceId": "BKP-01",
+      "sourcePrompt": "Do you have a defined backup strategy for these systems/data?",
+      "sectionId": "backups",
+      "position": 19,
+      "prompt": "Do you have a defined backup strategy for these systems/data?",
+      "type": "yn",
+      "help": "YN",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-02",
+      "version": 2,
+      "sourceId": "BKP-02",
+      "sourcePrompt": "What percentage is covered by that strategy?",
+      "sectionId": "backups",
+      "position": 20,
+      "prompt": "What percentage is covered by that strategy?",
+      "type": "coverage",
+      "help": "Coverage",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-03",
+      "version": 2,
+      "sourceId": "BKP-03",
+      "sourcePrompt": "What percentage currently has successful backups within its required schedule?",
+      "sectionId": "backups",
+      "position": 21,
+      "prompt": "What percentage currently has successful backups within its required schedule?",
+      "type": "coverage",
+      "help": "Coverage; last measurement date",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-04",
+      "version": 2,
+      "sourceId": "BKP-04",
+      "sourcePrompt": "How frequently are backups taken?",
+      "sectionId": "backups",
+      "position": 22,
+      "prompt": "How frequently are backups taken?",
+      "type": "select",
+      "help": "Select: continuous, hourly, daily, weekly, monthly, other; actual interval if other",
+      "options": [
+        {
+          "id": "continuous",
+          "label": "continuous"
+        },
+        {
+          "id": "hourly",
+          "label": "hourly"
+        },
+        {
+          "id": "daily",
+          "label": "daily"
+        },
+        {
+          "id": "weekly",
+          "label": "weekly"
+        },
+        {
+          "id": "monthly",
+          "label": "monthly"
+        },
+        {
+          "id": "other",
+          "label": "other"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-05",
+      "version": 2,
+      "sourceId": "BKP-05",
+      "sourcePrompt": "What backup product/service and method are used?",
+      "sectionId": "backups",
+      "position": 23,
+      "prompt": "What backup product/service and method are used?",
+      "type": "text",
+      "help": "Text; distinguish backup, replication, synchronization and retention features",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-06",
+      "version": 2,
+      "sourceId": "BKP-06",
+      "sourcePrompt": "What data/system components are included or excluded?",
+      "sectionId": "backups",
+      "position": 24,
+      "prompt": "What data/system components are included or excluded?",
+      "type": "text",
+      "help": "Text; exclusions and reason",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-07",
+      "version": 2,
+      "sourceId": "BKP-07",
+      "sourcePrompt": "How long are backups retained?",
+      "sectionId": "backups",
+      "position": 25,
+      "prompt": "How long are backups retained?",
+      "type": "records",
+      "help": "Number with days/months/years; repeat for each retention tier",
+      "options": [],
+      "fields": [
+        {
+          "id": "tier",
+          "label": "Retention tier",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "duration",
+          "label": "Retention duration",
+          "type": "number",
+          "required": true
+        },
+        {
+          "id": "unit",
+          "label": "Unit",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "id": "days",
+              "label": "Days"
+            },
+            {
+              "id": "months",
+              "label": "Months"
+            },
+            {
+              "id": "years",
+              "label": "Years"
+            }
+          ]
+        },
+        {
+          "id": "scope",
+          "label": "Systems / data covered",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-08",
+      "version": 2,
+      "sourceId": "BKP-08",
+      "sourcePrompt": "What maximum data loss is acceptable to the business (recovery point objective)?",
+      "sectionId": "backups",
+      "position": 26,
+      "prompt": "What maximum data loss is acceptable to the business (recovery point objective)?",
+      "type": "number",
+      "help": "Number with minutes/hours/days; approved owner",
+      "options": [],
+      "fields": [],
+      "units": [
+        "minutes",
+        "hours",
+        "days"
+      ],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-09",
+      "version": 2,
+      "sourceId": "BKP-09",
+      "sourcePrompt": "What maximum recovery time is acceptable (recovery time objective)?",
+      "sectionId": "backups",
+      "position": 27,
+      "prompt": "What maximum recovery time is acceptable (recovery time objective)?",
+      "type": "number",
+      "help": "Number with minutes/hours/days; approved owner",
+      "options": [],
+      "fields": [],
+      "units": [
+        "minutes",
+        "hours",
+        "days"
+      ],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-10",
+      "version": 2,
+      "sourceId": "BKP-10",
+      "sourcePrompt": "Are backup copies separated from production failure risks?",
+      "sectionId": "backups",
+      "position": 28,
+      "prompt": "Are backup copies separated from production failure risks?",
+      "type": "status",
+      "help": "Status; storage/service/location and shared dependencies",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-11",
+      "version": 2,
+      "sourceId": "BKP-11",
+      "sourcePrompt": "Are copies protected from alteration or deletion by compromised production administrators?",
+      "sectionId": "backups",
+      "position": 29,
+      "prompt": "Are copies protected from alteration or deletion by compromised production administrators?",
+      "type": "status",
+      "help": "Status; mechanism, protection duration and exceptions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-12",
+      "version": 2,
+      "sourceId": "BKP-12",
+      "sourcePrompt": "Are backup administration privileges restricted and protected with MFA where supported?",
+      "sectionId": "backups",
+      "position": 30,
+      "prompt": "Are backup administration privileges restricted and protected with MFA where supported?",
+      "type": "status",
+      "help": "Status; privileged identities and exceptions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-13",
+      "version": 2,
+      "sourceId": "BKP-13",
+      "sourcePrompt": "Are backups encrypted in transit and at rest, and is key recovery documented?",
+      "sectionId": "backups",
+      "position": 31,
+      "prompt": "Are backups encrypted in transit?",
+      "type": "status",
+      "help": "Status for each; explanation without key values",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-13-REST",
+      "version": 2,
+      "sourceId": "BKP-13",
+      "sourcePrompt": "Are backups encrypted in transit and at rest, and is key recovery documented?",
+      "sectionId": "backups",
+      "position": 32,
+      "prompt": "Are backups encrypted at rest?",
+      "type": "status",
+      "help": "Status for each; explanation without key values",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-13-KEY",
+      "version": 2,
+      "sourceId": "BKP-13",
+      "sourcePrompt": "Are backups encrypted in transit and at rest, and is key recovery documented?",
+      "sectionId": "backups",
+      "position": 33,
+      "prompt": "Is encryption key recovery documented?",
+      "type": "status",
+      "help": "Status for each; explanation without key values",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-14",
+      "version": 2,
+      "sourceId": "BKP-14",
+      "sourcePrompt": "Are failures monitored, assigned and followed through to resolution?",
+      "sectionId": "backups",
+      "position": 34,
+      "prompt": "Are failures monitored, assigned and followed through to resolution?",
+      "type": "status",
+      "help": "Status; owner and alert/review frequency",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-15",
+      "version": 2,
+      "sourceId": "BKP-15",
+      "sourcePrompt": "When did you last successfully restore from backup?",
+      "sectionId": "backups",
+      "position": 35,
+      "prompt": "When did you last successfully restore from backup?",
+      "type": "date",
+      "help": "Date; systems/data restored and outcome",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-16",
+      "version": 2,
+      "sourceId": "BKP-16",
+      "sourcePrompt": "What proportion has a successful restore test within your required testing interval?",
+      "sectionId": "backups",
+      "position": 36,
+      "prompt": "What proportion has a successful restore test within your required testing interval?",
+      "type": "coverage",
+      "help": "Coverage; interval and test scope",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-17",
+      "version": 2,
+      "sourceId": "BKP-17",
+      "sourcePrompt": "Did tested restoration meet the approved recovery point and recovery time objectives?",
+      "sectionId": "backups",
+      "position": 37,
+      "prompt": "Did tested restoration meet the approved recovery point objective?",
+      "type": "status",
+      "help": "Status for each; measured results",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-17-TIME",
+      "version": 2,
+      "sourceId": "BKP-17",
+      "sourcePrompt": "Did tested restoration meet the approved recovery point and recovery time objectives?",
+      "sectionId": "backups",
+      "position": 38,
+      "prompt": "Did tested restoration meet the approved recovery time objective?",
+      "type": "status",
+      "help": "Status for each; measured results",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-18",
+      "version": 2,
+      "sourceId": "BKP-18",
+      "sourcePrompt": "How often do you perform restore tests?",
+      "sectionId": "backups",
+      "position": 39,
+      "prompt": "How often do you perform restore tests?",
+      "type": "select",
+      "help": "Select: monthly, quarterly, twice yearly, annually, after major changes, never, other",
+      "options": [
+        {
+          "id": "monthly",
+          "label": "monthly"
+        },
+        {
+          "id": "quarterly",
+          "label": "quarterly"
+        },
+        {
+          "id": "twice-yearly",
+          "label": "twice yearly"
+        },
+        {
+          "id": "annually",
+          "label": "annually"
+        },
+        {
+          "id": "after-major-changes",
+          "label": "after major changes"
+        },
+        {
+          "id": "never",
+          "label": "never"
+        },
+        {
+          "id": "other",
+          "label": "other"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-19",
+      "version": 2,
+      "sourceId": "BKP-19",
+      "sourcePrompt": "Is a recovery procedure documented and accessible during an outage?",
+      "sectionId": "backups",
+      "position": 40,
+      "prompt": "Is a recovery procedure documented and accessible during an outage?",
+      "type": "status",
+      "help": "Status; owner and last review date",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-20",
+      "version": 2,
+      "sourceId": "BKP-20",
+      "sourcePrompt": "What gaps, exceptions or planned improvements remain, and who owns them?",
+      "sectionId": "backups",
+      "position": 41,
+      "prompt": "What gaps, exceptions or planned improvements remain, and who owns them?",
+      "type": "text",
+      "help": "Text; owner and target date per action",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "BKP-DB-01",
+      "version": 2,
+      "sourceId": "BKP-DB-01",
+      "sourcePrompt": "Can required databases be restored to a selected point in time?",
+      "sectionId": "backups",
+      "position": 42,
+      "prompt": "Can required databases be restored to a selected point in time?",
+      "type": "coverage",
+      "help": "Coverage; recovery window and limitations",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false,
+      "assetClass": "databases"
+    },
+    {
+      "id": "BKP-DB-02",
+      "version": 2,
+      "sourceId": "BKP-DB-02",
+      "sourcePrompt": "Are backups application-consistent and validated using a database recovery test?",
+      "sectionId": "backups",
+      "position": 43,
+      "prompt": "Are backups application-consistent and validated using a database recovery test?",
+      "type": "status",
+      "help": "Status; last test and outcome",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false,
+      "assetClass": "databases"
+    },
+    {
+      "id": "IAM-01",
+      "version": 2,
+      "sourceId": "IAM-01",
+      "sourcePrompt": "Are individual accounts used instead of shared accounts?",
+      "sectionId": "identity",
+      "position": 44,
+      "prompt": "Are individual accounts used instead of shared accounts?",
+      "type": "coverage",
+      "help": "Coverage; shared-account purpose and owner",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IAM-02",
+      "version": 2,
+      "sourceId": "IAM-02",
+      "sourcePrompt": "Is MFA enforced for interactive access?",
+      "sectionId": "identity",
+      "position": 45,
+      "prompt": "Is MFA enforced for interactive access?",
+      "type": "coverage",
+      "help": "Coverage for administrators and ordinary users; methods and exceptions",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IAM-03",
+      "version": 2,
+      "sourceId": "IAM-03",
+      "sourcePrompt": "Is phishing-resistant MFA enforced where required by your policy?",
+      "sectionId": "identity",
+      "position": 46,
+      "prompt": "Is phishing-resistant MFA enforced where required by your policy?",
+      "type": "coverage",
+      "help": "Coverage; policy scope and methods",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IAM-04",
+      "version": 2,
+      "sourceId": "IAM-04",
+      "sourcePrompt": "Do administrators use separate privileged accounts with limited permissions?",
+      "sectionId": "identity",
+      "position": 47,
+      "prompt": "Do administrators use separate privileged accounts with limited permissions?",
+      "type": "coverage",
+      "help": "Coverage",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IAM-05",
+      "version": 2,
+      "sourceId": "IAM-05",
+      "sourcePrompt": "Are legacy authentication methods disabled where applicable?",
+      "sectionId": "identity",
+      "position": 48,
+      "prompt": "Are legacy authentication methods disabled where applicable?",
+      "type": "status",
+      "help": "Status; remaining methods and exceptions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IAM-06",
+      "version": 2,
+      "sourceId": "IAM-06",
+      "sourcePrompt": "Is access approved when people join or change roles?",
+      "sectionId": "identity",
+      "position": 49,
+      "prompt": "Is access approved when people join or change roles?",
+      "type": "status",
+      "help": "Status; approver and process",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IAM-07",
+      "version": 2,
+      "sourceId": "IAM-07",
+      "sourcePrompt": "How quickly is access revoked after departure or termination?",
+      "sectionId": "identity",
+      "position": 50,
+      "prompt": "How quickly is access revoked after departure or termination?",
+      "type": "number",
+      "help": "Number with hours; process and exceptions",
+      "options": [],
+      "fields": [],
+      "units": [
+        "hours"
+      ],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IAM-08",
+      "version": 2,
+      "sourceId": "IAM-08",
+      "sourcePrompt": "How often are user and privileged permissions reviewed?",
+      "sectionId": "identity",
+      "position": 51,
+      "prompt": "How often are user and privileged permissions reviewed?",
+      "type": "select",
+      "help": "Select: monthly, quarterly, twice yearly, annually, never, other; last review date",
+      "options": [
+        {
+          "id": "monthly",
+          "label": "monthly"
+        },
+        {
+          "id": "quarterly",
+          "label": "quarterly"
+        },
+        {
+          "id": "twice-yearly",
+          "label": "twice yearly"
+        },
+        {
+          "id": "annually",
+          "label": "annually"
+        },
+        {
+          "id": "never",
+          "label": "never"
+        },
+        {
+          "id": "other",
+          "label": "other"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IAM-09",
+      "version": 2,
+      "sourceId": "IAM-09",
+      "sourcePrompt": "Are emergency access accounts controlled, monitored and tested?",
+      "sectionId": "identity",
+      "position": 52,
+      "prompt": "Are emergency access accounts controlled, monitored and tested?",
+      "type": "status",
+      "help": "Status; last test date",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IAM-10",
+      "version": 2,
+      "sourceId": "IAM-10",
+      "sourcePrompt": "Are service accounts, application identities and credentials inventoried and reviewed?",
+      "sectionId": "identity",
+      "position": 53,
+      "prompt": "Are service accounts, application identities and credentials inventoried and reviewed?",
+      "type": "status",
+      "help": "Status; owner, review frequency and credential lifecycle process",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IAM-11",
+      "version": 2,
+      "sourceId": "IAM-11",
+      "sourcePrompt": "Is external/guest access approved, time-limited where appropriate and reviewed?",
+      "sectionId": "identity",
+      "position": 54,
+      "prompt": "Is external/guest access approved, time-limited where appropriate and reviewed?",
+      "type": "status",
+      "help": "Status; review date and exceptions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DEV-01",
+      "version": 2,
+      "sourceId": "DEV-01",
+      "sourcePrompt": "What proportion is enrolled in central management?",
+      "sectionId": "devices",
+      "position": 55,
+      "prompt": "What proportion is enrolled in central management?",
+      "type": "coverage",
+      "help": "Coverage; product",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DEV-02",
+      "version": 2,
+      "sourceId": "DEV-02",
+      "sourcePrompt": "What proportion has active endpoint protection/EDR reporting healthy?",
+      "sectionId": "devices",
+      "position": 56,
+      "prompt": "What proportion has active endpoint protection/EDR reporting healthy?",
+      "type": "coverage",
+      "help": "Coverage; product and observation date",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DEV-03",
+      "version": 2,
+      "sourceId": "DEV-03",
+      "sourcePrompt": "What proportion has storage encryption enabled?",
+      "sectionId": "devices",
+      "position": 57,
+      "prompt": "What proportion has storage encryption enabled?",
+      "type": "coverage",
+      "help": "Coverage; recovery-key custody process",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DEV-04",
+      "version": 2,
+      "sourceId": "DEV-04",
+      "sourcePrompt": "What proportion follows a reviewed secure configuration baseline?",
+      "sectionId": "devices",
+      "position": 58,
+      "prompt": "What proportion follows a reviewed secure configuration baseline?",
+      "type": "coverage",
+      "help": "Coverage; baseline/version and deviations",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DEV-05",
+      "version": 2,
+      "sourceId": "DEV-05",
+      "sourcePrompt": "Are local administrator privileges restricted and reviewed?",
+      "sectionId": "devices",
+      "position": 59,
+      "prompt": "Are local administrator privileges restricted and reviewed?",
+      "type": "status",
+      "help": "Status; exceptions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DEV-06.CRITICAL",
+      "version": 2,
+      "sourceId": "DEV-06",
+      "sourcePrompt": "What are the required remediation deadlines for critical and high-risk vulnerabilities?",
+      "sectionId": "devices",
+      "position": 60,
+      "prompt": "What is the required remediation deadline for critical vulnerabilities?",
+      "type": "number",
+      "help": "Number with days for each; policy and exception process",
+      "options": [],
+      "fields": [],
+      "units": [
+        "days"
+      ],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DEV-06.HIGH",
+      "version": 2,
+      "sourceId": "DEV-06",
+      "sourcePrompt": "What are the required remediation deadlines for critical and high-risk vulnerabilities?",
+      "sectionId": "devices",
+      "position": 61,
+      "prompt": "What is the required remediation deadline for high-risk vulnerabilities?",
+      "type": "number",
+      "help": "Number with days for each; policy and exception process",
+      "options": [],
+      "fields": [],
+      "units": [
+        "days"
+      ],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DEV-07.CRITICAL",
+      "version": 2,
+      "sourceId": "DEV-07",
+      "sourcePrompt": "What proportion meets the applicable patch/remediation deadline?",
+      "sectionId": "devices",
+      "position": 62,
+      "prompt": "What proportion meets the critical vulnerability remediation deadline?",
+      "type": "coverage",
+      "help": "Coverage by severity; reporting period",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DEV-07.HIGH",
+      "version": 2,
+      "sourceId": "DEV-07",
+      "sourcePrompt": "What proportion meets the applicable patch/remediation deadline?",
+      "sectionId": "devices",
+      "position": 63,
+      "prompt": "What proportion meets the high-risk vulnerability remediation deadline?",
+      "type": "coverage",
+      "help": "Coverage by severity; reporting period",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DEV-08",
+      "version": 2,
+      "sourceId": "DEV-08",
+      "sourcePrompt": "How often are vulnerabilities assessed?",
+      "sectionId": "devices",
+      "position": 64,
+      "prompt": "How often are vulnerabilities assessed?",
+      "type": "select",
+      "help": "Select: continuously, daily, weekly, monthly, quarterly, never, other; last assessment date",
+      "options": [
+        {
+          "id": "continuously",
+          "label": "continuously"
+        },
+        {
+          "id": "daily",
+          "label": "daily"
+        },
+        {
+          "id": "weekly",
+          "label": "weekly"
+        },
+        {
+          "id": "monthly",
+          "label": "monthly"
+        },
+        {
+          "id": "quarterly",
+          "label": "quarterly"
+        },
+        {
+          "id": "never",
+          "label": "never"
+        },
+        {
+          "id": "other",
+          "label": "other"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DEV-09",
+      "version": 2,
+      "sourceId": "DEV-09",
+      "sourcePrompt": "Are personal/unmanaged devices restricted from sensitive resources?",
+      "sectionId": "devices",
+      "position": 65,
+      "prompt": "Are personal/unmanaged devices restricted from sensitive resources?",
+      "type": "status",
+      "help": "Status; allowed access and protections",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DEV-10",
+      "version": 2,
+      "sourceId": "DEV-10",
+      "sourcePrompt": "Are software installation and application execution controlled?",
+      "sectionId": "devices",
+      "position": 66,
+      "prompt": "Are software installation and application execution controlled?",
+      "type": "status",
+      "help": "Status; method and exceptions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "NET-01",
+      "version": 2,
+      "sourceId": "NET-01",
+      "sourcePrompt": "Are network boundaries, critical systems and external connections documented?",
+      "sectionId": "network",
+      "position": 67,
+      "prompt": "Are network boundaries, critical systems and external connections documented?",
+      "type": "status",
+      "help": "Status; last review date",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "NET-02",
+      "version": 2,
+      "sourceId": "NET-02",
+      "sourcePrompt": "Is internet-facing exposure inventoried and reviewed?",
+      "sectionId": "network",
+      "position": 68,
+      "prompt": "Is internet-facing exposure inventoried and reviewed?",
+      "type": "status",
+      "help": "Status; last review and owner",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "NET-03",
+      "version": 2,
+      "sourceId": "NET-03",
+      "sourcePrompt": "Is remote access restricted, approved and protected with MFA?",
+      "sectionId": "network",
+      "position": 69,
+      "prompt": "Is remote access restricted, approved and protected with MFA?",
+      "type": "status",
+      "help": "Status; services, coverage and exceptions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "NET-04",
+      "version": 2,
+      "sourceId": "NET-04",
+      "sourcePrompt": "Are administrative interfaces restricted to approved access paths?",
+      "sectionId": "network",
+      "position": 70,
+      "prompt": "Are administrative interfaces restricted to approved access paths?",
+      "type": "status",
+      "help": "Status; exceptions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "NET-05",
+      "version": 2,
+      "sourceId": "NET-05",
+      "sourcePrompt": "Are critical, guest and other relevant networks separated with controlled traffic?",
+      "sectionId": "network",
+      "position": 71,
+      "prompt": "Are critical, guest and other relevant networks separated with controlled traffic?",
+      "type": "status",
+      "help": "Status; scope and validation",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "NET-06",
+      "version": 2,
+      "sourceId": "NET-06",
+      "sourcePrompt": "Are firewall/security rules reviewed and unnecessary access removed?",
+      "sectionId": "network",
+      "position": 72,
+      "prompt": "Are firewall/security rules reviewed and unnecessary access removed?",
+      "type": "status",
+      "help": "Status; frequency and last review",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "NET-07",
+      "version": 2,
+      "sourceId": "NET-07",
+      "sourcePrompt": "Are configuration changes approved, recorded and recoverable?",
+      "sectionId": "network",
+      "position": 73,
+      "prompt": "Are configuration changes approved, recorded and recoverable?",
+      "type": "status",
+      "help": "Status; change and rollback process",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "NET-08",
+      "version": 2,
+      "sourceId": "NET-08",
+      "sourcePrompt": "Are network/security devices supported and updated?",
+      "sectionId": "network",
+      "position": 74,
+      "prompt": "Are network/security devices supported and updated?",
+      "type": "coverage",
+      "help": "Coverage; unsupported exceptions",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "CLD-01",
+      "version": 2,
+      "sourceId": "CLD-01",
+      "sourcePrompt": "Are cloud resources covered by ownership, configuration and access policies?",
+      "sectionId": "cloud",
+      "position": 75,
+      "prompt": "Are cloud resources covered by ownership, configuration and access policies?",
+      "type": "coverage",
+      "help": "Coverage; policy/baseline",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "CLD-02",
+      "version": 2,
+      "sourceId": "CLD-02",
+      "sourcePrompt": "Are public resources and external sharing reviewed and restricted appropriately?",
+      "sectionId": "cloud",
+      "position": 76,
+      "prompt": "Are public resources and external sharing reviewed and restricted appropriately?",
+      "type": "status",
+      "help": "Status; exceptions and review date",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "CLD-03",
+      "version": 2,
+      "sourceId": "CLD-03",
+      "sourcePrompt": "Are anti-phishing, malware and impersonation protections configured and monitored?",
+      "sectionId": "cloud",
+      "position": 77,
+      "prompt": "Are anti-phishing, malware and impersonation protections configured and monitored?",
+      "type": "status",
+      "help": "Status; protected scope and exceptions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "CLD-04",
+      "version": 2,
+      "sourceId": "CLD-04",
+      "sourcePrompt": "Are email domain authentication protections configured and their results monitored?",
+      "sectionId": "cloud",
+      "position": 78,
+      "prompt": "Are email domain authentication protections configured and their results monitored?",
+      "type": "status",
+      "help": "Status; domains, SPF/DKIM/DMARC observations and policy",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "CLD-05",
+      "version": 2,
+      "sourceId": "CLD-05",
+      "sourcePrompt": "Are mailbox forwarding and third-party application access controlled and reviewed?",
+      "sectionId": "cloud",
+      "position": 79,
+      "prompt": "Are mailbox forwarding and third-party application access controlled and reviewed?",
+      "type": "status",
+      "help": "Status; review date and exceptions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "CLD-06",
+      "version": 2,
+      "sourceId": "CLD-06",
+      "sourcePrompt": "Are security/audit logs enabled for required services and retained for business needs?",
+      "sectionId": "cloud",
+      "position": 80,
+      "prompt": "Are security/audit logs enabled for required services and retained for business needs?",
+      "type": "coverage",
+      "help": "Coverage; services and retention periods",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "CLD-07",
+      "version": 2,
+      "sourceId": "CLD-07",
+      "sourcePrompt": "Are exposed secrets identified, removed and replaced through a defined process?",
+      "sectionId": "cloud",
+      "position": 81,
+      "prompt": "Are exposed secrets identified, removed and replaced through a defined process?",
+      "type": "status",
+      "help": "Status; process and owner",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DAT-01",
+      "version": 2,
+      "sourceId": "DAT-01",
+      "sourcePrompt": "Are sensitive data types, locations and owners documented?",
+      "sectionId": "data",
+      "position": 82,
+      "prompt": "Are sensitive data types, locations and owners documented?",
+      "type": "status",
+      "help": "Status; scope and last review",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DAT-02",
+      "version": 2,
+      "sourceId": "DAT-02",
+      "sourcePrompt": "Are access and sharing limited according to data sensitivity?",
+      "sectionId": "data",
+      "position": 83,
+      "prompt": "Are access and sharing limited according to data sensitivity?",
+      "type": "status",
+      "help": "Status; exceptions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DAT-03.CLASSIFICATION",
+      "version": 2,
+      "sourceId": "DAT-03",
+      "sourcePrompt": "Are classification/labeling and data-loss prevention controls used where needed?",
+      "sectionId": "data",
+      "position": 84,
+      "prompt": "Are classification and labeling controls used where needed?",
+      "type": "status",
+      "help": "Status for each; coverage and exclusions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DAT-03.DLP",
+      "version": 2,
+      "sourceId": "DAT-03",
+      "sourcePrompt": "Are classification/labeling and data-loss prevention controls used where needed?",
+      "sectionId": "data",
+      "position": 85,
+      "prompt": "Are data-loss prevention controls used where needed?",
+      "type": "status",
+      "help": "Status for each; coverage and exclusions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DAT-04",
+      "version": 2,
+      "sourceId": "DAT-04",
+      "sourcePrompt": "Are retention and deletion requirements documented and applied?",
+      "sectionId": "data",
+      "position": 86,
+      "prompt": "Are retention and deletion requirements documented and applied?",
+      "type": "status",
+      "help": "Status; data categories, periods and exceptions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DAT-05.STORAGE",
+      "version": 2,
+      "sourceId": "DAT-05",
+      "sourcePrompt": "Is sensitive data encrypted in storage and transit where required?",
+      "sectionId": "data",
+      "position": 87,
+      "prompt": "Is sensitive data encrypted in storage where required?",
+      "type": "coverage",
+      "help": "Coverage for each; scope and exceptions",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DAT-05.TRANSIT",
+      "version": 2,
+      "sourceId": "DAT-05",
+      "sourcePrompt": "Is sensitive data encrypted in storage and transit where required?",
+      "sectionId": "data",
+      "position": 88,
+      "prompt": "Is sensitive data encrypted in transit where required?",
+      "type": "coverage",
+      "help": "Coverage for each; scope and exceptions",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DAT-06",
+      "version": 2,
+      "sourceId": "DAT-06",
+      "sourcePrompt": "Are data handling, privacy and contractual obligations identified and assigned an owner?",
+      "sectionId": "data",
+      "position": 89,
+      "prompt": "Are data handling, privacy and contractual obligations identified and assigned an owner?",
+      "type": "status",
+      "help": "Status; applicable obligations and owner",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "DAT-07",
+      "version": 2,
+      "sourceId": "DAT-07",
+      "sourcePrompt": "Is data securely removed when devices, accounts or services are retired?",
+      "sectionId": "data",
+      "position": 90,
+      "prompt": "Is data securely removed when devices, accounts or services are retired?",
+      "type": "status",
+      "help": "Status; process and evidence",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IR-01",
+      "version": 2,
+      "sourceId": "IR-01",
+      "sourcePrompt": "Who receives security alerts, and during what hours?",
+      "sectionId": "response",
+      "position": 91,
+      "prompt": "Who receives security alerts, and during what hours?",
+      "type": "text",
+      "help": "Text; internal/provider responsibility and escalation",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IR-02",
+      "version": 2,
+      "sourceId": "IR-02",
+      "sourcePrompt": "What proportion of critical systems sends required security logs to monitored locations?",
+      "sectionId": "response",
+      "position": 92,
+      "prompt": "What proportion of critical systems sends required security logs to monitored locations?",
+      "type": "coverage",
+      "help": "Coverage; sources and retention",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IR-03",
+      "version": 2,
+      "sourceId": "IR-03",
+      "sourcePrompt": "Is there a documented incident response plan with named roles and contacts?",
+      "sectionId": "response",
+      "position": 93,
+      "prompt": "Is there a documented incident response plan with named roles and contacts?",
+      "type": "status",
+      "help": "Status; last review date",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IR-04",
+      "version": 2,
+      "sourceId": "IR-04",
+      "sourcePrompt": "When was the incident response plan last exercised, and were actions resolved?",
+      "sectionId": "response",
+      "position": 94,
+      "prompt": "When was the incident response plan last exercised, and were actions resolved?",
+      "type": "date",
+      "help": "Date; exercise outcome and remaining actions",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IR-05",
+      "version": 2,
+      "sourceId": "IR-05",
+      "sourcePrompt": "Are legal, customer, insurer and provider notification responsibilities documented?",
+      "sectionId": "response",
+      "position": 95,
+      "prompt": "Are legal, customer, insurer and provider notification responsibilities documented?",
+      "type": "status",
+      "help": "Status; responsible roles",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IR-06",
+      "version": 2,
+      "sourceId": "IR-06",
+      "sourcePrompt": "Are continuity plans defined for critical service/provider outages?",
+      "sectionId": "response",
+      "position": 96,
+      "prompt": "Are continuity plans defined for critical service/provider outages?",
+      "type": "status",
+      "help": "Status; covered services and last exercise",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "IR-07",
+      "version": 2,
+      "sourceId": "IR-07",
+      "sourcePrompt": "What material incidents or recovery failures affect this assessment?",
+      "sectionId": "response",
+      "position": 97,
+      "prompt": "What material incidents or recovery failures affect this assessment?",
+      "type": "text",
+      "help": "Text: period, impact and corrective actions; restricted visibility",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "GOV-01",
+      "version": 2,
+      "sourceId": "GOV-01",
+      "sourcePrompt": "Is an accountable person responsible for security policy and risk decisions?",
+      "sectionId": "governance",
+      "position": 98,
+      "prompt": "Is an accountable person responsible for security policy and risk decisions?",
+      "type": "yn",
+      "help": "YN; role",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "GOV-02",
+      "version": 2,
+      "sourceId": "GOV-02",
+      "sourcePrompt": "Are security policies approved, communicated and reviewed?",
+      "sectionId": "governance",
+      "position": 99,
+      "prompt": "Are security policies approved, communicated and reviewed?",
+      "type": "status",
+      "help": "Status; policy list and review dates",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "GOV-03",
+      "version": 2,
+      "sourceId": "GOV-03",
+      "sourcePrompt": "What proportion of relevant personnel completed security awareness training in the required period?",
+      "sectionId": "governance",
+      "position": 100,
+      "prompt": "What proportion of relevant personnel completed security awareness training in the required period?",
+      "type": "coverage",
+      "help": "Coverage; period and training scope",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "GOV-04",
+      "version": 2,
+      "sourceId": "GOV-04",
+      "sourcePrompt": "Do personnel know how to report suspicious activity?",
+      "sectionId": "governance",
+      "position": 101,
+      "prompt": "Do personnel know how to report suspicious activity?",
+      "type": "status",
+      "help": "Status; reporting route and validation",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "GOV-05",
+      "version": 2,
+      "sourceId": "GOV-05",
+      "sourcePrompt": "Are critical suppliers assessed for security, access and continuity risks?",
+      "sectionId": "governance",
+      "position": 102,
+      "prompt": "Are critical suppliers assessed for security, access and continuity risks?",
+      "type": "status",
+      "help": "Status; supplier scope and review date",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "GOV-06",
+      "version": 2,
+      "sourceId": "GOV-06",
+      "sourcePrompt": "Are supplier responsibilities, incident contacts and exit/data-return arrangements documented?",
+      "sectionId": "governance",
+      "position": 103,
+      "prompt": "Are supplier responsibilities, incident contacts and exit/data-return arrangements documented?",
+      "type": "status",
+      "help": "Status; exceptions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "GOV-07",
+      "version": 2,
+      "sourceId": "GOV-07",
+      "sourcePrompt": "Are risks and exceptions recorded with owners, review dates and decisions?",
+      "sectionId": "governance",
+      "position": 104,
+      "prompt": "Are risks and exceptions recorded with owners, review dates and decisions?",
+      "type": "status",
+      "help": "Status; review frequency",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "GOV-08",
+      "version": 2,
+      "sourceId": "GOV-08",
+      "sourcePrompt": "Is there a funded, prioritized plan for unresolved security and lifecycle work?",
+      "sectionId": "governance",
+      "position": 105,
+      "prompt": "Is there a funded, prioritized plan for unresolved security and lifecycle work?",
+      "type": "status",
+      "help": "Status; owners and target dates",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "AI-01",
+      "version": 2,
+      "sourceId": "AI-01",
+      "sourcePrompt": "Which AI agents/Copilot products are used or proposed, and for what business purpose?",
+      "sectionId": "ai",
+      "position": 106,
+      "prompt": "Which AI agents/Copilot products are used or proposed, and for what business purpose?",
+      "type": "records",
+      "help": "Repeating product/use-case list; owner and deployment status",
+      "options": [],
+      "fields": [
+        {
+          "id": "product",
+          "label": "AI agent / Copilot product",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "purpose",
+          "label": "Business purpose / use case",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "owner",
+          "label": "Owner",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "deployment",
+          "label": "Deployment status",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "id": "proposed",
+              "label": "Proposed"
+            },
+            {
+              "id": "pilot",
+              "label": "Pilot"
+            },
+            {
+              "id": "deployed",
+              "label": "Deployed"
+            },
+            {
+              "id": "retired",
+              "label": "Retired"
+            },
+            {
+              "id": "unknown",
+              "label": "Unknown"
+            }
+          ]
+        }
+      ],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "AI-02",
+      "version": 2,
+      "sourceId": "AI-02",
+      "sourcePrompt": "Are permitted uses, sensitive-data rules and human accountability defined?",
+      "sectionId": "ai",
+      "position": 107,
+      "prompt": "Are permitted uses, sensitive-data rules and human accountability defined?",
+      "type": "status",
+      "help": "Status; policy and owner",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "AI-03",
+      "version": 2,
+      "sourceId": "AI-03",
+      "sourcePrompt": "Have data access and oversharing been reviewed for the proposed scope?",
+      "sectionId": "ai",
+      "position": 108,
+      "prompt": "Have data access and oversharing been reviewed for the proposed scope?",
+      "type": "status",
+      "help": "Status; scope, review date and remaining actions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "AI-04",
+      "version": 2,
+      "sourceId": "AI-04",
+      "sourcePrompt": "Have the selected product's prerequisites and licensing been validated?",
+      "sectionId": "ai",
+      "position": 109,
+      "prompt": "Have the selected product's prerequisites and licensing been validated?",
+      "type": "status",
+      "help": "Status; product-specific checklist/version and gaps",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "AI-05",
+      "version": 2,
+      "sourceId": "AI-05",
+      "sourcePrompt": "Are agent identities, tools, connectors and permissions approved with least privilege?",
+      "sectionId": "ai",
+      "position": 110,
+      "prompt": "Are agent identities, tools, connectors and permissions approved with least privilege?",
+      "type": "status",
+      "help": "Status; inventory, scope and exceptions",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "AI-06",
+      "version": 2,
+      "sourceId": "AI-06",
+      "sourcePrompt": "Which actions can agents perform, and which require human approval?",
+      "sectionId": "ai",
+      "position": 111,
+      "prompt": "Which actions can agents perform, and which require human approval?",
+      "type": "text",
+      "help": "Text; read/write/delete/external communication and approval boundaries",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "AI-07",
+      "version": 2,
+      "sourceId": "AI-07",
+      "sourcePrompt": "Are external data processing, retention and provider terms reviewed for this use case?",
+      "sectionId": "ai",
+      "position": 112,
+      "prompt": "Are external data processing, retention and provider terms reviewed for this use case?",
+      "type": "status",
+      "help": "Status; approved data scope and unresolved issues",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "AI-08",
+      "version": 2,
+      "sourceId": "AI-08",
+      "sourcePrompt": "Have sensitive-data disclosure, untrusted input and unauthorized-action scenarios been tested?",
+      "sectionId": "ai",
+      "position": 113,
+      "prompt": "Have sensitive-data disclosure, untrusted input and unauthorized-action scenarios been tested?",
+      "type": "status",
+      "help": "Status; test scope, date and results",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "AI-09",
+      "version": 2,
+      "sourceId": "AI-09",
+      "sourcePrompt": "Are agent activity, access changes and failures monitored with a shutdown/revocation process?",
+      "sectionId": "ai",
+      "position": 114,
+      "prompt": "Are agent activity, access changes and failures monitored with a shutdown/revocation process?",
+      "type": "status",
+      "help": "Status; owner and process",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "AI-10",
+      "version": 2,
+      "sourceId": "AI-10",
+      "sourcePrompt": "Is there a controlled pilot, user training and an acceptance decision before broader rollout?",
+      "sectionId": "ai",
+      "position": 115,
+      "prompt": "Is there a controlled pilot, user training and an acceptance decision before broader rollout?",
+      "type": "status",
+      "help": "Status; success criteria and approval",
+      "options": [
+        {
+          "id": "inPlace",
+          "label": "In place"
+        },
+        {
+          "id": "partly",
+          "label": "Partly in place"
+        },
+        {
+          "id": "notInPlace",
+          "label": "Not in place"
+        }
+      ],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "PRF-01",
+      "version": 2,
+      "sourceId": "PRF-01",
+      "sourcePrompt": "Which insurance provider, form edition and reporting period must be supported?",
+      "sectionId": "profiles",
+      "position": 116,
+      "prompt": "Which insurance provider, form edition and reporting period must be supported?",
+      "type": "text",
+      "help": "Text; form reference and due date",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "PRF-02",
+      "version": 2,
+      "sourceId": "PRF-02",
+      "sourcePrompt": "Who is authorized to review insurance answers and approve sharing?",
+      "sectionId": "profiles",
+      "position": 117,
+      "prompt": "Who is authorized to review insurance answers and approve sharing?",
+      "type": "text",
+      "help": "Text; roles and permitted recipients",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "PRF-03",
+      "version": 2,
+      "sourceId": "PRF-03",
+      "sourcePrompt": "Which exact NIST framework/publication and version are requested?",
+      "sectionId": "profiles",
+      "position": 118,
+      "prompt": "Which exact NIST framework/publication and version are requested?",
+      "type": "text",
+      "help": "Text; profile scope and intended use",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "PRF-04",
+      "version": 2,
+      "sourceId": "PRF-04",
+      "sourcePrompt": "Which CMMC level and assessment scope are requested?",
+      "sectionId": "profiles",
+      "position": 119,
+      "prompt": "Which CMMC level and assessment scope are requested?",
+      "type": "text",
+      "help": "Text; assessor/adviser confirmation status",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "PRF-05",
+      "version": 2,
+      "sourceId": "PRF-05",
+      "sourcePrompt": "Which systems, information types, boundaries and suppliers are in the framework scope?",
+      "sectionId": "profiles",
+      "position": 120,
+      "prompt": "Which systems, information types, boundaries and suppliers are in the framework scope?",
+      "type": "text",
+      "help": "Text; scope reference and exclusions",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "PRF-06",
+      "version": 2,
+      "sourceId": "PRF-06",
+      "sourcePrompt": "Are prior assessments, approved exceptions or remediation plans available?",
+      "sectionId": "profiles",
+      "position": 121,
+      "prompt": "Are prior assessments, approved exceptions or remediation plans available?",
+      "type": "yn",
+      "help": "YN; references, dates and applicability",
+      "options": [],
+      "fields": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "id": "PRF-07",
+      "version": 2,
+      "sourceId": "PRF-07",
+      "sourcePrompt": "What additional profile-specific questions or evidence remain unresolved?",
+      "sectionId": "profiles",
+      "position": 122,
+      "prompt": "What additional profile-specific questions or evidence remain unresolved?",
+      "type": "records",
+      "help": "Reviewer-maintained list linked to versioned criteria",
+      "options": [],
+      "fields": [
+        {
+          "id": "criterion",
+          "label": "Profile / criterion and version",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "need",
+          "label": "Unresolved question / evidence need",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "owner",
+          "label": "Owner",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "status",
+          "label": "Review status",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "id": "open",
+              "label": "Open"
+            },
+            {
+              "id": "in-progress",
+              "label": "In progress"
+            },
+            {
+              "id": "resolved",
+              "label": "Resolved"
+            },
+            {
+              "id": "unknown",
+              "label": "Unknown"
+            }
+          ]
+        }
+      ],
+      "units": [],
+      "reviewerOnly": true
+    },
+    {
+      "sourceId": "SCP-07",
+      "id": "SCP-07.LOCATIONS",
+      "sectionId": "company",
+      "prompt": "Where is each sensitive data type stored?",
+      "fields": [
+        {
+          "id": "dataType",
+          "label": "Sensitive data type",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "location",
+          "label": "Storage location / system",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "owner",
+          "label": "Owner",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "sourcePrompt": "What sensitive data do you handle, and where is it stored?",
+      "version": 2,
+      "position": 123,
+      "type": "records",
+      "help": "Add a separate row for each item. Use Unknown when a detail is not known.",
+      "options": [],
+      "units": [],
+      "reviewerOnly": false
+    },
+    {
+      "sourceId": "SCP-10",
+      "id": "SCP-10.PROFILES",
+      "sectionId": "company",
+      "prompt": "Which exact report profiles and versions are requested?",
+      "fields": [
+        {
+          "id": "view",
+          "label": "Report view",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "profile",
+          "label": "Product / insurer form / framework",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "version",
+          "label": "Version / edition or To be selected",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "sourcePrompt": "Which report views are requested?",
+      "version": 2,
+      "position": 124,
+      "type": "records",
+      "help": "Add a separate row for each item. Use Unknown when a detail is not known.",
+      "options": [],
+      "units": [],
+      "reviewerOnly": false
+    }
+  ]
+}

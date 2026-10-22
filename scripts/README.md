@@ -1,5 +1,10 @@
 # Azure setup scripts
 
+Client questionnaires: `Deploy-NsoAuditQuestionnaires.ps1` plans disposable validation resources
+and, with `-Apply` after what-if review, validates migration 014 on a 013 baseline, migrates Dev, deploys API/web and
+runs live synthetic API/browser checks. It cleans temporary SQL access and the disposable
+database in finally. See `../database/client-assessments.md` for parameters, order and recovery.
+
 These PowerShell scripts are designed for Azure Cloud Shell and contain no subscription IDs,
 tenant IDs, credentials, or private keys.
 

@@ -5,9 +5,9 @@ import {getSqlPool,uuidPattern,withOrganization} from '../storage/sql.js';
 import {tokenHash} from '../auth/passwords.js';
 import {object,parseAnswers,parseScope,QuestionnaireInputError,type Question,type Answer} from '../questionnaires/input.js';
 
-class RequestError extends Error { constructor(readonly status:number,message:string){super(message);} }
+export class RequestError extends Error { constructor(readonly status:number,message:string){super(message);} }
 const reply=(status:number,body:object):HttpResponseInit=>({status,headers:{'Cache-Control':'no-store'},jsonBody:body});
-async function resolveUser(request:HttpRequest) {
+export async function resolveQuestionnaireUser(request:HttpRequest) {
   const auth=request.headers.get('authorization')??'',organizationId=request.headers.get('x-nso-organization-id')??'';
   if(!/^Bearer [A-Za-z0-9_-]{43}$/.test(auth)) throw new RequestError(401,'Sign in with your NSO Audit email account to open questionnaires.');
   if(!uuidPattern.test(organizationId)) throw new RequestError(403,'Choose an authorized workspace.');
@@ -17,7 +17,7 @@ async function resolveUser(request:HttpRequest) {
   const row=result.recordset?.[0];
   if(!row) throw new RequestError(403,'Workspace access is no longer available.');
   if(request.method!=='GET' && !['owner','admin','contributor'].includes(row.Role)) throw new RequestError(403,'Your workspace role permits viewing only.');
-  return {organizationId,userId:row.UserId as string};
+  return {organizationId,userId:row.UserId as string,role:row.Role as string};
 }
 async function catalog(transaction:sql.Transaction,assetClass:string,templateVersion:string):Promise<Question[]> {
   if(templateVersion!=='backups-v1') throw new RequestError(409,'This questionnaire template is not supported by this API version.');
@@ -70,7 +70,7 @@ async function insertAnswer(transaction:sql.Transaction,org:string,id:string,use
 }
 export async function questionnaires(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit> {
   try {
-    const user=await resolveUser(request),id=request.params.assessmentId;
+    const user=await resolveQuestionnaireUser(request),id=request.params.assessmentId;
     if(id && !uuidPattern.test(id)) throw new RequestError(400,'Invalid assessment ID.');
     if(request.method==='GET') return await withOrganization(user.organizationId,async transaction=>{
       if(id) return reply(200,await load(transaction,user.organizationId,id));
