@@ -5,6 +5,8 @@ param functionAppName string
 param deploymentIdentityName string
 param githubRepository string
 param githubEnvironment string
+@description('Exact GitHub OIDC subject. Override for repositories using immutable owner/repository IDs.')
+param githubSubject string = 'repo:${githubRepository}:environment:${githubEnvironment}'
 resource api 'Microsoft.Web/sites@2024-04-01' existing = { name: functionAppName }
 resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: deploymentIdentityName
@@ -16,7 +18,7 @@ resource federation 'Microsoft.ManagedIdentity/userAssignedIdentities/federatedI
   name: 'github-environment'
   properties: {
     issuer: 'https://token.actions.githubusercontent.com'
-    subject: 'repo:${githubRepository}:environment:${githubEnvironment}'
+    subject: githubSubject
     audiences: ['api://AzureADTokenExchange']
   }
 }

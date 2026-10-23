@@ -283,3 +283,18 @@ memberships during code rollback and use forward schema repairs.
 For the 2026-10-23 answer-entry update, publish API before web. No database or infrastructure
 change is required. See [client assessment deployment and validation](../database/client-assessments.md#simplified-answer-entry-2026-10-23)
 for compatibility, validation and rollback.
+
+## GitHub API federation subject repair (2026-10-23)
+
+If Azure login fails with AADSTS700213, compare the subject in the failed run with the
+`githubSubject` environment parameter. Dev now records the immutable owner/repository IDs
+observed in run 40016490811. Preserve the existing deployment identity and app-scoped role.
+Compile the Bicep and parameters, run `Set-NsoAuditGitHubApiDeployment.ps1` without `-Apply`,
+and inspect what-if before applying. The expected material change is the existing
+`github-environment` federated credential subject. Investigate unrelated resource changes.
+Apply using the same script with `-Apply`, then rerun the failed Deploy API job and verify
+Azure login, deployment and health succeed. Verify authenticated questionnaire save/reopen
+separately; health alone does not validate SQL access. No SQL or app migration is required.
+Future Prod must use its own identity and exact environment subject. To recover an erroneous
+trust change, restore the previously verified subject through parameters and preview/apply
+again; do not introduce secrets or broaden the repository/environment trust.
