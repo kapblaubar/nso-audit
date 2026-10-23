@@ -277,3 +277,9 @@ No real invitations are sent by migration or deployment. The staff Send invitati
 replaces separate registration/verification/activation for the recipient. Validate using
 `verify-workspace-invitations.mjs` and the invitation/browser regressions; preserve accepted
 memberships during code rollback and use forward schema repairs.
+
+## Simplified questionnaire entry
+
+For the 2026-10-23 answer-entry update, publish API before web. No database or infrastructure
+change is required. See [client assessment deployment and validation](../database/client-assessments.md#simplified-answer-entry-2026-10-23)
+for compatibility, validation and rollback.

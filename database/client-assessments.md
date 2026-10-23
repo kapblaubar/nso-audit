@@ -105,3 +105,23 @@ can still use earlier backup data but cannot display the new full assessments. R
 until restoring the compatible build. Correct applied schema issues through a forward migration.
 For actual data corruption follow the environment's point-in-time recovery procedure, preserving
 newer responses before restore; restore rehearsal remains required independently.
+
+## Simplified answer entry (2026-10-23)
+
+The client form shows answer controls immediately; there is no Response status field.
+Company and profile intake omit review/evidence controls unless existing saved metadata
+must remain accessible. Reviewer-only questions retain review controls. Other questions
+provide Unknown, Not applicable and (for dates) Never actions; supporting notes and evidence
+are optional and collapsed. Other selections and Not applicable still require an explanation.
+Clearing an answer removes it from the saved response list. Existing answers and reviews
+remain compatible and are preserved when editing an answer.
+
+The client API accepts omitted `state` as `answered` and infers a sole configured number unit.
+Explicit states, question versions, permissions and typed values remain validated. No schema,
+catalog, migration or infrastructure changes are required. Historical migration 014 is unchanged.
+
+Validate with API tests, workspace typechecks and the client assessment Playwright suite.
+Deploy API before web through the existing deployment workflows/scripts. Verify authenticated
+answer entry, save/reopen, clearing, scope isolation and reviewer permissions in Dev after
+publishing. Local checks do not prove a live deployment. Roll back application artifacts if
+needed; there is no database migration to reverse.

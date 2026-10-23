@@ -39,7 +39,9 @@ export function parseClientAnswers(raw:unknown,questions:ClientQuestion[],canRev
     if(!question||seen.has(question.id))return inputError('Unknown, duplicate or outdated question.');
     seen.add(question.id);
     if(question.reviewerOnly&&!canReview)return inputError('This question is maintained by an owner or administrator reviewer.');
-    const input={...item};let records:ClientAnswer['records'];
+    const input:Record<string,unknown>={...item,state:item.state===undefined?'answered':item.state};
+    if(input.state==='answered'&&question.type==='number'&&input.unit===undefined&&question.units.length===1)input.unit=question.units[0];
+    let records:ClientAnswer['records'];
     if(question.type==='records'&&input.state==='answered'){
       if(input.textValue!==undefined)return inputError('Structured records cannot contain a text answer field.');
       if(!Array.isArray(input.records)||input.records.length<1||input.records.length>100)return inputError('Add between 1 and 100 rows.');

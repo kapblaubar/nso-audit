@@ -60,3 +60,14 @@ test('full client API fails closed before SQL when no session is supplied',async
   const context=new InvocationContext({functionName:'client-test'});
   for(const method of ['GET','POST','PUT'])assert.equal((await clientAssessments(new HttpRequest({url:'https://example.test/api/me/client-assessments',method}),context)).status,401);
 });
+
+test('direct answers infer state and single units while retaining strict validation',()=>{
+  const q=question('SCP-01');
+  assert.equal(parseClientAnswers([{questionId:q.id,questionVersion:q.version,textValue:'Washougal'}],[q],false)[0]?.state,'answered');
+  assert.throws(()=>parseClientAnswers([{questionId:q.id,questionVersion:q.version,textValue:''}],[q],false),/required/);
+  assert.throws(()=>parseClientAnswers([{questionId:q.id,questionVersion:q.version,state:'invalid',textValue:'Washougal'}],[q],false),/state/);
+  const count=question('SCP-03.EMP');
+  assert.equal(parseClientAnswers([{questionId:count.id,questionVersion:count.version,numberValue:0}],[count],false)[0]?.unit,'people');
+  const record=question('BKP-07');
+  assert.equal(parseClientAnswers([{questionId:record.id,questionVersion:record.version,records:[{tier:'Daily',duration:30,unit:'days',scope:'Endpoints'}]}],[record],false)[0]?.records?.length,1);
+});
