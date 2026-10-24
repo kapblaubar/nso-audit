@@ -103,3 +103,16 @@ SQL or reverse migrations on rollback. Take a restore point/backup appropriate t
 before destructive changes, use forward repairs, and validate point-in-time restore into a
 separate database before relying on the recovery runbook for Prod. A disposable clean rebuild
 has not yet been verified.
+
+## Temporary Dev SSMS operator access
+
+Chris is the configured Dev SQL Entra administrator. Connect to
+`nso-audit-dev-257f10d8.database.windows.net`, database `nso-audit-dev`, using
+Microsoft Entra MFA as `chris@newsommer.com`. Use encrypted connections with certificate
+validation. Open only the public IPv4 used by the SSMS machine with
+`scripts/Set-NsoAuditSsmsAccess.ps1 -Action Open -OperatorIpv4Address <ip>` to preview,
+then repeat with `-Apply`. The script is restricted to the existing Dev target and creates
+only `operator-ssms-chris`; it preserves API subnet rules and rejects conflicting rule IPs.
+After the session, run the same script with `-Action Close` and the same IP, preview then
+`-Apply`, to remove temporary access. This rule does not expire automatically. Keep permanent
+SQL parameters free of operator IPs. No schema or infrastructure redeployment is needed.

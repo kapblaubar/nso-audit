@@ -1,3 +1,4 @@
+import {guidedCopyAnswers} from '../questionnaires/guidedCopy.js';
 import {randomUUID} from 'node:crypto';
 import {app,type HttpRequest,type HttpResponseInit,type InvocationContext} from '@azure/functions';
 import sql from 'mssql';
@@ -19,7 +20,7 @@ export async function loadClientAssessment(tx:sql.Transaction,org:string,id:stri
     SELECT * FROM app.ClientAssessmentReviews WHERE OrganizationId=@org AND AssessmentId=@id;`);
   const sets=result.recordsets as sql.IRecordSet<any>[],detail=sets[0]?.[0];
   if(!detail)throw new RequestError(404,'Client assessment not found.');
-  if(detail.TemplateVersion!=='client-v1')throw new RequestError(409,'This client questionnaire version is not supported by this API.');
+  if(!['client-v1','client-v2'].includes(detail.TemplateVersion))throw new RequestError(409,'This client questionnaire version is not supported by this API.');
   const catalog=await new sql.Request(tx).input('template',sql.VarChar(64),detail.TemplateVersion).query(`
     SELECT * FROM questionnaire.ClientSections WHERE TemplateVersion=@template ORDER BY Position;
     SELECT q.*,d.SectionId,d.SourceQuestionId,d.DefinitionJson FROM questionnaire.Questions q JOIN questionnaire.ClientQuestionDefinitions d ON d.QuestionId=q.QuestionId AND d.QuestionVersion=q.Version WHERE d.TemplateVersion=@template ORDER BY q.Position;
@@ -71,13 +72,38 @@ export async function clientAssessments(request:HttpRequest,context:InvocationCo
     let body:Record<string,unknown>;try{body=object(JSON.parse(raw));}catch{throw new RequestError(400,'Invalid JSON request.');}
     return await withOrganization(user.organizationId,async tx=>{
       if(!id){
+        if(body.copyFrom!==undefined&&(typeof body.copyFrom!=='string'||!uuidPattern.test(body.copyFrom)))return inputError('Invalid source assessment.');
+        if(body.copyFrom)await query(tx,user.organizationId,String(body.copyFrom)).query('SELECT Revision FROM app.ClientAssessmentDetails WITH(UPDLOCK,HOLDLOCK) WHERE OrganizationId=@org AND AssessmentId=@id');
+        const source=body.copyFrom?await loadClientAssessment(tx,user.organizationId,String(body.copyFrom)):undefined;
+        if(source&&source.templateVersion!=='client-v1')return inputError('Only an earlier client assessment needs a guided copy.');
+        if(source&&body.sourceRevision!==source.revision)throw new RequestError(409,'The source assessment changed. Reopen it before creating a guided copy.');
+        if(source&&source.status!=='draft')return inputError('Only a draft can be copied into guided questions.');
+        const ready=await new sql.Request(tx).query("SELECT COUNT(*) AS N FROM questionnaire.ClientQuestionDefinitions WHERE TemplateVersion='client-v2'");
+        if(ready.recordset[0]?.N!==121)throw new RequestError(503,'Guided questionnaires require database migration 015 before creating assessments.');
         const name=boundedText(body.name,'Assessment name')!,owner=boundedText(body.answerOwner,'Answer owner',200,false),reviewer=boundedText(body.reviewer,'Reviewer',200,false),created=randomUUID();
         await query(tx,user.organizationId,created).input('name',sql.NVarChar(200),name).input('owner',sql.NVarChar(200),owner??null).input('reviewer',sql.NVarChar(200),reviewer??null).query(`
-          INSERT app.Assessments(OrganizationId,AssessmentId,TemplateVersion) VALUES(@org,@id,'client-v1');
+          INSERT app.Assessments(OrganizationId,AssessmentId,TemplateVersion) VALUES(@org,@id,'client-v2');
           INSERT app.ClientAssessmentDetails(OrganizationId,AssessmentId,Name,AnswerOwner,Reviewer) VALUES(@org,@id,@name,@owner,@reviewer);
           INSERT app.ClientAssessmentGroups(OrganizationId,AssessmentId,GroupId,TemplateVersion,SectionId,Name)
-            SELECT @org,@id,NEWID(),TemplateVersion,SectionId,Title FROM questionnaire.ClientSections WHERE TemplateVersion='client-v1' AND Repeatable=0;`);
-        await audit(tx,user.organizationId,user.userId,'clientAssessment.created');
+            SELECT @org,@id,NEWID(),TemplateVersion,SectionId,Title FROM questionnaire.ClientSections WHERE TemplateVersion='client-v2' AND Repeatable=0;`);
+        if(source){
+          // The original remains the recovery source, including all historical review records.
+          await query(tx,user.organizationId,created).query('DELETE FROM app.ClientAssessmentGroups WHERE OrganizationId=@org AND AssessmentId=@id');
+          const copiedGroups=new Map<string,string>();
+          for(const oldGroup of source.groups){
+            const copiedId=randomUUID();copiedGroups.set(oldGroup.id,copiedId);
+            await query(tx,user.organizationId,created).input('group',sql.UniqueIdentifier,copiedId).input('section',sql.VarChar(32),oldGroup.sectionId).input('name',sql.NVarChar(200),oldGroup.name).input('context',sql.NVarChar(2000),JSON.stringify(oldGroup.context)).query("INSERT app.ClientAssessmentGroups(OrganizationId,AssessmentId,GroupId,TemplateVersion,SectionId,Name,ContextJson) VALUES(@org,@id,@group,'client-v2',@section,@name,@context)");
+          }
+          const copy=await loadClientAssessment(tx,user.organizationId,created);
+          for(const oldGroup of source.groups){
+            const target=copy.groups.find(g=>g.id.toLowerCase()===copiedGroups.get(oldGroup.id)?.toLowerCase());
+            if(!target)throw new Error('Guided copy group missing.');
+            const applicable=questionsForGroup(copy.questions,target.sectionId,target.context);
+            const converted=guidedCopyAnswers(oldGroup.answers as unknown as ClientAnswer[],applicable,canReview);
+            for(const answer of parseClientAnswers(converted,applicable,canReview))await writeAnswer(tx,user.organizationId,created,target.id,user.userId,answer,applicable.find(q=>q.id===answer.questionId)!);
+          }
+        }
+        await audit(tx,user.organizationId,user.userId,source?'clientAssessment.guidedCopyCreated':'clientAssessment.created');
         return reply(201,await loadClientAssessment(tx,user.organizationId,created));
       }
       await lock(tx,user.organizationId,id,body.revision);
@@ -88,7 +114,7 @@ export async function clientAssessments(request:HttpRequest,context:InvocationCo
         const name=boundedText(body.name,'Group name')!,groupContext=parseFields(body.context,section.groupFields);
         if(Object.values(groupContext).some(value=>value===null))return inputError('Choose the group scope before answering its questions.');
         const created=randomUUID();
-        await query(tx,user.organizationId,id).input('group',sql.UniqueIdentifier,created).input('section',sql.VarChar(32),section.id).input('name',sql.NVarChar(200),name).input('context',sql.NVarChar(2000),JSON.stringify(groupContext)).query("INSERT app.ClientAssessmentGroups(OrganizationId,AssessmentId,GroupId,TemplateVersion,SectionId,Name,ContextJson) VALUES(@org,@id,@group,'client-v1',@section,@name,@context)");
+        await query(tx,user.organizationId,id).input('group',sql.UniqueIdentifier,created).input('section',sql.VarChar(32),section.id).input('name',sql.NVarChar(200),name).input('context',sql.NVarChar(2000),JSON.stringify(groupContext)).input('template',sql.VarChar(64),assessment.templateVersion).query("INSERT app.ClientAssessmentGroups(OrganizationId,AssessmentId,GroupId,TemplateVersion,SectionId,Name,ContextJson) VALUES(@org,@id,@group,@template,@section,@name,@context)");
         await audit(tx,user.organizationId,user.userId,'clientAssessment.groupAdded');
       }else if(groupId){
         const group=assessment.groups.find(g=>g.id.toLowerCase()===groupId.toLowerCase());

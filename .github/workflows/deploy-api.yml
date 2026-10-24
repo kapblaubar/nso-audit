@@ -1,5 +1,5 @@
 name: Deploy API
-# Deployment prerequisite: database migrations through 014 must be applied before questionnaire code.
+# Deployment prerequisite: database migrations through 015 must be applied before questionnaire code.
 # SQL migrations are operator-managed; see database/questionnaires.md for order and validation.
 
 on:
@@ -40,7 +40,9 @@ jobs:
         run: npm ci
 
       - name: Verify questionnaire catalog and migration
-        run: node scripts/build-client-questionnaire.mjs --check
+        run: |
+          node scripts/build-client-questionnaire.mjs --check
+          node scripts/build-guided-questionnaire.mjs --check
 
       - name: Typecheck API
         run: npm run typecheck --workspace @nso-audit/api

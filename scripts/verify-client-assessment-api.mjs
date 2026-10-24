@@ -33,15 +33,14 @@ try{
     EXEC sys.sp_set_session_context @key=N'organizationId',@value=NULL;`);
   assert.equal((await call('','GET',undefined,org,false)).status,401);assert.equal((await call('','GET',undefined,other)).status,403);assert.equal((await call(`/${other}`)).status,404);
   const created=await call('','POST',{name:'Disposable complete client assessment',answerOwner:'Synthetic client',reviewer:'Synthetic reviewer'});assert.equal(created.status,201,JSON.stringify(created.body));let current=created.body;
-  assert.equal(current.sections.length,12);assert.equal(current.questions.length,124);
+  assert.equal(current.sections.length,12);assert.equal(current.questions.length,121);assert.equal(current.templateVersion,'client-v2');
   const id=current.id;
   async function update(path,method,body){const result=await call(`/${id}${path}`,method,{revision:current.revision,...body});assert.ok([200,201].includes(result.status),JSON.stringify(result.body));current=result.body;return current;}
   const company=current.groups.find(g=>g.sectionId==='company');
   const companyAnswers=[
-    {questionId:'SCP-01',questionVersion:2,state:'answered',textValue:'Synthetic company'},
-    {questionId:'SCP-03.EMP',questionVersion:2,state:'answered',numberValue:5,unit:'people'},
-    {questionId:'SCP-04',questionVersion:2,state:'answered',selections:['microsoft-365']},
-    {questionId:'SCP-05',questionVersion:2,state:'answered',records:[{environment:'Microsoft 365',account:null,domains:'example.invalid',locations:'US'}]},
+    {questionId:'SCP-01',questionVersion:3,state:'answered',textValue:'Synthetic company'},
+    {questionId:'SCP-03.EMP',questionVersion:3,state:'answered',numberValue:5,unit:'people'},
+    {questionId:'SCP-05',questionVersion:3,state:'answered',records:[{platform:'microsoft',tenant:'Synthetic tenant',domains:'example.invalid',locations:'US'},{platform:'aws',account:'123456789012'},{platform:'google',projects:'analytics'}]},
   ];
   await update(`/groups/${company.id}`,'PUT',{answers:companyAnswers});
   for(const section of current.sections.filter(s=>s.repeatable)){
@@ -49,29 +48,29 @@ try{
     await update('/groups','POST',{sectionId:section.id,name:section.id==='backups'?'Endpoint backups':section.title+' scope',context});
   }
   const end=current.groups.find(g=>g.sectionId==='backups');
-  const endpointAnswers=[{questionId:'BKP-01',questionVersion:2,state:'answered',booleanValue:true},
-    {questionId:'BKP-02',questionVersion:2,state:'answered',totalInScope:100,totalCovered:80,measurementDate:'2026-10-21',measurementSource:'Synthetic backup console'},
-    {questionId:'BKP-04',questionVersion:2,state:'answered',selectedOptionId:'daily'},
-    {questionId:'BKP-07',questionVersion:2,state:'answered',records:[{tier:'Daily',duration:30,unit:'days',scope:'Endpoints'},{tier:'Archive',duration:1,unit:'years',scope:'Critical endpoint data'}]},
-    {questionId:'BKP-10',questionVersion:2,state:'answered',selectedOptionId:'partly'},
-    {questionId:'BKP-15',questionVersion:2,state:'answered',dateValue:'2026-10-20'}];
+  const endpointAnswers=[{questionId:'BKP-01',questionVersion:3,state:'answered',booleanValue:true},
+    {questionId:'BKP-02',questionVersion:3,state:'answered',totalInScope:100,totalCovered:80,measurementDate:'2026-10-21',measurementSource:'Synthetic backup console'},
+    {questionId:'BKP-04',questionVersion:3,state:'answered',selectedOptionId:'daily'},
+    {questionId:'BKP-07',questionVersion:3,state:'answered',records:[{tier:'Daily',duration:30,unit:'days',scope:'Endpoints'},{tier:'Archive',duration:1,unit:'years',scope:'Critical endpoint data'}]},
+    {questionId:'BKP-10',questionVersion:3,state:'answered',selectedOptionId:'partly'},
+    {questionId:'BKP-15',questionVersion:3,state:'answered',dateValue:'2026-10-20'}];
   await update(`/groups/${end.id}`,'PUT',{answers:endpointAnswers});
   await update('/groups','POST',{sectionId:'backups',name:'Database backups',context:{assetClass:'databases'}});
-  const db=current.groups.find(g=>g.name==='Database backups');await update(`/groups/${db.id}`,'PUT',{answers:[{questionId:'BKP-01',questionVersion:2,state:'answered',booleanValue:false},{questionId:'BKP-DB-01',questionVersion:2,state:'unknown'}]});
+  const db=current.groups.find(g=>g.name==='Database backups');await update(`/groups/${db.id}`,'PUT',{answers:[{questionId:'BKP-01',questionVersion:3,state:'answered',booleanValue:false},{questionId:'BKP-DB-01',questionVersion:3,state:'unknown'}]});
   const stableRevision=current.revision;
-  assert.equal((await call(`/${id}/groups/${end.id}`,'PUT',{revision:stableRevision,answers:[{questionId:'BKP-DB-01',questionVersion:2,state:'unknown'}]})).status,400);
-  assert.equal((await call(`/${id}/groups/${end.id}`,'PUT',{revision:stableRevision,answers:[{questionId:'IAM-01',questionVersion:2,state:'unknown'}]})).status,400);
+  assert.equal((await call(`/${id}/groups/${end.id}`,'PUT',{revision:stableRevision,answers:[{questionId:'BKP-DB-01',questionVersion:3,state:'unknown'}]})).status,400);
+  assert.equal((await call(`/${id}/groups/${end.id}`,'PUT',{revision:stableRevision,answers:[{questionId:'IAM-01',questionVersion:3,state:'unknown'}]})).status,400);
   assert.equal((await call(`/${id}/groups/${end.id}`,'PUT',{revision:stableRevision-1,answers:[]})).status,409);
   assert.equal((await call(`/${id}`)).body.revision,stableRevision);
-  assert.equal((await call(`/${id}/groups/${end.id}/reviews/BKP-01`,'PUT',{revision:stableRevision,questionVersion:2,review:{conclusion:'unknown',evidenceState:'missing',collectionState:'notRequested',notes:'No restore evidence'}})).status,403);
+  assert.equal((await call(`/${id}/groups/${end.id}/reviews/BKP-01`,'PUT',{revision:stableRevision,questionVersion:3,review:{conclusion:'unknown',evidenceState:'missing',collectionState:'notRequested',notes:'No restore evidence'}})).status,403);
   const profiles=current.groups.find(g=>g.sectionId==='profiles');
-  assert.equal((await call(`/${id}/groups/${profiles.id}`,'PUT',{revision:stableRevision,answers:[{questionId:'PRF-07',questionVersion:2,state:'unknown'}]})).status,400);
+  assert.equal((await call(`/${id}/groups/${profiles.id}`,'PUT',{revision:stableRevision,answers:[{questionId:'PRF-07',questionVersion:3,state:'unknown'}]})).status,400);
   await req().query("UPDATE security.Memberships SET Role='admin' WHERE OrganizationId=@org AND UserId=@user;");
-  await update(`/groups/${end.id}/reviews/BKP-01`,'PUT',{questionVersion:2,review:{conclusion:'unknown',evidenceState:'missing',collectionState:'notRequested',notes:'Synthetic review; successful recovery not established'}});
+  await update(`/groups/${end.id}/reviews/BKP-01`,'PUT',{questionVersion:3,review:{conclusion:'unknown',evidenceState:'missing',collectionState:'notRequested',notes:'Synthetic review; successful recovery not established'}});
   assert.equal(current.groups.find(g=>g.id===end.id).answers.find(a=>a.questionId==='BKP-01').booleanValue,true);
-  await update(`/groups/${profiles.id}`,'PUT',{answers:[{questionId:'PRF-07',questionVersion:2,state:'unknown'}]});
+  await update(`/groups/${profiles.id}`,'PUT',{answers:[{questionId:'PRF-07',questionVersion:3,state:'unknown'}]});
   await req().query("UPDATE security.Memberships SET Role='contributor' WHERE OrganizationId=@org AND UserId=@user;");
-  await update(`/groups/${profiles.id}`,'PUT',{answers:[{questionId:'PRF-01',questionVersion:2,state:'unknown'}]});
+  await update(`/groups/${profiles.id}`,'PUT',{answers:[{questionId:'PRF-01',questionVersion:3,state:'unknown'}]});
   assert.ok(current.groups.find(g=>g.id===profiles.id).answers.some(a=>a.questionId==='PRF-07'),'Contributor save must preserve the reviewer-only answer.');
   await req().query("UPDATE security.Memberships SET Role='viewer' WHERE OrganizationId=@org AND UserId=@user;");
   assert.equal((await call(`/${id}`)).status,200);assert.equal((await call('','POST',{name:'Forbidden'})).status,403);assert.equal((await call(`/${id}/groups/${end.id}`,'PUT',{revision:current.revision,answers:[]})).status,403);
@@ -79,9 +78,9 @@ try{
   current=(await call(`/${id}`)).body;
   assert.equal(current.groups.find(g=>g.id===end.id).answers.find(a=>a.questionId==='BKP-01').booleanValue,true);
   assert.equal(current.groups.find(g=>g.id===db.id).answers.find(a=>a.questionId==='BKP-01').booleanValue,false);
-  assert.deepEqual(current.groups.find(g=>g.id===company.id).answers.find(a=>a.questionId==='SCP-05').records,companyAnswers[3].records);
+  assert.deepEqual(current.groups.find(g=>g.id===company.id).answers.find(a=>a.questionId==='SCP-05').records,companyAnswers[2].records);
   assert.ok((await call()).body.earlierAssessments.some(a=>a.id.toLowerCase()===legacy));
-  console.log('PASS: live 12-section / 124-question client assessment, all repeatable scope families, all input types, separate endpoint/database answers, records, revisions, role/client isolation and independent reviews.');
+  console.log('PASS: live 12-section / 121-question guided client assessment, all repeatable scope families, all input types, separate endpoint/database answers, records, revisions, role/client isolation and independent reviews.');
   if(QUESTIONNAIRE_TEST_PORTAL_URL){
     const {chromium}=createRequire(new URL('../package.json',import.meta.url))('@playwright/test');browser=await chromium.launch({headless:true,...(process.platform==='win32'?{channel:'msedge'}:{})});const page=await browser.newPage();
     await page.addInitScript(value=>sessionStorage.setItem('nso.customerSession',value),session);await page.goto(new URL('/signin',QUESTIONNAIRE_TEST_PORTAL_URL).href);
@@ -89,8 +88,8 @@ try{
     await page.getByRole('navigation',{name:'Assessment sections'}).waitFor({state:'visible'});
     assert.equal(await page.getByRole('navigation',{name:'Assessment sections'}).getByRole('button').count(),12);
     const scope=page.getByRole('region',{name:'What company, business units and locations does this assessment cover?',exact:true});
-    await scope.getByRole('textbox',{name:'Answer',exact:true}).fill('Synthetic company updated in browser');await page.getByRole('button',{name:'Save draft',exact:true}).click();await page.getByRole('status').filter({hasText:'Draft saved'}).waitFor();
-    await page.getByRole('button',{name:'All client assessments',exact:true}).click();await page.getByRole('button',{name:'Open assessment',exact:true}).click();assert.equal(await scope.getByRole('textbox',{name:'Answer',exact:true}).inputValue(),'Synthetic company updated in browser');
+    await scope.getByRole('textbox',{name:'Company or location name',exact:true}).fill('Synthetic company updated in browser');await page.getByRole('button',{name:'Save draft',exact:true}).click();await page.getByRole('status').filter({hasText:'Draft saved'}).waitFor();
+    await page.getByRole('button',{name:'All client assessments',exact:true}).click();await page.getByRole('button',{name:'Open assessment',exact:true}).click();assert.equal(await scope.getByRole('textbox',{name:'Company or location name',exact:true}).inputValue(),'Synthetic company updated in browser');
     await mkdir(new URL('../.azure/browser-results/',import.meta.url),{recursive:true});await page.screenshot({path:fileURLToPath(new URL('../.azure/browser-results/full-client-questionnaire-live.png',import.meta.url)),fullPage:true});
     await page.getByRole('navigation',{name:'Assessment sections'}).getByRole('button',{name:/Backups and recovery/}).click();
     const strategy=page.getByRole('region',{name:'Do you have a defined backup strategy for these systems/data?',exact:true});
@@ -100,6 +99,34 @@ try{
     assert.equal(await page.getByRole('region',{name:'Do you have a defined backup strategy?',exact:true}).getByRole('combobox',{name:'Answer',exact:true}).inputValue(),'true');
     console.log('PASS: live browser shows all 12 sections, saves/reopens company answers, switches separate backup scopes and opens preserved earlier answers.');
   }
+  // Verify a legacy draft can be copied without changing its answers or historical review.
+  const sourceId=randomUUID(),sourceCompany=randomUUID(),sourceBackup1=randomUUID(),sourceBackup2=randomUUID();
+  await req().input('source',sql.UniqueIdentifier,sourceId).input('companyGroup',sql.UniqueIdentifier,sourceCompany).input('backup1',sql.UniqueIdentifier,sourceBackup1).input('backup2',sql.UniqueIdentifier,sourceBackup2).query(`
+    EXEC sys.sp_set_session_context @key=N'organizationId',@value=@org;
+    INSERT app.Assessments(OrganizationId,AssessmentId,TemplateVersion) VALUES(@org,@source,'client-v1');
+    INSERT app.ClientAssessmentDetails(OrganizationId,AssessmentId,Name) VALUES(@org,@source,'Disposable earlier client draft');
+    INSERT app.ClientAssessmentGroups(OrganizationId,AssessmentId,GroupId,TemplateVersion,SectionId,Name,ContextJson) VALUES
+      (@org,@source,@companyGroup,'client-v1','company','Company','{}'),
+      (@org,@source,@backup1,'client-v1','backups','Duplicate scope name','{"assetClass":"endpoints"}'),
+      (@org,@source,@backup2,'client-v1','backups','Duplicate scope name','{"assetClass":"endpoints"}');
+    INSERT app.ClientAssessmentAnswers(OrganizationId,AssessmentId,GroupId,QuestionId,QuestionVersion,AnswerType,AnswerState,RecordsJson,UpdatedBy) VALUES
+      (@org,@source,@companyGroup,'SCP-05',2,'records','answered','[{"environment":"Microsoft 365","account":"tenant-old","domains":"example.invalid","locations":"US"}]',@user);
+    INSERT app.ClientAssessmentAnswers(OrganizationId,AssessmentId,GroupId,QuestionId,QuestionVersion,AnswerType,AnswerState,BooleanValue,UpdatedBy) VALUES
+      (@org,@source,@backup1,'BKP-01',2,'yn','answered',1,@user),(@org,@source,@backup2,'BKP-01',2,'yn','answered',0,@user);
+    INSERT app.ClientAssessmentReviews(OrganizationId,AssessmentId,GroupId,QuestionId,QuestionVersion,Conclusion,EvidenceState,CollectionState,Notes,UpdatedBy) VALUES
+      (@org,@source,@backup1,'BKP-01',2,'unknown','missing','notRequested','Original review remains on original',@user);
+    EXEC sys.sp_set_session_context @key=N'organizationId',@value=NULL;`);
+  const before=(await call(`/${sourceId}`)).body;
+  assert.equal((await call('','POST',{name:'Stale guided copy',copyFrom:sourceId,sourceRevision:99})).status,409);
+  const copied=await call('','POST',{name:'Disposable guided copy',copyFrom:sourceId,sourceRevision:before.revision});
+  assert.equal(copied.status,201,JSON.stringify(copied.body));assert.equal(copied.body.templateVersion,'client-v2');
+  assert.equal(copied.body.groups.find(g=>g.sectionId==='company').answers.find(a=>a.questionId==='SCP-05').records[0].tenant,'tenant-old');
+  assert.deepEqual(copied.body.groups.filter(g=>g.sectionId==='backups').map(g=>g.answers[0].booleanValue).sort(),[false,true]);
+  assert.ok(copied.body.groups.every(g=>g.reviews.length===0));
+  assert.deepEqual((await call(`/${sourceId}`)).body,before,'Original answers, revision and reviews must remain unchanged.');
+  assert.equal((await call('','POST',{name:'Unauthorized copy',copyFrom:other,sourceRevision:0})).status,404);
+  console.log('PASS: guided copy preserves legacy source/reviews, duplicate-named scopes stay separate, stale and cross-workspace copies are rejected.');
+
 }finally{
   await browser?.close();
   try{for(const fixture of [org,other])await pool.request().input('org',sql.UniqueIdentifier,fixture).query(`EXEC sys.sp_set_session_context @key=N'organizationId',@value=@org;

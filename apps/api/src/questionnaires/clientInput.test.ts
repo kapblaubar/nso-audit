@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
+import {guidedCopyAnswers} from './guidedCopy.js';
 import {parseClientAnswers,parseFields,parseReview,questionsForGroup,type ClientQuestion,type Section} from './clientInput.js';
 import {clientAssessments} from '../functions/clientAssessments.js';
 const {HttpRequest,InvocationContext}=createRequire(import.meta.url)('@azure/functions') as typeof import('@azure/functions');
@@ -70,4 +71,46 @@ test('direct answers infer state and single units while retaining strict validat
   assert.equal(parseClientAnswers([{questionId:count.id,questionVersion:count.version,numberValue:0}],[count],false)[0]?.unit,'people');
   const record=question('BKP-07');
   assert.equal(parseClientAnswers([{questionId:record.id,questionVersion:record.version,records:[{tier:'Daily',duration:30,unit:'days',scope:'Endpoints'}]}],[record],false)[0]?.records?.length,1);
+});
+
+const guidedCatalog=JSON.parse(await readFile(new URL('../../../../../config/questionnaires/client-v2.json',import.meta.url),'utf8')) as {questions:ClientQuestion[]};
+const guidedQuestion=(id:string)=>guidedCatalog.questions.find(q=>q.id===id)!;
+test('guided record validation supports conditional fields and multi-provider responsibilities',()=>{
+  const q=guidedQuestion('SCP-05');
+  const parse=(row:object)=>parseClientAnswers([{questionId:q.id,questionVersion:3,records:[row]}],[q],false);
+  assert.equal(parse({platform:'aws'})[0]?.records?.[0]?.platform,'aws');
+  assert.throws(()=>parse({platform:'fake'}),/valid/);
+  assert.throws(()=>parse({platform:null}),/required/);
+  assert.throws(()=>parse({platform:'aws',tenant:'wrong platform'}),/not applicable/);
+  assert.throws(()=>parse({platform:'other'}),/required/);
+  assert.throws(()=>parse({platform:'aws',unexpected:'x'}),/Unexpected/);
+  const supplier=guidedQuestion('SCP-08');
+  const supplierParse=(row:object)=>parseClientAnswers([{questionId:supplier.id,questionVersion:3,records:[row]}],[supplier],false);
+  assert.deepEqual(supplierParse({provider:'Partner',responsibilities:['service-2','service-13']})[0]?.records?.[0]?.responsibilities,['service-2','service-13']);
+  assert.throws(()=>supplierParse({provider:'Partner',responsibilities:['service-2','service-2']}),/valid/);
+  assert.throws(()=>supplierParse({provider:'Partner',responsibilities:['made-up']}),/valid/);
+  assert.throws(()=>supplierParse({provider:'Partner',responsibilities:['other']}),/required/);
+  assert.equal(supplierParse({provider:'Partner',responsibilities:['other'],other:'Custom service'}).length,1);
+});
+
+test('guided copies preserve the original, carried-over values and previously selected purposes',()=>{
+  const answers=[
+    {questionId:'SCP-01',questionVersion:2,state:'answered' as const,textValue:'Washougal'},
+    {questionId:'SCP-04',questionVersion:2,state:'answered' as const,selections:['microsoft-365','azure','aws']},
+    {questionId:'SCP-05',questionVersion:2,state:'answered' as const,records:[{environment:'Microsoft 365',account:'tenant-123',domains:'example.com',locations:'US'}]},
+    {questionId:'SCP-06',questionVersion:2,state:'answered' as const,records:[{service:'Payroll',systems:'QuickBooks',owner:'Finance',criticality:'high'}]},
+    {questionId:'SCP-08',questionVersion:2,state:'answered' as const,records:[{provider:'Partner',responsibilities:'Database administration',systems:'Azure SQL'}]},
+    {questionId:'SCP-10',questionVersion:2,state:'answered' as const,selections:['insurance','cmmc','nist']},
+  ];
+  const snapshot=structuredClone(answers);
+  const converted=guidedCopyAnswers(answers,guidedCatalog.questions,false);
+  const parsed=parseClientAnswers(converted,guidedCatalog.questions,false);
+  assert.deepEqual(answers,snapshot);
+  assert.equal(parsed.find(a=>a.questionId==='SCP-01')?.textValue,'Washougal');
+  assert.equal(parsed.find(a=>a.questionId==='SCP-05')?.records?.[0]?.tenant,'tenant-123');
+  assert.equal(parsed.find(a=>a.questionId==='SCP-05')?.records?.length,2);
+  assert.match(String(parsed.find(a=>a.questionId==='SCP-05')?.records?.[0]?.previousDetails),/Previously selected: azure/);
+  assert.match(String(parsed.find(a=>a.questionId==='SCP-08')?.records?.[0]?.previousDetails),/Database administration/);
+  assert.equal(parsed.find(a=>a.questionId==='SCP-10.PROFILES')?.records?.length,3);
+  assert.equal(parsed.find(a=>a.questionId==='SCP-06')?.records?.[0]?.tolerance,undefined);
 });

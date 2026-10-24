@@ -298,3 +298,11 @@ separately; health alone does not validate SQL access. No SQL or app migration i
 Future Prod must use its own identity and exact environment subject. To recover an erroneous
 trust change, restore the previously verified subject through parameters and preview/apply
 again; do not introduce secrets or broaden the repository/environment trust.
+
+## Guided questionnaire intake deployment
+
+Apply additive `015_guided_questionnaire.sql` before publishing API, then publish web.
+Pushing to GitHub does not run migrations. Use the existing disposable-first questionnaire
+wrapper and follow [guided questionnaire validation and recovery](../database/guided-questionnaires.md).
+New assessments use client-v2; original client-v1 drafts remain available with a guided-copy
+option. No database rebuild or persistent infrastructure change is required.

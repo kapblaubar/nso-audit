@@ -2,8 +2,10 @@ import {test,expect,type Page} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 const catalog=JSON.parse(readFileSync('config/questionnaires/client-v1.json','utf8'));
 const org='11111111-1111-1111-1111-111111111111',id='22222222-2222-2222-2222-222222222222';
-async function setup(page:Page,role='contributor',stale=false){
-  const data:any={id,name:'Company assessment',answerOwner:'Client',reviewer:'Reviewer',revision:0,status:'draft',...structuredClone(catalog),groups:catalog.sections.filter((s:any)=>!s.repeatable).map((s:any,index:number)=>({id:`33333333-3333-3333-3333-${String(index+1).padStart(12,'0')}`,sectionId:s.id,name:s.title,context:{},answers:[],reviews:[]}))};
+const guidedCatalog=JSON.parse(readFileSync('config/questionnaires/client-v2.json','utf8'));
+async function setup(page:Page,role='contributor',stale=false,template='client-v1'){
+  const selectedCatalog=template==='client-v2'?guidedCatalog:catalog;
+  const data:any={id,name:'Company assessment',answerOwner:'Client',reviewer:'Reviewer',revision:0,status:'draft',...structuredClone(selectedCatalog),groups:selectedCatalog.sections.filter((s:any)=>!s.repeatable).map((s:any,index:number)=>({id:`33333333-3333-3333-3333-${String(index+1).padStart(12,'0')}`,sectionId:s.id,name:s.title,context:{},answers:[],reviews:[]}))};
   await page.addInitScript(()=>sessionStorage.setItem('nso.customerSession','a'.repeat(43)));
   await page.route('**/api/account/session',route=>route.fulfill({json:{user:{id:'user',name:'Client',email:'client@example.test'},workspaces:[{id:org,name:'Manual client',role,tenantId:null}]}}));
   await page.route('**/api/me/client-assessments**',async route=>{
@@ -77,4 +79,86 @@ test('security exceptions and Other choices require explanations without a statu
   await strategy.getByRole('button',{name:'Enter an answer',exact:true}).click();
   await strategy.getByRole('combobox',{name:'Answer',exact:true}).selectOption('false');
   await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.getByRole('status')).toContainText('Draft saved');
+});
+
+test('guided intake supports hybrid platforms, activities, providers, storage and multiple purposes',async({page})=>{
+  const data=await setup(page,'contributor',false,'client-v2');
+  const environments=question(page,'Which environments do you use?');
+  await environments.getByRole('checkbox',{name:'Microsoft 365 / Azure',exact:true}).check();
+  await environments.getByLabel('Microsoft tenant name or ID',{exact:true}).fill('NewSommer tenant');
+  await environments.getByLabel('Azure subscription names or IDs (optional)').fill('Production; Sandbox');
+  await environments.getByRole('checkbox',{name:'AWS',exact:true}).check();
+  await environments.getByLabel('AWS account name or ID',{exact:true}).fill('123456789012');
+  await environments.getByRole('button',{name:'Add another AWS tenant, account or site'}).click();
+  await environments.getByLabel('AWS account name or ID',{exact:true}).nth(1).fill('210987654321');
+  await environments.getByRole('checkbox',{name:'Google Workspace / Google Cloud',exact:true}).check();
+  await environments.getByLabel('Google Cloud project names or IDs (optional)').fill('analytics-project');
+  await environments.getByRole('checkbox',{name:'On-premises',exact:true}).check();
+  await environments.getByLabel('Site name (optional)',{exact:true}).fill('Washougal');
+  const activities=question(page,'Which activities does your business rely on?');
+  await activities.getByRole('checkbox',{name:'Accounting and payroll',exact:true}).check();
+  await activities.getByLabel('Applications or systems used (optional)').fill('QuickBooks and Excel');
+  await activities.getByLabel('How long could you manage without it?').selectOption('day');
+  const providers=question(page,'Which providers help manage your IT?');
+  await providers.getByRole('button',{name:'Add another provider',exact:true}).click();
+  await providers.getByLabel('Provider name',{exact:true}).fill('Microsoft partner');
+  for(const name of ['Azure','Software licensing','Databases','Reporting and business intelligence'])await providers.getByRole('checkbox',{name,exact:true}).check();
+  const storage=question(page,'Where do you keep sensitive information?');
+  await storage.getByRole('checkbox',{name:'Employee information',exact:true}).check();
+  await storage.getByRole('combobox',{name:'Application or storage system',exact:true}).selectOption('sharepoint');
+  await storage.getByLabel('Site, folder or application name (optional)').fill('HR SharePoint site');
+  await storage.getByRole('button',{name:'Add another location for Employee information'}).click();
+  await storage.getByRole('combobox',{name:'Application or storage system',exact:true}).nth(1).selectOption('application');
+  const purposes=question(page,'What would you like this assessment to help with?');
+  await purposes.getByRole('checkbox',{name:'Understand our security risks',exact:true}).check();
+  await purposes.getByRole('checkbox',{name:'Apply for or renew cyber insurance',exact:true}).check();
+  await purposes.getByLabel('Insurer name (optional)').fill('Insurer A');
+  await purposes.getByRole('button',{name:'Add another requirement for Apply for or renew cyber insurance'}).click();
+  await purposes.getByLabel('Insurer name (optional)').nth(1).fill('Insurer B');
+  await purposes.getByRole('checkbox',{name:'Prepare for customer or compliance requirements',exact:true}).check();
+  await purposes.getByLabel('Requested standard or framework (optional)').fill('Customer standard');
+  await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.getByRole('status')).toContainText('Draft saved');
+  const group=data.groups.find((g:any)=>g.sectionId==='company');
+  expect(group.answers.find((a:any)=>a.questionId==='SCP-05').records).toHaveLength(5);
+  expect(group.answers.find((a:any)=>a.questionId==='SCP-08').records[0].responsibilities).toHaveLength(4);
+  expect(group.answers.find((a:any)=>a.questionId==='SCP-10.PROFILES').records).toHaveLength(4);
+  await page.getByRole('button',{name:'All client assessments',exact:true}).click();await page.getByRole('button',{name:'Open assessment',exact:true}).click();
+  await expect(environments.getByLabel('AWS account name or ID',{exact:true}).nth(1)).toHaveValue('210987654321');
+  await expect(storage.getByLabel('Site, folder or application name (optional)').first()).toHaveValue('HR SharePoint site');
+  await environments.getByRole('checkbox',{name:'AWS',exact:true}).uncheck();
+  await expect(environments.getByLabel('AWS account name or ID',{exact:true})).toHaveCount(0);
+  await expect(environments.getByLabel('Microsoft tenant name or ID',{exact:true})).toHaveValue('NewSommer tenant');
+  await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.getByRole('status')).toContainText('Draft saved');
+  expect(group.answers.find((a:any)=>a.questionId==='SCP-05').records).toHaveLength(3);
+  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:'.azure/browser-results/guided-questionnaire-mobile.png',fullPage:true});
+});
+
+test('guided intake leaves unknown identifiers optional and requires Other descriptions',async({page})=>{
+  await setup(page,'contributor',false,'client-v2');const environments=question(page,'Which environments do you use?');
+  await environments.getByRole('checkbox',{name:'AWS',exact:true}).check();
+  await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.getByRole('status')).toContainText('Draft saved');
+  await environments.getByRole('checkbox',{name:'Other',exact:true}).check();
+  await expect(environments.getByLabel('Platform name',{exact:true})).toHaveAttribute('required','');
+  await environments.getByLabel('Platform name',{exact:true}).fill('Special platform');
+  await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.getByRole('status')).toContainText('Draft saved');
+});
+
+test('guided viewers cannot edit selections or create copies',async({page})=>{
+  await setup(page,'viewer',false,'client-v2');const environments=question(page,'Which environments do you use?');
+  for(const input of await environments.getByRole('checkbox').all())await expect(input).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Create guided copy'})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Save draft',exact:true})).toHaveCount(0);
+});
+
+test('an earlier assessment can open a guided copy without replacing the original',async({page})=>{
+  const original=await setup(page,'admin');
+  await page.route('**/api/me/client-assessments',async route=>{
+    const body=route.request().postDataJSON();expect(body.copyFrom).toBe(id);expect(body.sourceRevision).toBe(0);
+    await route.fulfill({json:{...structuredClone(original),...structuredClone(guidedCatalog),id:'66666666-6666-6666-6666-666666666666',name:'Company assessment (guided)'}});
+  });
+  await page.getByRole('button',{name:'Create guided copy',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Company assessment (guided)',exact:true})).toBeVisible();
+  await expect(question(page,'Which environments do you use?')).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('original assessment');
+  expect(original.templateVersion).toBe('client-v1');
 });

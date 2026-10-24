@@ -144,3 +144,9 @@ exact operator-IP access and automatic firewall cleanup.
 `verify-workspace-invitations.mjs` checks disposable Dev invitation acceptance and revocation,
 with optional live API validation. It never sends mail. See `../docs/customer-invitations.md`
 for explicit targets, operator access cleanup, deployment order and recovery.
+
+Guided intake uses `build-guided-questionnaire.mjs` (`--check` in CI) and migration 015.
+`verify-guided-questionnaire.mjs --validate-migration` validates the candidate transactionally;
+without the flag it verifies the installed catalog and rolls back fixtures. The questionnaire
+deployment wrapper now validates both catalogs before publishing API then web. See
+`../database/guided-questionnaires.md` for explicit targets, migration order and recovery.

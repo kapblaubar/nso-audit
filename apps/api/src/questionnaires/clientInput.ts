@@ -1,9 +1,10 @@
+export interface Guided{kind:string;selector?:string;label?:string;choices?:{id:string;label:string}[];addLabel:string}
 import {object,parseAnswers,QuestionnaireInputError,type Question,type Answer} from './input.js';
-export interface Field {id:string;label:string;type:'text'|'number'|'date'|'select';required:boolean;options?:{id:string;label:string}[]}
+export interface Field {id:string;label:string;type:'text'|'number'|'date'|'select'|'multi';required:boolean;options?:{id:string;label:string}[];when?:{field:string;values:string[]};placeholder?:string;onlyWhenPresent?:boolean;maxLength?:number;allowUnknown?:boolean}
 export interface ClientQuestion extends Omit<Question,'type'> {
-  type:Question['type']|'records';sourceId:string;sourcePrompt:string;sectionId:string;fields:Field[];units:string[];reviewerOnly:boolean;assetClass:string|null;
+  type:Question['type']|'records';sourceId:string;sourcePrompt:string;sectionId:string;fields:Field[];units:string[];reviewerOnly:boolean;assetClass:string|null;guided?:Guided;
 }
-export interface ClientAnswer extends Answer {records?:Record<string,string|number|null>[]}
+export interface ClientAnswer extends Answer {records?:Record<string,string|number|string[]|null>[]}
 export interface Section {id:string;title:string;position:number;repeatable:boolean;help:string;description?:string;groupFields:Field[]}
 export const inputError=(message:string):never=>{throw new QuestionnaireInputError(message);};
 export function boundedText(value:unknown,name:string,max=200,required=true):string|undefined{
@@ -11,14 +12,21 @@ export function boundedText(value:unknown,name:string,max=200,required=true):str
   if(typeof value!=='string'||!value.trim()||value.length>max)return inputError(`Enter ${name} (up to ${max} characters).`);
   return value.trim();
 }
-export function parseFields(raw:unknown,fields:Field[]):Record<string,string|number|null>{
-  const values=object(raw),result:Record<string,string|number|null>={};
+export function parseFields(raw:unknown,fields:Field[]):Record<string,string|number|string[]|null>{
+  const values=object(raw),result:Record<string,string|number|string[]|null>={};
   if(Object.keys(values).some(key=>!fields.some(field=>field.id===key)))return inputError('Unexpected record or group field.');
   for(const field of fields){
     const value=values[field.id];
-    if(value===null){result[field.id]=null;continue;} // Explicit per-field Unknown; omitted required fields still fail.
+    const controlling=field.when?values[field.when.field]:undefined;
+    const active=!field.when||field.when.values.some(option=>Array.isArray(controlling)?controlling.includes(option):controlling===option);
+    if(!active){if(value!==undefined)return inputError(`${field.label} is not applicable to this selection.`);continue;}
+    if(value===null){if(field.allowUnknown===false)return inputError(`${field.label} is required.`);result[field.id]=null;continue;} // Explicit per-field Unknown; omitted required fields still fail.
     if(value===undefined||value===''){if(field.required)return inputError(`${field.label} is required or must be explicitly Unknown.`);continue;}
-    if(field.type==='number'){
+    if(field.type==='multi'){
+      if(!Array.isArray(value)||value.length>50||value.some(v=>typeof v!=='string'||!field.options?.some(o=>o.id===v))||new Set(value).size!==value.length)return inputError(`Choose valid ${field.label}.`);
+      if(field.required&&!value.length)return inputError(`${field.label} is required.`);
+      result[field.id]=value;
+    }else if(field.type==='number'){
       if(typeof value!=='number'||!Number.isFinite(value)||value<0||value>99999999999999)return inputError(`Invalid ${field.label}.`);
       result[field.id]=value;
     }else if(field.type==='select'){
@@ -27,7 +35,7 @@ export function parseFields(raw:unknown,fields:Field[]):Record<string,string|num
     }else if(field.type==='date'){
       if(typeof value!=='string'||value<'0001-01-01'||!/^\d{4}-\d{2}-\d{2}$/.test(value)||!Number.isFinite(Date.parse(value))||new Date(value).toISOString().slice(0,10)!==value)return inputError(`Invalid ${field.label}.`);
       result[field.id]=value;
-    }else result[field.id]=boundedText(value,field.label,1000)!;
+    }else result[field.id]=boundedText(value,field.label,field.maxLength??1000)!;
   }
   return result;
 }

@@ -638,3 +638,9 @@ html[data-theme="light"] .questionnaire-page { --mg-panel:#fff; --mg-field:#f7fa
 .assessment-page summary { cursor:pointer; padding:8px 0; }
 .assessment-record-field .questionnaire-choice { font-size:.75rem; color:var(--mg-muted); }
 @media(max-width:900px) { .assessment-layout { grid-template-columns:1fr; } .assessment-sections { position:static; display:flex; flex-wrap:nowrap; overflow-x:auto; max-height:none; padding-bottom:12px; } .assessment-sections>button { min-width:210px; max-width:230px; } }
+
+.guided-choices { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:8px 16px; margin:12px 0; }
+.guided-records fieldset { min-width:0; }
+.guided-records .questionnaire-grid > fieldset { grid-column:1 / -1; }
+.guided-records .management-secondary { white-space:normal; max-width:100%; }
+.guided-records .assessment-record > button { margin:8px 12px 0 0; }
