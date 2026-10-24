@@ -4,7 +4,8 @@ param(
   [Parameter(Mandatory)][string]$OperatorIpv4Address,
   [Parameter(Mandatory)][ValidatePattern('^nso-audit-validation-[a-f0-9]{8}$')][string]$ValidationDatabaseName,
   [Parameter(Mandatory)][ValidatePattern('^[0-9a-f-]{36}$')][string]$RuntimeClientId,
-  [switch]$Apply
+  [switch]$Apply,
+  [switch]$DatabaseOnly
 )
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -61,6 +62,7 @@ try{
   Invoke-CheckedNode 'scripts/verify-questionnaires.mjs'
   Invoke-CheckedNode 'scripts/verify-client-assessments.mjs'
   Invoke-CheckedNode 'scripts/verify-account-cleanup.mjs'
+  if($DatabaseOnly){Write-Host 'Dev database migration and validation complete. Publish API before web using the deployment workflows.';return}
   & (Join-Path $PSScriptRoot 'Publish-NsoAuditApi.ps1') -SubscriptionId $SubscriptionId -ResourceGroupName $group -FunctionAppName 'nso-audit-dev-api-flex'
   $health=Invoke-RestMethod -Uri 'https://nso-audit-dev-api-flex.azurewebsites.net/api/health'
   Write-Host 'Published API health responded.'

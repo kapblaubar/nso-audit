@@ -41,6 +41,11 @@ after copying. Oversized legacy groups fail validation rather than truncating da
    old and guided storage under runtime row isolation. It applies migrations to Dev only
    after disposable validation. It repeats the migration runner to check idempotence, then
    publishes API before web and runs synthetic authenticated round-trip checks.
+   For a release through GitHub Actions, add `-DatabaseOnly` to both preview and apply:
+   this performs the same disposable-first migration and cleanup, then stops before
+   publishing either app. After it succeeds, run Deploy API, confirm its success, and
+   run Deploy web if needed. Run the synthetic API/browser verifier separately with
+   explicit Dev targets and temporary exact-IP operator access.
 4. Verify real guided creation, all five forms, hybrid platforms/multiple accounts, multiple
    insurers/frameworks, save/reopen, source preservation when copying, viewer restrictions,
    independent backup scopes and mobile layout. Synthetic checks send no email and remove
@@ -72,3 +77,16 @@ Older API versions cannot open v2 assessments; preserve them until the fixed API
 Original v1 drafts remain available when a guided copy is unsuitable. Do not downgrade v3
 answers, delete new catalog entries or rebuild the database to roll back. Accidental data
 loss requires backup recovery into a separate database and a reviewed forward repair.
+
+## Location-first sensitive-information form
+
+The storage UI starts with Add another storage location. Each card selects a system,
+optional site/folder/application name, multiple information types, and optional owner.
+Saving expands each card into one existing RecordsJson row per selected data type;
+loading groups matching system/location/owner/previous-details rows into a single card.
+Other information types and Other systems retain their descriptions. This adapts the
+existing immutable client-v2 definition without changing the catalog, SQL schema or API
+contract. No migration or additional guided copy is needed for existing v2 assessments.
+Publish the web change and validate selecting multiple types, save/reopen, removal,
+clearing and existing saved rows. Roll back the web artifact if needed; saved rows are
+compatible with the previous renderer. Insurer document upload/import is deferred.

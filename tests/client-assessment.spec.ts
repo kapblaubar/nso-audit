@@ -104,11 +104,14 @@ test('guided intake supports hybrid platforms, activities, providers, storage an
   await providers.getByLabel('Provider name',{exact:true}).fill('Microsoft partner');
   for(const name of ['Azure','Software licensing','Databases','Reporting and business intelligence'])await providers.getByRole('checkbox',{name,exact:true}).check();
   const storage=question(page,'Where do you keep sensitive information?');
-  await storage.getByRole('checkbox',{name:'Employee information',exact:true}).check();
+  await storage.getByRole('button',{name:'Add another storage location',exact:true}).click();
   await storage.getByRole('combobox',{name:'Application or storage system',exact:true}).selectOption('sharepoint');
   await storage.getByLabel('Site, folder or application name (optional)').fill('HR SharePoint site');
-  await storage.getByRole('button',{name:'Add another location for Employee information'}).click();
+  await storage.getByRole('checkbox',{name:'Employee information',exact:true}).check();
+  await storage.getByRole('checkbox',{name:'Financial records',exact:true}).check();
+  await storage.getByRole('button',{name:'Add another storage location',exact:true}).click();
   await storage.getByRole('combobox',{name:'Application or storage system',exact:true}).nth(1).selectOption('application');
+  await storage.getByRole('checkbox',{name:'Employee information',exact:true}).nth(1).check();
   const purposes=question(page,'What would you like this assessment to help with?');
   await purposes.getByRole('checkbox',{name:'Understand our security risks',exact:true}).check();
   await purposes.getByRole('checkbox',{name:'Apply for or renew cyber insurance',exact:true}).check();
@@ -161,4 +164,44 @@ test('an earlier assessment can open a guided copy without replacing the origina
   await expect(question(page,'Which environments do you use?')).toBeVisible();
   await expect(page.getByRole('status')).toContainText('original assessment');
   expect(original.templateVersion).toBe('client-v1');
+});
+
+test('storage starts with locations and keeps multiple information types together after reopening',async({page})=>{
+  const data=await setup(page,'contributor',false,'client-v2');const storage=question(page,'Where do you keep sensitive information?');
+  await expect(storage.getByRole('checkbox')).toHaveCount(0);
+  await storage.getByRole('button',{name:'Add another storage location',exact:true}).click();
+  await storage.getByRole('combobox',{name:'Application or storage system',exact:true}).selectOption('sharepoint');
+  await storage.getByLabel('Site, folder or application name (optional)').fill('HR site');
+  await storage.getByRole('checkbox',{name:'Employee information',exact:true}).check();
+  await storage.getByRole('checkbox',{name:'Financial records',exact:true}).check();
+  await storage.getByLabel('Person or team responsible (optional)').fill('HR');
+  await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.getByRole('status')).toContainText('Draft saved');
+  const records=data.groups.find((g:any)=>g.sectionId==='company').answers.find((a:any)=>a.questionId==='SCP-07.LOCATIONS').records;
+  expect(records).toEqual([{system:'sharepoint',location:'HR site',owner:'HR',dataType:'employee'},{system:'sharepoint',location:'HR site',owner:'HR',dataType:'financial'}]);
+  await page.getByRole('button',{name:'All client assessments',exact:true}).click();await page.getByRole('button',{name:'Open assessment',exact:true}).click();
+  await expect(storage.getByRole('combobox',{name:'Application or storage system',exact:true})).toHaveCount(1);
+  await expect(storage.getByRole('checkbox',{name:'Employee information',exact:true})).toBeChecked();
+  await expect(storage.getByRole('checkbox',{name:'Financial records',exact:true})).toBeChecked();
+  await storage.getByRole('checkbox',{name:'Financial records',exact:true}).uncheck();
+  await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.getByRole('status')).toContainText('Draft saved');
+  await storage.getByRole('button',{name:'Remove storage location 1',exact:true}).click();
+  await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.getByRole('status')).toContainText('Draft saved');
+  expect(data.groups.find((g:any)=>g.sectionId==='company').answers.find((a:any)=>a.questionId==='SCP-07.LOCATIONS')).toBeUndefined();
+});
+
+test('storage requires a system and data type, supports Other, and clears all locations',async({page})=>{
+  await setup(page,'contributor',false,'client-v2');const storage=question(page,'Where do you keep sensitive information?');
+  await storage.getByRole('button',{name:'Add another storage location',exact:true}).click();
+  await expect(storage.getByRole('combobox',{name:'Application or storage system',exact:true})).toHaveAttribute('required','');
+  await storage.getByRole('combobox',{name:'Application or storage system',exact:true}).selectOption('other');
+  await storage.getByLabel('Other storage system',{exact:true}).fill('Records archive');
+  await storage.getByRole('checkbox',{name:'Other',exact:true}).check();
+  await storage.getByLabel('Describe the other information',{exact:true}).fill('Research records');
+  await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.getByRole('status')).toContainText('Draft saved');
+  await storage.getByRole('combobox',{name:'Application or storage system',exact:true}).selectOption('database');
+  await expect(storage.getByLabel('Other storage system',{exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.getByRole('status')).toContainText('Draft saved');
+  await storage.getByRole('button',{name:'Clear answer',exact:true}).click();
+  await expect(storage.getByRole('combobox')).toHaveCount(0);
+  await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.getByRole('status')).toContainText('Draft saved');
 });

@@ -83,9 +83,14 @@ try{
   console.log('PASS: live 12-section / 121-question guided client assessment, all repeatable scope families, all input types, separate endpoint/database answers, records, revisions, role/client isolation and independent reviews.');
   if(QUESTIONNAIRE_TEST_PORTAL_URL){
     const {chromium}=createRequire(new URL('../package.json',import.meta.url))('@playwright/test');browser=await chromium.launch({headless:true,...(process.platform==='win32'?{channel:'msedge'}:{})});const page=await browser.newPage();
+    const browserErrors=[];page.on('pageerror',error=>browserErrors.push(error.message));
     await page.addInitScript(value=>sessionStorage.setItem('nso.customerSession',value),session);await page.goto(new URL('/signin',QUESTIONNAIRE_TEST_PORTAL_URL).href);
     await page.getByRole('button',{name:'Questionnaire',exact:true}).click();await page.getByRole('button',{name:'Open assessment',exact:true}).click();
-    await page.getByRole('navigation',{name:'Assessment sections'}).waitFor({state:'visible'});
+    try{await page.getByRole('navigation',{name:'Assessment sections'}).waitFor({state:'visible'});}catch(error){
+      await mkdir(new URL('../.azure/browser-results/',import.meta.url),{recursive:true});
+      await page.screenshot({path:fileURLToPath(new URL('../.azure/browser-results/client-questionnaire-live-failure.png',import.meta.url)),fullPage:true});
+      console.error('Synthetic browser diagnostics:',JSON.stringify({errors:browserErrors,text:(await page.locator('body').innerText()).slice(0,2000)}));throw error;
+    }
     assert.equal(await page.getByRole('navigation',{name:'Assessment sections'}).getByRole('button').count(),12);
     const scope=page.getByRole('region',{name:'What company, business units and locations does this assessment cover?',exact:true});
     await scope.getByRole('textbox',{name:'Company or location name',exact:true}).fill('Synthetic company updated in browser');await page.getByRole('button',{name:'Save draft',exact:true}).click();await page.getByRole('status').filter({hasText:'Draft saved'}).waitFor();

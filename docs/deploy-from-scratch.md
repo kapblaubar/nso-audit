@@ -306,3 +306,6 @@ Pushing to GitHub does not run migrations. Use the existing disposable-first que
 wrapper and follow [guided questionnaire validation and recovery](../database/guided-questionnaires.md).
 New assessments use client-v2; original client-v1 drafts remain available with a guided-copy
 option. No database rebuild or persistent infrastructure change is required.
+
+The 2026-10-23 live federation and migration repair, including the successful API rerun
+and authenticated validation, is recorded in [the deployment repair record](deployment-repair-2026-10-23.md).

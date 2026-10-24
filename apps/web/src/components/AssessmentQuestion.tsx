@@ -1,3 +1,4 @@
+import {StorageLocations} from './StorageLocations';
 import {GuidedRecords} from './GuidedRecords';
 import {useState,type ChangeEvent} from 'react';
 import type {ClientAnswer,ClientQuestion,Field,Review} from '../clientAssessmentApi';
@@ -10,6 +11,7 @@ export function RecordField({field,value,onChange,allowUnknown=true}:{field:Fiel
 export function AssessmentQuestion({question,answer,onChange,disabled,review,canReview,onReview}:{question:ClientQuestion;answer:ClientAnswer|undefined;onChange:(answer:ClientAnswer|undefined)=>void;disabled:boolean;review:Review|undefined;canReview:boolean;onReview:(review:Review)=>void}){
   const [coverageMode,setCoverageMode]=useState(answer?.estimatedPercentage!==undefined?'estimate':'counts');
   const [reviewDraft,setReviewDraft]=useState<Review>(review??{questionId:question.id,questionVersion:question.version,conclusion:'unknown',evidenceState:'declared',collectionState:'notRequested',notes:'',actionOwner:'',targetDate:''});
+  const displayHelp=question.guided?.kind==='storage'?'Add each storage location, then select all the sensitive information kept there. No exact URL is needed.':question.help;
   const intake=['company','profiles'].includes(question.sectionId)&&!question.reviewerOnly;
   const needsExplanation=answer?.state==='notApplicable'||answer?.selectedOptionId==='other'||answer?.selections?.includes('other');
   function update(next:Partial<ClientAnswer>){
@@ -38,11 +40,11 @@ export function AssessmentQuestion({question,answer,onChange,disabled,review,can
       <div className="questionnaire-grid">{coverageMode==='estimate'?numeric('estimatedPercentage','Estimated coverage (%)',100):<>{numeric('totalInScope','Total in scope',2147483647,true)}{numeric('totalCovered','Total covered',2147483647,true)}</>}</div>
       {percent!==undefined?<p>Calculated coverage: {percent.toFixed(1)}%</p>:null}<p className="management-help">Zero in scope requires an applicability review. Covered cannot exceed total.</p><div className="questionnaire-grid">{textField('measurementDate','Measurement date','date',true)}{textField('measurementSource','Measurement source','text',true,500)}</div></>;
     }
-    case 'records':if(question.guided)return <GuidedRecords question={question} answer={answer} onChange={change}/>;return <div>{(answer?.records??[]).map((row,index)=><div className="assessment-record" key={index}><strong>Item {index+1}</strong><div className="questionnaire-grid">{question.fields.map(field=><RecordField key={field.id} field={field} value={row[field.id]} onChange={value=>{const rows=structuredClone(answer?.records??[]);if(value===undefined)delete rows[index]![field.id];else rows[index]![field.id]=value;change({records:rows});}}/>)}</div><button type="button" className="text-button" onClick={()=>change({records:answer!.records!.filter((_,i)=>i!==index)})}>Remove item {index+1}</button></div>)}<button type="button" className="management-secondary" disabled={(answer?.records?.length??0)>=100} onClick={()=>change({records:[...(answer?.records??[]),{}]})}>Add item</button></div>;
+    case 'records':if(question.guided?.kind==='storage')return <StorageLocations question={question} answer={answer} onChange={change}/>;if(question.guided)return <GuidedRecords question={question} answer={answer} onChange={change}/>;return <div>{(answer?.records??[]).map((row,index)=><div className="assessment-record" key={index}><strong>Item {index+1}</strong><div className="questionnaire-grid">{question.fields.map(field=><RecordField key={field.id} field={field} value={row[field.id]} onChange={value=>{const rows=structuredClone(answer?.records??[]);if(value===undefined)delete rows[index]![field.id];else rows[index]![field.id]=value;change({records:rows});}}/>)}</div><button type="button" className="text-button" onClick={()=>change({records:answer!.records!.filter((_,i)=>i!==index)})}>Remove item {index+1}</button></div>)}<button type="button" className="management-secondary" disabled={(answer?.records?.length??0)>=100} onClick={()=>change({records:[...(answer?.records??[]),{}]})}>Add item</button></div>;
   }}
   const reviewSelect=(key:'conclusion'|'evidenceState'|'collectionState',label:string,choices:[string,string][])=> <label className="management-field"><span>{label}</span><select disabled={!canReview} value={reviewDraft[key]} onChange={event=>setReviewDraft(current=>({...current,[key]:event.target.value}))}>{choices.map(([value,title])=><option key={value} value={value}>{title}</option>)}</select></label>;
   return <section className="questionnaire-question" aria-label={question.prompt}>
-    <h3>{question.prompt}</h3>{question.help&&!/^(Text|Number|Multi|Select|Status|YN|Coverage|Date|Repeating)\b/i.test(question.help)?<p className="management-help">{question.help}</p>:null}
+    <h3>{question.prompt}</h3>{displayHelp&&!/^(Text|Number|Multi|Select|Status|YN|Coverage|Date|Repeating)\b/i.test(displayHelp)?<p className="management-help">{displayHelp}</p>:null}
     {question.reviewerOnly?<p>Maintained by an owner or administrator reviewer.</p>:null}
     <fieldset disabled={disabled||question.reviewerOnly&&!canReview}>
       {!answer||answer.state==='answered'?input():<p>{answer.state==='unknown'?'Unknown':answer.state==='never'?'Never':'Not applicable'}</p>}

@@ -150,3 +150,8 @@ Guided intake uses `build-guided-questionnaire.mjs` (`--check` in CI) and migrat
 without the flag it verifies the installed catalog and rolls back fixtures. The questionnaire
 deployment wrapper now validates both catalogs before publishing API then web. See
 `../database/guided-questionnaires.md` for explicit targets, migration order and recovery.
+
+For GitHub-driven releases, `Deploy-NsoAuditQuestionnaires.ps1 -DatabaseOnly` supports
+preview and `-Apply` with the same required explicit targets. It validates and migrates
+SQL with disposable-first checks and cleanup, without publishing API/web. Complete the
+GitHub API deployment and authenticated round-trip verifier afterward.

@@ -51,7 +51,12 @@ do not rewrite the applied client-v1 catalog or migration 014.
 - Include optional Site, folder or application name, with an example such as
   HR SharePoint site. An exact URL is not required.
 - Include optional Person or team responsible.
-- Allow multiple storage locations for each information type.
+- Start with the storage location, then select all information types stored there.
+- Use one location card containing system, optional site/folder/application name,
+  a multi-select information-type checklist and optional responsible person/team.
+- Allow multiple locations with Add another storage location.
+- Existing API/SQL rows remain compatible: the UI groups matching location details
+  and expands selected data types back into the versioned rows when saving.
 
 ## Assessment purposes
 
@@ -73,3 +78,11 @@ all its reviews. Existing criticality is retained as previous details; it is not
 converted into a guessed recovery time. Review conclusions and reviewer-only answers
 that the copying user cannot edit are not copied. Review the original for those records.
 No database rebuild is needed. See database/guided-questionnaires.md for deployment.
+
+## Deferred: insurer document upload and import
+
+Retain as a future requirement; do not implement in the current storage-form change.
+Allow PDF, Word and Excel insurer questionnaires to be attached and their questions/
+answer choices imported after a review preview. Keep original documents, support
+multiple insurers/forms, and flag unreadable content or scanned pages requiring OCR.
+Imported insurer questions should sit alongside the standard assessment questions.
