@@ -309,3 +309,13 @@ option. No database rebuild or persistent infrastructure change is required.
 
 The 2026-10-23 live federation and migration repair, including the successful API rerun
 and authenticated validation, is recorded in [the deployment repair record](deployment-repair-2026-10-23.md).
+
+## Technology register questionnaire (client-v3)
+
+The optional technology-specific assessment requires additive migration 016 before API/web
+publication. Existing v1/v2 assessments are unchanged. See
+[technology register deployment and recovery](technology-register.md) for validation order,
+disposable-first requirements, release limits and rollback. The additive release was
+[deployed and verified in Dev on 2026-10-28](technology-questionnaire-deployment-2026-10-28.md).
+This validates the questionnaire catalog and feature release, not a complete clean platform
+deployment or a Prod rebuild.

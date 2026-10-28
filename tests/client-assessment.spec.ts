@@ -4,7 +4,7 @@ const catalog=JSON.parse(readFileSync('config/questionnaires/client-v1.json','ut
 const org='11111111-1111-1111-1111-111111111111',id='22222222-2222-2222-2222-222222222222';
 const guidedCatalog=JSON.parse(readFileSync('config/questionnaires/client-v2.json','utf8'));
 async function setup(page:Page,role='contributor',stale=false,template='client-v1'){
-  const selectedCatalog=template==='client-v2'?guidedCatalog:catalog;
+  const selectedCatalog=template==='client-v3'?JSON.parse(readFileSync('config/questionnaires/client-v3.json','utf8')):template==='client-v2'?guidedCatalog:catalog;
   const data:any={id,name:'Company assessment',answerOwner:'Client',reviewer:'Reviewer',revision:0,status:'draft',...structuredClone(selectedCatalog),groups:selectedCatalog.sections.filter((s:any)=>!s.repeatable).map((s:any,index:number)=>({id:`33333333-3333-3333-3333-${String(index+1).padStart(12,'0')}`,sectionId:s.id,name:s.title,context:{},answers:[],reviews:[]}))};
   await page.addInitScript(()=>sessionStorage.setItem('nso.customerSession','a'.repeat(43)));
   await page.route('**/api/account/session',route=>route.fulfill({json:{user:{id:'user',name:'Client',email:'client@example.test'},workspaces:[{id:org,name:'Manual client',role,tenantId:null}]}}));
@@ -204,4 +204,51 @@ test('storage requires a system and data type, supports Other, and clears all lo
   await storage.getByRole('button',{name:'Clear answer',exact:true}).click();
   await expect(storage.getByRole('combobox')).toHaveCount(0);
   await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.getByRole('status')).toContainText('Draft saved');
+});
+
+test('technology questions follow database versus laptop groups and preserve answers',async({page})=>{
+  await setup(page,'contributor',false,'client-v3');
+  await navigate(page,'Your technology and who manages it');
+  const form=page.locator('.assessment-add-group');
+  await form.getByLabel('System or group name',{exact:true}).fill('NSO DB');
+  await form.getByRole('combobox',{name:'What are you adding?',exact:true}).selectOption('single');
+  await form.getByRole('combobox',{name:'Technology type',exact:true}).selectOption('databases');
+  await form.getByRole('combobox',{name:'Who manages it?',exact:true}).selectOption('internal');
+  await form.getByRole('button',{name:'Add technology',exact:true}).click();
+  const platform=question(page,'Which database platform and version are used?');
+  await platform.getByRole('textbox',{name:'Answer',exact:true}).fill('Azure SQL');
+  await expect(page.getByRole('combobox',{name:'Measurement method',exact:true})).toHaveCount(0);
+  await expect(question(page,'Are these company-owned devices, personal devices, or both?')).toHaveCount(0);
+  await page.getByRole('button',{name:'Save draft',exact:true}).click();
+  await expect(page.getByRole('status')).toContainText('Draft saved');
+  await form.getByText('Add technology',{exact:true}).first().click();
+  await form.getByLabel('System or group name',{exact:true}).fill('Office laptops');
+  await form.getByRole('combobox',{name:'What are you adding?',exact:true}).selectOption('group');
+  await form.getByRole('combobox',{name:'Technology type',exact:true}).selectOption('endpoints');
+  await form.getByRole('combobox',{name:'Who manages it?',exact:true}).selectOption('provider');
+  await form.getByRole('button',{name:'Add technology',exact:true}).click();
+  await expect(page.getByRole('combobox',{name:'Measurement method',exact:true})).toHaveCount(2);
+  await expect(question(page,'Are these company-owned devices, personal devices, or both?')).toBeVisible();
+  await expect(platform).toHaveCount(0);
+  await page.getByRole('combobox',{name:'Technology entry',exact:true}).selectOption({label:'NSO DB'});
+  await expect(platform.getByRole('textbox',{name:'Answer',exact:true})).toHaveValue('Azure SQL');
+});
+
+test('creating an assessment uses technology questions without an opt-in',async({page})=>{
+  await setup(page);
+  await page.getByRole('button',{name:'All client assessments',exact:true}).click();
+  await expect(page.getByRole('checkbox',{name:'Use technology-specific questions (new version)',exact:true})).toHaveCount(0);
+  const v3=JSON.parse(readFileSync('config/questionnaires/client-v3.json','utf8'));
+  let submitted:any;
+  await page.route('**/api/me/client-assessments',async route=>{
+    if(route.request().method()!=='POST')return route.fallback();
+    submitted=route.request().postDataJSON();
+    await route.fulfill({json:{...v3,id,name:submitted.name,revision:0,status:'draft',groups:v3.sections.filter((s:any)=>!s.repeatable).map((s:any,index:number)=>({id:`77777777-7777-7777-7777-${String(index+1).padStart(12,'0')}`,sectionId:s.id,name:s.title,context:{},answers:[],reviews:[]}))}});
+  });
+  await page.getByLabel('Assessment name',{exact:true}).fill('Updated assessment');
+  await page.getByRole('button',{name:'Create assessment',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Updated assessment',exact:true})).toBeVisible();
+  expect(submitted.templateVersion).toBe('client-v3');
+  await navigate(page,'Your technology and who manages it');
+  await expect(page.getByRole('combobox',{name:'What are you adding?',exact:true})).toBeVisible();
 });

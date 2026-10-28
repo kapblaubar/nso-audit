@@ -22,6 +22,7 @@ jobs:
       - run: |
           node scripts/build-client-questionnaire.mjs --check
           node scripts/build-guided-questionnaire.mjs --check
+          node scripts/build-technology-questionnaire.mjs --check
       - run: npm run typecheck
       - run: npm test
       - run: node --test scripts/lib/legacy-model.test.mjs

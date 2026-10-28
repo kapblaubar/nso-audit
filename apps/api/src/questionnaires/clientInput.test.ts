@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {guidedCopyAnswers} from './guidedCopy.js';
-import {parseClientAnswers,parseFields,parseReview,questionsForGroup,type ClientQuestion,type Section} from './clientInput.js';
+import {clientAssessmentTemplate,parseClientAnswers,parseFields,parseReview,questionsForGroup,type ClientQuestion,type Section} from './clientInput.js';
 import {clientAssessments} from '../functions/clientAssessments.js';
 const {HttpRequest,InvocationContext}=createRequire(import.meta.url)('@azure/functions') as typeof import('@azure/functions');
 const catalog=JSON.parse(await readFile(new URL('../../../../../config/questionnaires/client-v1.json',import.meta.url),'utf8')) as {sections:Section[];questions:ClientQuestion[]};
@@ -113,4 +113,35 @@ test('guided copies preserve the original, carried-over values and previously se
   assert.match(String(parsed.find(a=>a.questionId==='SCP-08')?.records?.[0]?.previousDetails),/Database administration/);
   assert.equal(parsed.find(a=>a.questionId==='SCP-10.PROFILES')?.records?.length,3);
   assert.equal(parsed.find(a=>a.questionId==='SCP-06')?.records?.[0]?.tolerance,undefined);
+});
+
+test('technology register filters every asset type and rejects answers for another type or entry kind',async()=>{
+  const v3=JSON.parse(await readFile(new URL('../../../../../config/questionnaires/client-v3.json',import.meta.url),'utf8')) as {sections:Section[];questions:ClientQuestion[]};
+  const assets=v3.sections.find(s=>s.id==='assets')!;
+  for(const type of assets.groupFields.find(f=>f.id==='assetClass')!.options!){
+    for(const entryKind of ['single','group']){
+      const visible=questionsForGroup(v3.questions,'assets',{assetClass:type.id,entryKind});
+      assert.equal(visible.length,10);
+      assert.equal(visible.filter(q=>q.assetClass===type.id).length,4);
+      assert.equal(visible.filter(q=>q.type==='coverage').length,entryKind==='single'?0:2);
+      assert.ok(visible.every(q=>!q.assetClass||q.assetClass===type.id));
+      const wrong=v3.questions.find(q=>q.assetClass&&q.assetClass!==type.id)!;
+      assert.throws(()=>parseClientAnswers([{questionId:wrong.id,questionVersion:4,state:'answered',textValue:'wrong type'}],visible,false));
+      const wrongKind=v3.questions.find(q=>q.entryKind&&q.entryKind!==entryKind)!;
+      assert.throws(()=>parseClientAnswers([{questionId:wrongKind.id,questionVersion:4,state:'unknown'}],visible,false));
+      const detail=visible.find(q=>q.assetClass===type.id)!;
+      const answers=parseClientAnswers([{questionId:detail.id,questionVersion:4,state:'answered',textValue:'Example system details'}],visible,false);
+      assert.equal(answers[0]!.textValue,'Example system details');
+    }
+  }
+});
+
+
+test('new assessments default to technology questions while guided copies preserve their target',()=>{
+  assert.equal(clientAssessmentTemplate(undefined),'client-v3');
+  assert.equal(clientAssessmentTemplate(undefined,true),'client-v2');
+  assert.equal(clientAssessmentTemplate('client-v2'),'client-v2');
+  assert.equal(clientAssessmentTemplate('client-v3'),'client-v3');
+  assert.throws(()=>clientAssessmentTemplate(['client-v3']));
+  assert.throws(()=>clientAssessmentTemplate('unsupported'));
 });

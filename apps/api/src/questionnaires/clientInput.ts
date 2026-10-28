@@ -2,11 +2,15 @@ export interface Guided{kind:string;selector?:string;label?:string;choices?:{id:
 import {object,parseAnswers,QuestionnaireInputError,type Question,type Answer} from './input.js';
 export interface Field {id:string;label:string;type:'text'|'number'|'date'|'select'|'multi';required:boolean;options?:{id:string;label:string}[];when?:{field:string;values:string[]};placeholder?:string;onlyWhenPresent?:boolean;maxLength?:number;allowUnknown?:boolean}
 export interface ClientQuestion extends Omit<Question,'type'> {
-  type:Question['type']|'records';sourceId:string;sourcePrompt:string;sectionId:string;fields:Field[];units:string[];reviewerOnly:boolean;assetClass:string|null;guided?:Guided;
+  type:Question['type']|'records';sourceId:string;sourcePrompt:string;sectionId:string;fields:Field[];units:string[];reviewerOnly:boolean;assetClass:string|null;entryKind?:string;guided?:Guided;
 }
 export interface ClientAnswer extends Answer {records?:Record<string,string|number|string[]|null>[]}
 export interface Section {id:string;title:string;position:number;repeatable:boolean;help:string;description?:string;groupFields:Field[]}
 export const inputError=(message:string):never=>{throw new QuestionnaireInputError(message);};
+export function clientAssessmentTemplate(requested:unknown,copying=false):'client-v2'|'client-v3'{
+  if(requested!==undefined&&requested!=='client-v2'&&requested!=='client-v3')return inputError('Unsupported questionnaire version.');
+  return requested??(copying?'client-v2':'client-v3');
+}
 export function boundedText(value:unknown,name:string,max=200,required=true):string|undefined{
   if(value===undefined||value===null||value===''){if(required)return inputError(`${name} is required.`);return undefined;}
   if(typeof value!=='string'||!value.trim()||value.length>max)return inputError(`Enter ${name} (up to ${max} characters).`);
@@ -67,7 +71,7 @@ export function parseClientAnswers(raw:unknown,questions:ClientQuestion[],canRev
   });
 }
 export function questionsForGroup(questions:ClientQuestion[],sectionId:string,context:Record<string,unknown>){
-  return questions.filter(q=>q.sectionId===sectionId&&(!q.assetClass||q.assetClass===context.assetClass));
+  return questions.filter(q=>q.sectionId===sectionId&&(!q.assetClass||q.assetClass===context.assetClass)&&(!q.entryKind||q.entryKind===context.entryKind));
 }
 export function parseReview(raw:unknown){
   const input=object(raw);

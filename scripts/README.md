@@ -155,3 +155,10 @@ For GitHub-driven releases, `Deploy-NsoAuditQuestionnaires.ps1 -DatabaseOnly` su
 preview and `-Apply` with the same required explicit targets. It validates and migrates
 SQL with disposable-first checks and cleanup, without publishing API/web. Complete the
 GitHub API deployment and authenticated round-trip verifier afterward.
+
+Technology-specific intake uses `build-technology-questionnaire.mjs`, client-v3 and additive
+migration 016. `verify-technology-questionnaire.mjs --validate-migration` tests the candidate
+transactionally on a database through 015; without the flag it verifies the installed catalog.
+The questionnaire deployment wrapper performs both checks on a disposable database before Dev.
+The live client-assessment verifier includes all technology types and single/group entries,
+plus browser save/reopen and mobile layout checks. See `../docs/technology-register.md`.

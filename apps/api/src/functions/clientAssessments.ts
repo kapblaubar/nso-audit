@@ -5,7 +5,7 @@ import sql from 'mssql';
 import {withOrganization,uuidPattern} from '../storage/sql.js';
 import {resolveQuestionnaireUser,RequestError} from './questionnaires.js';
 import {object,QuestionnaireInputError} from '../questionnaires/input.js';
-import {boundedText,inputError,parseClientAnswers,parseFields,parseReview,questionsForGroup,type ClientQuestion,type ClientAnswer,type Section} from '../questionnaires/clientInput.js';
+import {boundedText,inputError,clientAssessmentTemplate,parseClientAnswers,parseFields,parseReview,questionsForGroup,type ClientQuestion,type ClientAnswer,type Section} from '../questionnaires/clientInput.js';
 
 const reply=(status:number,jsonBody:object):HttpResponseInit=>({status,jsonBody,headers:{'Cache-Control':'no-store'}});
 const query=(tx:sql.Transaction,org:string,id:string)=>new sql.Request(tx).input('org',sql.UniqueIdentifier,org).input('id',sql.UniqueIdentifier,id);
@@ -20,7 +20,7 @@ export async function loadClientAssessment(tx:sql.Transaction,org:string,id:stri
     SELECT * FROM app.ClientAssessmentReviews WHERE OrganizationId=@org AND AssessmentId=@id;`);
   const sets=result.recordsets as sql.IRecordSet<any>[],detail=sets[0]?.[0];
   if(!detail)throw new RequestError(404,'Client assessment not found.');
-  if(!['client-v1','client-v2'].includes(detail.TemplateVersion))throw new RequestError(409,'This client questionnaire version is not supported by this API.');
+  if(!['client-v1','client-v2','client-v3'].includes(detail.TemplateVersion))throw new RequestError(409,'This client questionnaire version is not supported by this API.');
   const catalog=await new sql.Request(tx).input('template',sql.VarChar(64),detail.TemplateVersion).query(`
     SELECT * FROM questionnaire.ClientSections WHERE TemplateVersion=@template ORDER BY Position;
     SELECT q.*,d.SectionId,d.SourceQuestionId,d.DefinitionJson FROM questionnaire.Questions q JOIN questionnaire.ClientQuestionDefinitions d ON d.QuestionId=q.QuestionId AND d.QuestionVersion=q.Version WHERE d.TemplateVersion=@template ORDER BY q.Position;
@@ -78,14 +78,17 @@ export async function clientAssessments(request:HttpRequest,context:InvocationCo
         if(source&&source.templateVersion!=='client-v1')return inputError('Only an earlier client assessment needs a guided copy.');
         if(source&&body.sourceRevision!==source.revision)throw new RequestError(409,'The source assessment changed. Reopen it before creating a guided copy.');
         if(source&&source.status!=='draft')return inputError('Only a draft can be copied into guided questions.');
-        const ready=await new sql.Request(tx).query("SELECT COUNT(*) AS N FROM questionnaire.ClientQuestionDefinitions WHERE TemplateVersion='client-v2'");
-        if(ready.recordset[0]?.N!==121)throw new RequestError(503,'Guided questionnaires require database migration 015 before creating assessments.');
+        const template=clientAssessmentTemplate(body.templateVersion,!!source);
+        const technology=template==='client-v3';
+        if(technology&&source)return inputError('Create a new technology assessment; historical copying is not yet supported for this version.');
+        const ready=await new sql.Request(tx).input('template',sql.VarChar(64),template).query("SELECT COUNT(*) AS N FROM questionnaire.ClientQuestionDefinitions WHERE TemplateVersion=@template");
+        if(ready.recordset[0]?.N!==(technology?151:121))throw new RequestError(503,technology?'Technology questionnaires require database migration 016 before creating assessments.':'Guided questionnaires require database migration 015 before creating assessments.');
         const name=boundedText(body.name,'Assessment name')!,owner=boundedText(body.answerOwner,'Answer owner',200,false),reviewer=boundedText(body.reviewer,'Reviewer',200,false),created=randomUUID();
-        await query(tx,user.organizationId,created).input('name',sql.NVarChar(200),name).input('owner',sql.NVarChar(200),owner??null).input('reviewer',sql.NVarChar(200),reviewer??null).query(`
-          INSERT app.Assessments(OrganizationId,AssessmentId,TemplateVersion) VALUES(@org,@id,'client-v2');
+        await query(tx,user.organizationId,created).input('name',sql.NVarChar(200),name).input('owner',sql.NVarChar(200),owner??null).input('reviewer',sql.NVarChar(200),reviewer??null).input('template',sql.VarChar(64),template).query(`
+          INSERT app.Assessments(OrganizationId,AssessmentId,TemplateVersion) VALUES(@org,@id,@template);
           INSERT app.ClientAssessmentDetails(OrganizationId,AssessmentId,Name,AnswerOwner,Reviewer) VALUES(@org,@id,@name,@owner,@reviewer);
           INSERT app.ClientAssessmentGroups(OrganizationId,AssessmentId,GroupId,TemplateVersion,SectionId,Name)
-            SELECT @org,@id,NEWID(),TemplateVersion,SectionId,Title FROM questionnaire.ClientSections WHERE TemplateVersion='client-v2' AND Repeatable=0;`);
+            SELECT @org,@id,NEWID(),TemplateVersion,SectionId,Title FROM questionnaire.ClientSections WHERE TemplateVersion=@template AND Repeatable=0;`);
         if(source){
           // The original remains the recovery source, including all historical review records.
           await query(tx,user.organizationId,created).query('DELETE FROM app.ClientAssessmentGroups WHERE OrganizationId=@org AND AssessmentId=@id');

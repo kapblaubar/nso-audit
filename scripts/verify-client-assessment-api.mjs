@@ -5,6 +5,7 @@ import {mkdir} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
 import {newToken,tokenHash} from '../apps/api/dist/src/auth/passwords.js';
+import {verifyTechnologyApi} from './lib/verify-technology-api.mjs';
 const require=createRequire(new URL('../apps/api/package.json',import.meta.url));
 const sql=require('mssql'),{AzureCliCredential}=require('@azure/identity');
 const {SQL_SERVER,SQL_DATABASE,QUESTIONNAIRE_TEST_API_BASE_URL,QUESTIONNAIRE_TEST_PORTAL_URL}=process.env;
@@ -32,7 +33,7 @@ try{
     INSERT app.ClientAssessmentDetails(OrganizationId,AssessmentId,Name) VALUES(@other,@other,'Neighbor');
     EXEC sys.sp_set_session_context @key=N'organizationId',@value=NULL;`);
   assert.equal((await call('','GET',undefined,org,false)).status,401);assert.equal((await call('','GET',undefined,other)).status,403);assert.equal((await call(`/${other}`)).status,404);
-  const created=await call('','POST',{name:'Disposable complete client assessment',answerOwner:'Synthetic client',reviewer:'Synthetic reviewer'});assert.equal(created.status,201,JSON.stringify(created.body));let current=created.body;
+  const created=await call('','POST',{templateVersion:'client-v2',name:'Disposable complete client assessment',answerOwner:'Synthetic client',reviewer:'Synthetic reviewer'});assert.equal(created.status,201,JSON.stringify(created.body));let current=created.body;
   assert.equal(current.sections.length,12);assert.equal(current.questions.length,121);assert.equal(current.templateVersion,'client-v2');
   const id=current.id;
   async function update(path,method,body){const result=await call(`/${id}${path}`,method,{revision:current.revision,...body});assert.ok([200,201].includes(result.status),JSON.stringify(result.body));current=result.body;return current;}
@@ -131,6 +132,7 @@ try{
   assert.deepEqual((await call(`/${sourceId}`)).body,before,'Original answers, revision and reviews must remain unchanged.');
   assert.equal((await call('','POST',{name:'Unauthorized copy',copyFrom:other,sourceRevision:0})).status,404);
   console.log('PASS: guided copy preserves legacy source/reviews, duplicate-named scopes stay separate, stale and cross-workspace copies are rejected.');
+  await verifyTechnologyApi({call,req,other,browser,session,portal:QUESTIONNAIRE_TEST_PORTAL_URL});
 
 }finally{
   await browser?.close();

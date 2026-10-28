@@ -44,12 +44,16 @@ try{
   $env:CONFIRM_DEV_WRITE_TEST='yes'
   Invoke-CheckedNode 'scripts/build-client-questionnaire.mjs' @('--check')
   Invoke-CheckedNode 'scripts/build-guided-questionnaire.mjs' @('--check')
+  Invoke-CheckedNode 'scripts/build-technology-questionnaire.mjs' @('--check')
   Invoke-CheckedNode 'scripts/database.mjs' @('migrate','--through=013_questionnaires.sql')
   Invoke-CheckedNode 'scripts/database.mjs' @('bootstrap')
   Invoke-CheckedNode 'scripts/verify-client-assessments.mjs' @('--validate-migration')
   Invoke-CheckedNode 'scripts/database.mjs' @('migrate','--through=014_client_assessment.sql')
   Invoke-CheckedNode 'scripts/verify-guided-questionnaire.mjs' @('--validate-migration')
+  Invoke-CheckedNode 'scripts/database.mjs' @('migrate','--through=015_guided_questionnaire.sql')
+  Invoke-CheckedNode 'scripts/verify-technology-questionnaire.mjs' @('--validate-migration')
   Invoke-CheckedNode 'scripts/database.mjs' @('migrate')
+  Invoke-CheckedNode 'scripts/verify-technology-questionnaire.mjs'
   Invoke-CheckedNode 'scripts/verify-guided-questionnaire.mjs'
   Invoke-CheckedNode 'scripts/verify-questionnaires.mjs'
   Invoke-CheckedNode 'scripts/verify-client-assessments.mjs'
@@ -58,6 +62,7 @@ try{
   $env:SQL_DATABASE=$database
   Invoke-CheckedNode 'scripts/database.mjs' @('migrate')
   Invoke-CheckedNode 'scripts/database.mjs' @('migrate')
+  Invoke-CheckedNode 'scripts/verify-technology-questionnaire.mjs'
   Invoke-CheckedNode 'scripts/verify-guided-questionnaire.mjs'
   Invoke-CheckedNode 'scripts/verify-questionnaires.mjs'
   Invoke-CheckedNode 'scripts/verify-client-assessments.mjs'
