@@ -93,14 +93,15 @@ try{
       console.error('Synthetic browser diagnostics:',JSON.stringify({errors:browserErrors,text:(await page.locator('body').innerText()).slice(0,2000)}));throw error;
     }
     assert.equal(await page.getByRole('navigation',{name:'Assessment sections'}).getByRole('button').count(),12);
+    await page.getByRole('button',{name:'Expand all questions',exact:true}).click();
     const scope=page.getByRole('region',{name:'What company, business units and locations does this assessment cover?',exact:true});
     await scope.getByRole('textbox',{name:'Company or location name',exact:true}).fill('Synthetic company updated in browser');await page.getByRole('button',{name:'Save draft',exact:true}).click();await page.getByRole('status').filter({hasText:'Draft saved'}).waitFor();
-    await page.getByRole('button',{name:'All client assessments',exact:true}).click();await page.getByRole('button',{name:'Open assessment',exact:true}).click();assert.equal(await scope.getByRole('textbox',{name:'Company or location name',exact:true}).inputValue(),'Synthetic company updated in browser');
+    await page.getByRole('button',{name:'All client assessments',exact:true}).click();await page.getByRole('button',{name:'Open assessment',exact:true}).click();await page.getByRole('button',{name:'Expand all questions',exact:true}).click();assert.equal(await scope.getByRole('textbox',{name:'Company or location name',exact:true}).inputValue(),'Synthetic company updated in browser');
     await mkdir(new URL('../.azure/browser-results/',import.meta.url),{recursive:true});await page.screenshot({path:fileURLToPath(new URL('../.azure/browser-results/full-client-questionnaire-live.png',import.meta.url)),fullPage:true});
     await page.getByRole('navigation',{name:'Assessment sections'}).getByRole('button',{name:/Backups and recovery/}).click();
     const strategy=page.getByRole('region',{name:'Do you have a defined backup strategy for these systems/data?',exact:true});
-    await page.getByRole('combobox',{name:'Scope group',exact:true}).selectOption({label:'Endpoint backups'});assert.equal(await strategy.getByRole('combobox',{name:'Answer',exact:true}).inputValue(),'true');
-    await page.getByRole('combobox',{name:'Scope group',exact:true}).selectOption({label:'Database backups'});assert.equal(await strategy.getByRole('combobox',{name:'Answer',exact:true}).inputValue(),'false');
+    await page.getByRole('combobox',{name:'Scope group',exact:true}).selectOption({label:'Endpoint backups'});await page.getByRole('button',{name:'Expand all questions',exact:true}).click();assert.equal(await strategy.getByRole('combobox',{name:'Answer',exact:true}).inputValue(),'true');
+    await page.getByRole('combobox',{name:'Scope group',exact:true}).selectOption({label:'Database backups'});await page.getByRole('button',{name:'Expand all questions',exact:true}).click();assert.equal(await strategy.getByRole('combobox',{name:'Answer',exact:true}).inputValue(),'false');
     await page.getByRole('button',{name:'All client assessments',exact:true}).click();await page.getByText('Earlier backup-only assessments (1)',{exact:true}).click();await page.getByRole('button',{name:'Open earlier assessment'}).click();
     assert.equal(await page.getByRole('region',{name:'Do you have a defined backup strategy?',exact:true}).getByRole('combobox',{name:'Answer',exact:true}).inputValue(),'true');
     console.log('PASS: live browser shows all 12 sections, saves/reopens company answers, switches separate backup scopes and opens preserved earlier answers.');

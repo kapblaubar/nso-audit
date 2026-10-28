@@ -87,6 +87,51 @@ laptop-group switching, full-page reload persistence, mobile width and the histo
 questionnaire checks passed. Synthetic clients/account and temporary operator access
 were removed; no mail was sent.
 
+## Collapsible question cards
+
+Added native keyboard-accessible details/summary cards, closed by default, with Expand all
+questions and Collapse all questions controls for the active group. Expansion is kept in
+page state across saves and section/group navigation; answers remain independent of it.
+Required-field validation reopens incomplete collapsed answers. This applies to existing
+full-client assessments as well as new ones. No API, SQL or infrastructure deployment is
+required; rollback consists of restoring the previous web artifact.
+
+Web typechecking and the 15-questionnaire-scenario browser suite passed. A further focused
+check confirmed that saving an incomplete collapsed coverage answer reopens it for validation.
+Published to the existing Dev Static Web App using the versioned web publication script.
+The full live client-assessment verifier passed, including default-collapsed cards,
+individual expansion, collapse-all, retained expansion on save, persisted database answers,
+group switching, full reload and mobile width. Historical questionnaire checks also passed.
+Synthetic clients/account and the temporary exact-IP SQL rule were removed; no mail was sent.
+
+## Simple technology form cards
+
+The next presentation pass replaces individual question cards in the v3 technology section
+with one About [system] form, short labels and ordinary fields. Common Yes/No/unknown states
+are integrated in the select controls; notes and evidence references are optional. Reviewer
+view is a separate, authorized view using the existing independent review endpoint. Existing
+values and catalog versions are preserved, including custom text, false answers, explicit
+unknowns, not-applicable reasons and measurement metadata.
+
+This is the first section using the simplified layout; other sections retain their current
+forms. Smaller page headings reduce unused space. It is a web-only release with no API,
+database, networking, identity or Bicep changes. Deploy using the existing web publication
+script and public Dev configuration. Rollback restores the previous web presentation and
+retains all saved data.
+
+Web typechecking and the 17-scenario questionnaire suite passed. Focused final checks also
+verified the final card layout, reviewer-view round trips, mobile width and read-only note
+access. The test setup now waits for assessment loading before expanding legacy question
+cards, eliminating the earlier timing race. Desktop/mobile previews are local ignored files
+`.azure/browser-results/simple-technology-desktop.png` and `simple-technology-mobile.png`.
+
+Published with the existing Dev web publication script and public configuration. The full
+live client-assessment suite passed: existing questionnaires and reviews, all seven v3
+technology types and both entry kinds, simple form save/reopen through the deployed browser,
+switching database/laptop entries, full reload persistence and mobile width. The live form
+contains one technology card and no repeated reviewer controls. Synthetic accounts/data and
+the temporary operator rule were removed; no email was sent or real customer data modified.
+
 ## Recovery and limits
 
 Retain additive migration 016 and v3 answers if application artifacts need rollback.

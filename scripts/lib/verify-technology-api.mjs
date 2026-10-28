@@ -49,29 +49,31 @@ export async function verifyTechnologyApi({call,req,other,browser,session,portal
     await page.getByRole('button',{name:'All client assessments',exact:true}).click();
     await page.getByRole('listitem').filter({hasText:'Disposable technology-specific assessment'}).getByRole('button',{name:'Open assessment',exact:true}).click();
     await page.getByRole('navigation',{name:'Assessment sections'}).getByRole('button',{name:/Your technology and who manages it/}).click();
-    const selector=page.getByRole('combobox',{name:'Technology entry',exact:true});
+    const selector=page.getByRole('combobox',{name:'Technology',exact:true});
     await selector.selectOption({label:'databases/single'});
+    assert.equal(await page.locator('.technology-form-card').count(),1);
+    assert.equal(await page.getByText('Reviewer conclusion',{exact:true}).count(),0);
     const platform=page.getByRole('region',{name:'Which database platform and version are used?',exact:true});
-    assert.equal(await platform.getByRole('textbox',{name:'Answer',exact:true}).inputValue(),'databases/single');
-    assert.equal(await page.getByRole('combobox',{name:'Measurement method',exact:true}).count(),0);
-    await platform.getByRole('textbox',{name:'Answer',exact:true}).fill('Azure SQL - synthetic browser check');
+    assert.equal(await platform.getByRole('textbox',{name:'Database platform and version',exact:true}).inputValue(),'databases/single');
+    assert.equal(await page.getByRole('combobox',{name:'Measure by',exact:true}).count(),0);
+    await platform.getByRole('textbox',{name:'Database platform and version',exact:true}).fill('Azure SQL - synthetic browser check');
     await page.getByRole('button',{name:'Save draft',exact:true}).click();
     await page.getByRole('status').filter({hasText:'Draft saved'}).waitFor();
     await selector.selectOption({label:'endpoints/group'});
-    assert.equal(await page.getByRole('combobox',{name:'Measurement method',exact:true}).count(),2);
+    assert.equal(await page.getByRole('combobox',{name:'Measure by',exact:true}).count(),2);
     assert.equal(await platform.count(),0);
     await selector.selectOption({label:'databases/single'});
-    assert.equal(await platform.getByRole('textbox',{name:'Answer',exact:true}).inputValue(),'Azure SQL - synthetic browser check');
+    assert.equal(await platform.getByRole('textbox',{name:'Database platform and version',exact:true}).inputValue(),'Azure SQL - synthetic browser check');
     await page.reload();
     // /account/questionnaires restores the questionnaire listing after a reload.
     await page.getByRole('listitem').filter({hasText:'Disposable technology-specific assessment'}).getByRole('button',{name:'Open assessment',exact:true}).click();
     await page.getByRole('navigation',{name:'Assessment sections'}).getByRole('button',{name:/Your technology and who manages it/}).click();
-    await page.getByRole('combobox',{name:'Technology entry',exact:true}).selectOption({label:'databases/single'});
-    assert.equal(await platform.getByRole('textbox',{name:'Answer',exact:true}).inputValue(),'Azure SQL - synthetic browser check');
+    await page.getByRole('combobox',{name:'Technology',exact:true}).selectOption({label:'databases/single'});
+    assert.equal(await platform.getByRole('textbox',{name:'Database platform and version',exact:true}).inputValue(),'Azure SQL - synthetic browser check');
     await page.setViewportSize({width:390,height:844});
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
     await mkdir(new URL('../../.azure/browser-results/',import.meta.url),{recursive:true});
     await page.screenshot({path:fileURLToPath(new URL('../../.azure/browser-results/technology-questionnaire-live.png',import.meta.url)),fullPage:true});
-    await page.close();console.log('PASS: deployed browser creates technology assessments by default, saves/reopens database details, switches groups and fits mobile width.');
+    await page.close();console.log('PASS: deployed browser creates technology assessments by default, shows a simple technology card without reviewer clutter, saves/reopens database details, switches groups and fits mobile width.');
   }
 }

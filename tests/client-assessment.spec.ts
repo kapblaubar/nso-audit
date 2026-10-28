@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 const catalog=JSON.parse(readFileSync('config/questionnaires/client-v1.json','utf8'));
 const org='11111111-1111-1111-1111-111111111111',id='22222222-2222-2222-2222-222222222222';
 const guidedCatalog=JSON.parse(readFileSync('config/questionnaires/client-v2.json','utf8'));
-async function setup(page:Page,role='contributor',stale=false,template='client-v1'){
+async function setup(page:Page,role='contributor',stale=false,template='client-v1',expand=true){
   const selectedCatalog=template==='client-v3'?JSON.parse(readFileSync('config/questionnaires/client-v3.json','utf8')):template==='client-v2'?guidedCatalog:catalog;
   const data:any={id,name:'Company assessment',answerOwner:'Client',reviewer:'Reviewer',revision:0,status:'draft',...structuredClone(selectedCatalog),groups:selectedCatalog.sections.filter((s:any)=>!s.repeatable).map((s:any,index:number)=>({id:`33333333-3333-3333-3333-${String(index+1).padStart(12,'0')}`,sectionId:s.id,name:s.title,context:{},answers:[],reviews:[]}))};
   await page.addInitScript(()=>sessionStorage.setItem('nso.customerSession','a'.repeat(43)));
@@ -21,11 +21,12 @@ async function setup(page:Page,role='contributor',stale=false,template='client-v
     }
     return route.fulfill({json:data});
   });
-  await page.goto('/signin');await page.getByRole('button',{name:'Questionnaire',exact:true}).click();await page.getByRole('button',{name:'Open assessment',exact:true}).click();return data;
+  await page.goto('/signin');await page.getByRole('button',{name:'Questionnaire',exact:true}).click();await page.getByRole('button',{name:'Open assessment',exact:true}).click();await page.getByRole('navigation',{name:'Assessment sections'}).waitFor();if(expand)await expandQuestions(page);return data;
 }
+async function expandQuestions(page:Page){await page.getByRole('status').filter({hasText:/Loading or saving assessment/}).waitFor({state:'hidden'});const button=page.getByRole('button',{name:'Expand all questions',exact:true});if(await button.count())await button.click();}
 const question=(page:Page,prompt:string)=>page.getByRole('region',{name:prompt,exact:true});
-const navigate=async(page:Page,title:string)=>page.getByRole('navigation',{name:'Assessment sections'}).getByRole('button',{name:new RegExp(title)}).click();
-async function addGroup(page:Page,name:string,assetClass:string){const details=page.locator('.assessment-add-group');if(!await details.evaluate(e=>e.hasAttribute('open')))await details.getByText('Add a scope group',{exact:true}).click();await details.getByLabel('Group name / environment',{exact:true}).fill(name);await details.getByRole('combobox',{name:'Asset class',exact:true}).selectOption(assetClass);await details.getByRole('button',{name:'Add scope group',exact:true}).click();}
+const navigate=async(page:Page,title:string)=>{await page.getByRole('navigation',{name:'Assessment sections'}).getByRole('button',{name:new RegExp(title)}).click();await expandQuestions(page);};
+async function addGroup(page:Page,name:string,assetClass:string){const details=page.locator('.assessment-add-group');if(!await details.evaluate(e=>e.hasAttribute('open')))await details.getByText('Add a scope group',{exact:true}).click();await details.getByLabel('Group name / environment',{exact:true}).fill(name);await details.getByRole('combobox',{name:'Asset class',exact:true}).selectOption(assetClass);await details.getByRole('button',{name:'Add scope group',exact:true}).click();await expandQuestions(page);}
 test('all 12 sections, company records and multiple backup scopes save and reopen independently',async({page})=>{
   const data=await setup(page);await expect(page.getByRole('heading',{name:'Client assessment questionnaire',exact:true})).toBeVisible();await expect(page.getByRole('navigation',{name:'Assessment sections'}).getByRole('button')).toHaveCount(12);
   const scopes=question(page,'What tenants/accounts, domains and locations belong to each environment?');await scopes.getByRole('button',{name:'Add item',exact:true}).click();
@@ -214,10 +215,10 @@ test('technology questions follow database versus laptop groups and preserve ans
   await form.getByRole('combobox',{name:'What are you adding?',exact:true}).selectOption('single');
   await form.getByRole('combobox',{name:'Technology type',exact:true}).selectOption('databases');
   await form.getByRole('combobox',{name:'Who manages it?',exact:true}).selectOption('internal');
-  await form.getByRole('button',{name:'Add technology',exact:true}).click();
+  await form.getByRole('button',{name:'Add technology',exact:true}).click();await expandQuestions(page);
   const platform=question(page,'Which database platform and version are used?');
-  await platform.getByRole('textbox',{name:'Answer',exact:true}).fill('Azure SQL');
-  await expect(page.getByRole('combobox',{name:'Measurement method',exact:true})).toHaveCount(0);
+  await platform.getByRole('textbox',{name:'Database platform and version',exact:true}).fill('Azure SQL');
+  await expect(page.getByRole('combobox',{name:'Measure by',exact:true})).toHaveCount(0);
   await expect(question(page,'Are these company-owned devices, personal devices, or both?')).toHaveCount(0);
   await page.getByRole('button',{name:'Save draft',exact:true}).click();
   await expect(page.getByRole('status')).toContainText('Draft saved');
@@ -226,12 +227,12 @@ test('technology questions follow database versus laptop groups and preserve ans
   await form.getByRole('combobox',{name:'What are you adding?',exact:true}).selectOption('group');
   await form.getByRole('combobox',{name:'Technology type',exact:true}).selectOption('endpoints');
   await form.getByRole('combobox',{name:'Who manages it?',exact:true}).selectOption('provider');
-  await form.getByRole('button',{name:'Add technology',exact:true}).click();
-  await expect(page.getByRole('combobox',{name:'Measurement method',exact:true})).toHaveCount(2);
+  await form.getByRole('button',{name:'Add technology',exact:true}).click();await expandQuestions(page);
+  await expect(page.getByRole('combobox',{name:'Measure by',exact:true})).toHaveCount(2);
   await expect(question(page,'Are these company-owned devices, personal devices, or both?')).toBeVisible();
   await expect(platform).toHaveCount(0);
-  await page.getByRole('combobox',{name:'Technology entry',exact:true}).selectOption({label:'NSO DB'});
-  await expect(platform.getByRole('textbox',{name:'Answer',exact:true})).toHaveValue('Azure SQL');
+  await page.getByRole('combobox',{name:'Technology',exact:true}).selectOption({label:'NSO DB'});
+  await expect(platform.getByRole('textbox',{name:'Database platform and version',exact:true})).toHaveValue('Azure SQL');
 });
 
 test('creating an assessment uses technology questions without an opt-in',async({page})=>{
@@ -251,4 +252,89 @@ test('creating an assessment uses technology questions without an opt-in',async(
   expect(submitted.templateVersion).toBe('client-v3');
   await navigate(page,'Your technology and who manages it');
   await expect(page.getByRole('combobox',{name:'What are you adding?',exact:true})).toBeVisible();
+});
+
+
+test('question cards start collapsed, toggle by keyboard, and keep answers and expansion on save',async({page})=>{
+  await setup(page,'contributor',false,'client-v3',false);
+  await expect(page.locator('.assessment-question-details[open]')).toHaveCount(0);
+  const company=question(page,'What company, business units and locations does this assessment cover?');
+  const summary=company.locator('.assessment-question-details>summary');
+  await expect(company.getByRole('textbox',{name:'Company or location name',exact:true})).toBeHidden();
+  await summary.focus();await page.keyboard.press('Enter');
+  await company.getByRole('textbox',{name:'Company or location name',exact:true}).fill('Collapsed form client');
+  await page.getByRole('button',{name:'Save draft',exact:true}).click();
+  await expect(page.getByRole('status')).toContainText('Draft saved');
+  await expect(company.getByRole('textbox',{name:'Company or location name',exact:true})).toHaveValue('Collapsed form client');
+  await expect(page.locator('.assessment-question-details[open]')).toHaveCount(1);
+  await page.getByRole('button',{name:'Collapse all questions',exact:true}).click();
+  await expect(company.getByRole('textbox',{name:'Company or location name',exact:true})).toBeHidden();
+  await page.getByRole('button',{name:'Expand all questions',exact:true}).click();
+  await expect(company.getByRole('textbox',{name:'Company or location name',exact:true})).toHaveValue('Collapsed form client');
+});
+
+test('saving a collapsed incomplete answer opens the required field',async({page})=>{
+  await setup(page,'contributor',false,'client-v3');
+  await navigate(page,'Backups and recovery');await addGroup(page,'Laptops','endpoints');
+  const coverage=question(page,catalog.questions.find((q:any)=>q.sectionId==='backups'&&q.type==='coverage').prompt);
+  await coverage.getByRole('spinbutton',{name:'Total in scope',exact:true}).fill('10');
+  await page.getByRole('button',{name:'Collapse all questions',exact:true}).click();
+  await page.getByRole('button',{name:'Save draft',exact:true}).click();
+  await expect(coverage.getByRole('spinbutton',{name:'Total covered',exact:true})).toBeVisible();
+  await expect(page.getByText('Unsaved changes',{exact:true})).toBeVisible();
+});
+
+
+test('a business application is one simple card with ordinary fields and a separate reviewer view',async({page})=>{
+  const data=await setup(page,'admin',false,'client-v3');
+  await navigate(page,'Your technology and who manages it');
+  const add=page.locator('.assessment-add-group');
+  await add.getByLabel('System or group name',{exact:true}).fill('QuickBooks');
+  await add.getByRole('combobox',{name:'What are you adding?',exact:true}).selectOption('single');
+  await add.getByRole('combobox',{name:'Technology type',exact:true}).selectOption('business-applications');
+  await add.getByRole('combobox',{name:'Who manages it?',exact:true}).selectOption('provider');
+  await add.getByRole('button',{name:'Add technology',exact:true}).click();
+  const card=page.locator('.technology-form-card');
+  await expect(card).toHaveCount(1);await expect(card.getByText('About QuickBooks',{exact:true})).toBeVisible();
+  await expect(page.getByText('Reviewer conclusion',{exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'I do not know',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Expand all questions',exact:true})).toHaveCount(0);
+  await card.getByRole('textbox',{name:'Business owner',exact:true}).fill('Finance');
+  await card.getByRole('combobox',{name:'Listed in your inventory?',exact:true}).selectOption('false');
+  await card.getByRole('combobox',{name:'Still supported by the vendor?',exact:true}).selectOption('unknown');
+  await card.getByRole('combobox',{name:'Application type',exact:true}).fill('Vendor product');
+  await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.getByRole('status')).toContainText('Draft saved');
+  expect(data.groups.find((g:any)=>g.sectionId==='assets').answers.find((a:any)=>a.questionId==='TEC-INVENTORY').booleanValue).toBe(false);
+  await expect(card.getByRole('textbox',{name:'Business owner',exact:true})).toHaveValue('Finance');
+  await page.getByRole('button',{name:'Reviewer view',exact:true}).click();await expandQuestions(page);
+  const owner=question(page,'Who is responsible for this technology within the business?');
+  await expect(owner.getByRole('textbox',{name:'Answer',exact:true})).toHaveValue('Finance');
+  await expect(owner.locator('.assessment-review>summary')).toBeVisible();
+  await page.getByRole('button',{name:'Back to simple form',exact:true}).click();
+  await expect(card.getByRole('textbox',{name:'Business owner',exact:true})).toHaveValue('Finance');
+  await card.getByRole('checkbox',{name:'Show notes and answer options',exact:true}).check();
+  const maintained=question(page,'Who maintains it? Include the team or provider name.');
+  await maintained.getByRole('combobox',{name:'Answer options',exact:true}).selectOption('notApplicable');
+  await maintained.getByRole('textbox',{name:"Why doesn't this apply?",exact:true}).fill('Vendor manages the hosted application');
+  await page.getByRole('button',{name:'Save draft',exact:true}).click();await expect(page.getByRole('status')).toContainText('Draft saved');
+  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await card.getByRole('checkbox',{name:'Show notes and answer options',exact:true}).uncheck();
+  await page.screenshot({path:'.azure/browser-results/simple-technology-mobile.png',fullPage:true});
+  await page.setViewportSize({width:1366,height:900});
+  await page.screenshot({path:'.azure/browser-results/simple-technology-desktop.png',fullPage:true});
+});
+
+
+test('viewers can read technology notes without editing answers',async({page})=>{
+  const data=await setup(page,'viewer',false,'client-v3');
+  data.groups.push({id:'88888888-8888-8888-8888-888888888888',sectionId:'assets',name:'Read-only database',context:{entryKind:'single',assetClass:'databases',management:'internal'},answers:[{questionId:'TEC-DATABASES-2',questionVersion:4,state:'answered',textValue:'Azure SQL',justification:'Reviewed platform details',evidenceReference:'Inventory record'}],reviews:[]});
+  await page.getByRole('button',{name:'All client assessments',exact:true}).click();
+  await page.getByRole('button',{name:'Open assessment',exact:true}).click();
+  await navigate(page,'Your technology and who manages it');
+  const platform=question(page,'Which database platform and version are used?');
+  await expect(platform.getByRole('textbox',{name:'Database platform and version',exact:true})).toBeDisabled();
+  await page.getByRole('checkbox',{name:'Show notes and answer options',exact:true}).check();
+  await expect(platform.getByRole('textbox',{name:'Notes',exact:true})).toHaveValue('Reviewed platform details');
+  await expect(platform.getByRole('textbox',{name:'Notes',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Save draft',exact:true})).toHaveCount(0);
 });

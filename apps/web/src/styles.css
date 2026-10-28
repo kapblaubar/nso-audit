@@ -618,6 +618,9 @@ html[data-theme="light"] .questionnaire-page { --mg-panel:#fff; --mg-field:#f7fa
 .questionnaire-page textarea { width:100%; padding:12px; border:1px solid #6b7b80; border-radius:8px; font:inherit; color:inherit; background:transparent; }
 .questionnaire-question { margin:24px 0; padding:20px; border:1px solid #6b7b80; border-radius:12px; }
 .questionnaire-question h3 { margin-top:0; }
+.assessment-question-details>summary h3 { display:inline; margin:0; font-size:1.1rem; }
+.assessment-question-details>summary:focus-visible { outline:2px solid currentColor; outline-offset:4px; border-radius:4px; }
+.assessment-question-controls { display:flex; flex-wrap:wrap; gap:16px; margin:12px 0; }
 .questionnaire-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
 .questionnaire-choice { display:flex; align-items:center; gap:10px; margin:10px 0; }
 .questionnaire-save { position:sticky; bottom:0; display:flex; align-items:center; gap:20px; padding:16px; background:var(--mg-panel); border:1px solid #6b7b80; border-radius:8px; }
@@ -644,3 +647,24 @@ html[data-theme="light"] .questionnaire-page { --mg-panel:#fff; --mg-field:#f7fa
 .guided-records .questionnaire-grid > fieldset { grid-column:1 / -1; }
 .guided-records .management-secondary { white-space:normal; max-width:100%; }
 .guided-records .assessment-record > button { margin:8px 12px 0 0; }
+
+/* A technology entry is a single form, with ordinary labeled fields. */
+.questionnaire-page .technology-form-card { min-width:0; margin:18px 0; padding:24px; border:1px solid var(--mg-border); border-radius:12px; background:var(--mg-panel); }
+.technology-form-card>legend { max-width:100%; overflow-wrap:anywhere; padding:0 8px; font-size:1.25rem; font-weight:700; }
+.technology-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:24px; row-gap:8px; }
+.technology-field { min-width:0; }
+.technology-wide { grid-column:1 / -1; }
+.technology-field h4 { margin:16px 0 8px; font-size:1rem; }
+.technology-field .management-field>span { font-size:.9rem; font-weight:600; }
+.technology-field input,.technology-field select { width:100%; }
+.technology-measurement-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 20px; }
+.technology-extra-options { border-top:1px solid var(--mg-border); padding:8px 0; }
+.technology-options { margin-top:20px; color:var(--mg-muted); font-size:.85rem; }
+.technology-review-toggle { display:block; margin:12px 0 0 auto; font-size:.85rem; }
+@media(max-width:600px) { .technology-form-grid,.technology-measurement-grid { grid-template-columns:1fr; } .questionnaire-page .technology-form-card { padding:16px; } }
+
+.technology-form-card .questionnaire-save { position:static; margin-top:20px; padding:16px 0 0; border:0; border-top:1px solid var(--mg-border); border-radius:0; background:transparent; }
+
+.assessment-page>h1 { font-size:2.2rem; line-height:1.2; margin:28px 0 12px; }
+.assessment-page>h2 { font-size:1.6rem; line-height:1.25; margin:20px 0 12px; }
+.simple-technology-section>h2 { font-size:2rem; line-height:1.2; margin-bottom:12px; }

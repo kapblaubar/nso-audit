@@ -57,3 +57,28 @@ temporary exact-IP access when running these checks separately from deployment.
 Status: deployed and verified in Dev on 2026-10-28. See the
 [deployment record](technology-questionnaire-deployment-2026-10-28.md) for validation,
 cleanup, limitations and instructions for trying the new forms.
+
+Other questionnaire sections use question cards that start collapsed. Select a question title to expand it, or use Expand all
+questions / Collapse all questions for the current group. Expansion is retained while
+saving and switching sections in the open questionnaire. Incomplete required answers
+reopen for validation. This is a web-only presentation change for all full-client catalog
+versions; it requires no schema, infrastructure or answer migration. Roll back the web
+artifact if necessary; saved answers are unchanged.
+
+## Simple technology cards
+
+The v3 technology section now uses one About [system] form card with short field labels,
+two desktop columns and a single mobile column. Yes/No, Not sure and Not applicable are
+choices in the same select; text fields may be left blank. Common text suggestions do not
+restrict existing/custom answers. A blank remains missing evidence, never an inferred pass.
+
+Reviewer view is separate from the customer form, retains existing authorization and
+records conclusions independently. Show notes and answer options exposes preserved notes,
+evidence references and explicit states without repeating them on the primary form.
+Read-only users can inspect notes while all answer controls remain disabled.
+
+This first layout pass applies to all seven v3 technology types and existing v3 assessments.
+Other sections and older catalogs retain their current forms. No questions, answers, IDs,
+review records or catalog definitions are migrated or combined. The API/SQL contract and
+infrastructure are unchanged; publish only the web app with existing Dev public settings.
+Rollback can restore the previous web artifact without changing saved answers.

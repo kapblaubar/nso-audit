@@ -8,7 +8,7 @@ export function RecordField({field,value,onChange,allowUnknown=true}:{field:Fiel
     {allowUnknown&&field.type!=='select'?<label className="questionnaire-choice"><input type="checkbox" checked={unknown} onChange={event=>onChange(event.target.checked?null:undefined)}/>Unknown {field.label.toLowerCase()}</label>:null}
   </div>;
 }
-export function AssessmentQuestion({question,answer,onChange,disabled,review,canReview,onReview}:{question:ClientQuestion;answer:ClientAnswer|undefined;onChange:(answer:ClientAnswer|undefined)=>void;disabled:boolean;review:Review|undefined;canReview:boolean;onReview:(review:Review)=>void}){
+export function AssessmentQuestion({question,answer,onChange,disabled,review,canReview,onReview,expanded,onExpandedChange}:{question:ClientQuestion;answer:ClientAnswer|undefined;onChange:(answer:ClientAnswer|undefined)=>void;expanded:boolean;onExpandedChange:(expanded:boolean)=>void;disabled:boolean;review:Review|undefined;canReview:boolean;onReview:(review:Review)=>void}){
   const [coverageMode,setCoverageMode]=useState(answer?.estimatedPercentage!==undefined?'estimate':'counts');
   const [reviewDraft,setReviewDraft]=useState<Review>(review??{questionId:question.id,questionVersion:question.version,conclusion:'unknown',evidenceState:'declared',collectionState:'notRequested',notes:'',actionOwner:'',targetDate:''});
   const displayHelp=question.guided?.kind==='storage'?'Add each storage location, then select all the sensitive information kept there. No exact URL is needed.':question.help;
@@ -44,7 +44,7 @@ export function AssessmentQuestion({question,answer,onChange,disabled,review,can
   }}
   const reviewSelect=(key:'conclusion'|'evidenceState'|'collectionState',label:string,choices:[string,string][])=> <label className="management-field"><span>{label}</span><select disabled={!canReview} value={reviewDraft[key]} onChange={event=>setReviewDraft(current=>({...current,[key]:event.target.value}))}>{choices.map(([value,title])=><option key={value} value={value}>{title}</option>)}</select></label>;
   return <section className="questionnaire-question" aria-label={question.prompt}>
-    <h3>{question.prompt}</h3>{displayHelp&&!/^(Text|Number|Multi|Select|Status|YN|Coverage|Date|Repeating)\b/i.test(displayHelp)?<p className="management-help">{displayHelp}</p>:null}
+    <details className="assessment-question-details" open={expanded} onToggle={event=>onExpandedChange(event.currentTarget.open)} onInvalidCapture={()=>onExpandedChange(true)}><summary><h3>{question.prompt}</h3></summary>{displayHelp&&!/^(Text|Number|Multi|Select|Status|YN|Coverage|Date|Repeating)\b/i.test(displayHelp)?<p className="management-help">{displayHelp}</p>:null}
     {question.reviewerOnly?<p>Maintained by an owner or administrator reviewer.</p>:null}
     <fieldset disabled={disabled||question.reviewerOnly&&!canReview}>
       {!answer||answer.state==='answered'?input():<p>{answer.state==='unknown'?'Unknown':answer.state==='never'?'Never':'Not applicable'}</p>}
@@ -65,5 +65,6 @@ export function AssessmentQuestion({question,answer,onChange,disabled,review,can
       <div className="questionnaire-grid"><label className="management-field"><span>Action owner</span><input disabled={!canReview} maxLength={200} value={reviewDraft.actionOwner} onChange={event=>setReviewDraft(current=>({...current,actionOwner:event.target.value}))}/></label><label className="management-field"><span>Target date</span><input disabled={!canReview} type="date" value={reviewDraft.targetDate} onChange={event=>setReviewDraft(current=>({...current,targetDate:event.target.value}))}/></label></div>
       {canReview?<button type="button" className="management-secondary" disabled={disabled} onClick={()=>onReview(reviewDraft)}>Save reviewer conclusion</button>:null}
     </details>:null}
+    </details>
   </section>;
 }
