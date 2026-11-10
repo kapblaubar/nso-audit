@@ -5,6 +5,7 @@ import {
   type AuthenticationResult,
 } from "@azure/msal-browser";
 import { appConfig } from "./config";
+import {pendingAuditDestination} from './auditNavigation';
 
 const signInScopes = ["openid", "profile", "email", ...(appConfig.apiScope ? [appConfig.apiScope] : [])];
 
@@ -67,7 +68,7 @@ export async function signIn(): Promise<void> {
   await authClient.loginRedirect({
     scopes: signInScopes,
     prompt: "select_account",
-    redirectStartPage: `${window.location.origin}/audit`,
+    redirectStartPage: `${window.location.origin}${pendingAuditDestination()??'/audit'}`,
   });
 }
 

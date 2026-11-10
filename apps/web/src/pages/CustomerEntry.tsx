@@ -4,6 +4,7 @@ import {appConfig} from '../config';
 import {CustomerAudit} from './CustomerAudit';
 import {ThemeToggle} from '../components/ThemeToggle';
 import {QuestionnairePage} from './QuestionnairePage';
+import {pendingAuditDestination} from '../auditNavigation';
 
 type Mode='login'|'register'|'forgot'|'resend'|'verify'|'reset';
 interface CustomerSession{user:{id:string;email:string;name:string};workspaces:{id:string;name:string;role:string;tenantId?:string|null}[]}
@@ -41,7 +42,7 @@ export function CustomerEntry(){
       if(result.token){
         sessionStorage.setItem(storageKey,result.token);
         setSession(await call<CustomerSession>('session',undefined,result.token));
-        window.history.replaceState({},'','/account');
+        window.history.replaceState({},'',pendingAuditDestination()??'/account');
       }else{setNotice(result.message??'Request completed.');if(mode==='reset'||mode==='verify'){setMode('login');window.history.replaceState({},'','/signin');}}
     }catch(cause){setError(cause instanceof Error?cause.message:'Account request failed.');}
     finally{setBusy(false);}
@@ -59,7 +60,7 @@ export function CustomerEntry(){
       <h1>{session?`Welcome, ${session.user.name}`:title}</h1>
       {error?<p className="management-error" role="alert">{error}</p>:null}
       {notice?<p className="management-success" role="status">{notice}</p>:null}
-      {session?<><p>Signed in as {session.user.email}</p><h2>Your workspaces</h2>{session.workspaces.length?<ul className="customer-workspaces">{session.workspaces.map(workspace=><li key={workspace.id}><strong>{workspace.name}</strong><span>{workspace.role}</span><button className="management-secondary" onClick={()=>{sessionStorage.setItem('nso.customerWorkspace',workspace.id);setActiveOrg(workspace.id);setQuestionnaire(true);window.history.replaceState({},'','/account/questionnaires');}}>Questionnaire</button>{workspace.tenantId?<button className="management-secondary" onClick={()=>{sessionStorage.setItem('nso.customerWorkspace',workspace.id);setActiveOrg(workspace.id);window.history.replaceState({},'','/account/workspace');}}>Open workspace</button>:<span>Microsoft connection pending</span>}</li>)}</ul>:<p>Your email is verified. Your workspace will appear here after NewSommer approves your access.</p>}<p className="management-help">Your portal account does not grant Microsoft assessment permissions. Microsoft connections are authorized separately by your organization?s administrator.</p></>:<>
+      {session?<><p>Signed in as {session.user.email}</p><h2>Your workspaces</h2>{session.workspaces.length?<ul className="customer-workspaces">{session.workspaces.map(workspace=><li key={workspace.id}><strong>{workspace.name}</strong><span>{workspace.role}</span><button className="management-secondary" onClick={()=>{sessionStorage.setItem('nso.customerWorkspace',workspace.id);setActiveOrg(workspace.id);setQuestionnaire(true);window.history.replaceState({},'','/account/questionnaires');}}>Questionnaire</button>{workspace.tenantId?<button className="management-secondary" onClick={()=>{sessionStorage.setItem('nso.customerWorkspace',workspace.id);setActiveOrg(workspace.id);window.history.replaceState({},'',pendingAuditDestination()??'/account/workspace');}}>Open workspace</button>:<span>Microsoft connection pending</span>}</li>)}</ul>:<p>Your email is verified. Your workspace will appear here after NewSommer approves your access.</p>}<p className="management-help">Your portal account does not grant Microsoft assessment permissions. Microsoft connections are authorized separately by your organization?s administrator.</p></>:<>
         {mode==='login'?<><p>Use your Microsoft work account or your NSO Audit email and password.</p><button className="management-primary customer-microsoft" onClick={()=>void microsoft()} disabled={busy}>Continue with Microsoft</button><div className="customer-divider">or sign in with email</div></>:null}
         {mode==='register'?<p>Use any email address and create a separate NSO Audit password. We?ll email you a verification link.</p>:null}
         {mode==='forgot'||mode==='resend'?<p>Enter your email address to request a new link.</p>:null}

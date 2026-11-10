@@ -9,7 +9,8 @@ const server=await createServer({root:fileURLToPath(new URL('../apps/web',import
   server:{host:'127.0.0.1',port:0},configFile:false});
 await server.listen();
 const address=server.httpServer.address();
-const origin=`http://127.0.0.1:${address.port}`;
+const origin=process.env.AUDIT_UI_TEST_ORIGIN??`http://127.0.0.1:${address.port}`;
+const apiOrigin=process.env.AUDIT_UI_TEST_API_ORIGIN??origin;
 let browser;
 const org='00000000-0000-4000-8000-000000000001',tenant='00000000-0000-4000-8000-000000000002';
 const scan='00000000-0000-4000-8000-000000000003',sku='00000000-0000-4000-8000-000000000004';
@@ -20,10 +21,13 @@ try{
   await context.addInitScript(({org})=>{sessionStorage.setItem('nso.customerSession','synthetic-test-session');sessionStorage.setItem('nso.customerWorkspace',org);},{org});
   let role='owner',firstPollAt=0,fail=false;
   const requests=[];
-  await context.route('**/api/**',async route=>{
+  const respondApi=async route=>{
     const request=route.request(),url=new URL(request.url());
-    assert.equal(url.origin,origin);requests.push(`${request.method()} ${url.pathname}${url.search}`);
-    const respond=(value,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(value)});
+    assert.equal(url.origin,apiOrigin);requests.push(`${request.method()} ${url.pathname}${url.search}`);
+    const respond=(value,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(value),
+      headers:{'access-control-allow-origin':origin,'access-control-allow-headers':'*','access-control-allow-methods':'GET,POST,OPTIONS'}});
+    if(request.method()==='OPTIONS')return respond({});
+    if(url.pathname==='/api/account/login')return respond({token:'synthetic-test-session'});
     if(url.pathname==='/api/account/session')return respond({user:{name:'Fixture User',email:'fixture@example.invalid'},
       workspaces:[{id:org,name:'Fixture workspace',tenantId:tenant,role}]});
     assert.equal(request.headers()['x-nso-organization-id'],org);
@@ -40,7 +44,8 @@ try{
     if(url.pathname===`/api/me/audits/${scan}/licenses`)return respond({rows:[{SourceId:'fixture',SkuId:sku,SkuPartNumber:'FIXTURE_SKU',EnabledUnits:10,ConsumedUnits:1,CollectedAtUtc:at}],total:1,page:1,pageSize:50});
     if(url.pathname===`/api/me/audits/${scan}/licenseAssignments`)return respond({rows:fail?[]:[{UserId:tenant,SkuId:sku,UserPrincipalName:'fixture@example.invalid',SkuPartNumber:'FIXTURE_SKU',AssignmentType:'direct',AssignmentSource:'direct',AssignmentState:'Active',CollectedAtUtc:at}],total:fail?0:1,page:1,pageSize:50});
     throw new Error(`Unexpected API request: ${url.pathname}`);
-  });
+  };
+  await context.route('**/api/**',respondApi);
   const page=await context.newPage();
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto(`${origin}/audit-data`);
@@ -69,5 +74,28 @@ try{
   await page.setViewportSize({width:390,height:844});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth),false,'Audit page overflows the mobile viewport.');
   assert.deepEqual(errors,[]);
+  const chooser=await browser.newContext();
+  await chooser.addInitScript(()=>sessionStorage.setItem('nso.customerSession','synthetic-test-session'));
+  await chooser.route('**/api/**',respondApi);
+  const chooserPage=await chooser.newPage();
+  await chooserPage.goto(`${origin}/audit-data`);
+  await chooserPage.getByRole('heading',{name:'Your workspaces',exact:true}).waitFor();
+  await chooserPage.getByRole('button',{name:'Open workspace',exact:true}).click();
+  await chooserPage.getByRole('heading',{name:'Audit collection',exact:true}).waitFor();
+  assert.equal(new URL(chooserPage.url()).pathname,'/audit-data','Workspace selection lost the audit destination.');
+  await chooser.close();
+  const login=await browser.newContext();
+  await login.route('**/api/**',respondApi);
+  const loginPage=await login.newPage();
+  await loginPage.goto(`${origin}/audit-data`);
+  await loginPage.goto(`${origin}/signin`);
+  await loginPage.getByLabel('Email address',{exact:true}).fill('fixture@example.invalid');
+  await loginPage.getByLabel('Password',{exact:true}).fill('Synthetic-password-for-tests');
+  await loginPage.getByRole('button',{name:'Sign in with email',exact:true}).click();
+  await loginPage.getByRole('button',{name:'Open workspace',exact:true}).click();
+  await loginPage.getByRole('heading',{name:'Audit collection',exact:true}).waitFor();
+  assert.equal(new URL(loginPage.url()).pathname,'/audit-data','Sign-in lost the audit destination.');
+  await login.close();
   console.log('PASS: audit launch, progress polling, stored license rows, assignment drill-down/search, missing access, route restoration, viewer controls and mobile layout.');
+  console.log('PASS: audit destination survives workspace selection and email sign-in.');
 }finally{await browser?.close();await server.close();}

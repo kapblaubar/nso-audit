@@ -3,6 +3,7 @@ import type {AuditAccount} from '../auth';
 import {loadDataAudit,loadLicenseEvidence,loadScanHistory,startDataAudit,
   type DataAudit,type LicenseEvidencePage,type ScanHistoryItem} from '../api';
 import {ThemeToggle} from '../components/ThemeToggle';
+import {clearAuditDestination} from '../auditNavigation';
 
 const date=(value:string|null|undefined)=>value?new Date(value).toLocaleString():'—';
 const reason:Record<string,string>={missingAccess:'Microsoft denied access. Review licensing permissions and tenant consent.',
@@ -11,6 +12,7 @@ const reason:Record<string,string>={missingAccess:'Microsoft denied access. Revi
   invalidPagingLink:'The source returned an invalid paging link.',workerInterrupted:'Collection was interrupted repeatedly.'};
 
 export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;onSignOut:()=>void;scanId?:string}){
+  useEffect(()=>{clearAuditDestination();},[]);
   const [report,setReport]=useState<DataAudit>(),[history,setHistory]=useState<ScanHistoryItem[]>([]);
   const [error,setError]=useState(''),[running,setRunning]=useState(false),[refresh,setRefresh]=useState(0);
   const [dataType,setDataType]=useState<'licenses'|'licenseAssignments'>('licenses');
