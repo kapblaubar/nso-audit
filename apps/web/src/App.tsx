@@ -8,6 +8,7 @@ import { ReportPage } from "./pages/ReportPage";
 import {CustomerEntry} from "./pages/CustomerEntry";
 import {InvitationPage} from './pages/InvitationPage';
 import {ManagementPage} from './pages/ManagementPage';
+import {DataAuditPage} from './pages/DataAuditPage';
 
 export function App() {
   if(window.location.pathname==='/account/invitation')return <InvitationPage/>;
@@ -17,7 +18,7 @@ export function App() {
   const management=window.location.pathname==='/clientmanagement'||window.location.pathname.startsWith('/clientmanagement/')||
     (window.location.pathname==='/auth/callback'&&sessionStorage.getItem('nso.managementLogin')==='1');
   if(management)return <ManagementPage/>;
-  if(window.location.pathname==='/signin'||window.location.pathname.startsWith('/account')||(sessionStorage.getItem('nso.customerSession')&&['/','/audit','/onboarding'].includes(window.location.pathname))||(sessionStorage.getItem('nso.customerSession')&&/^\/(reports|scans)\//.test(window.location.pathname)))return <CustomerEntry/>;
+  if(window.location.pathname==='/signin'||window.location.pathname.startsWith('/account')||(sessionStorage.getItem('nso.customerSession')&&['/','/audit','/onboarding'].includes(window.location.pathname))||(sessionStorage.getItem('nso.customerSession')&&/^\/(reports|scans|audit-data)(\/|$)/.test(window.location.pathname)))return <CustomerEntry/>;
   return <LegacyApp/>;
 }
 
@@ -49,7 +50,7 @@ function LegacyApp() {
           : result.destination === "scan" && result.latestScan
             ? `/scans/${encodeURIComponent(result.latestScan.scanId)}`
             : "/onboarding";
-        if (!window.location.pathname.startsWith("/reports/")) window.history.replaceState({}, "", destination);
+        if (!window.location.pathname.startsWith("/reports/")&&!window.location.pathname.startsWith('/audit-data')) window.history.replaceState({}, "", destination);
       })
       .catch((error: unknown) => {
         setBootstrapError(error instanceof Error ? error.message : "Tenant setup could not be loaded.");
@@ -73,6 +74,11 @@ function LegacyApp() {
 
   if (!account) {
     return <LandingPage authReady={authReady} {...(authError ? { authError } : {})} onSignIn={beginSignIn} />;
+  }
+
+  if(/^\/audit-data(?:\/[^/]+)?$/.test(window.location.pathname)){
+    const id=window.location.pathname.split('/')[2];
+    return <DataAuditPage account={account} onSignOut={beginSignOut} {...(id?{scanId:id}:{})}/>;
   }
 
   if (bootstrap?.destination === "report" && bootstrap.latestScan) {

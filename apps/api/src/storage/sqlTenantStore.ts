@@ -13,7 +13,7 @@ export async function assertSqlCutoverActivated():Promise<void> {
   if(state.recordset[0]?.Backend!=='sql') throw new Error('SQL scan storage has not passed cutover verification.');
 }
 
-async function withTenant<T>(tenantId: string, operation: (transaction: sql.Transaction, organizationId: string) => Promise<T>): Promise<T> {
+export async function withTenant<T>(tenantId: string, operation: (transaction: sql.Transaction, organizationId: string) => Promise<T>): Promise<T> {
   if (!uuidPattern.test(tenantId)) throw new Error('Invalid tenant identifier.');
   const pool = await getSqlPool();
   // This ID is supplied by the verified Entra token on the existing /me endpoints.
@@ -46,7 +46,7 @@ export async function getTenantBootstrap(tenantId: string): Promise<TenantBootst
       if (scan) latestScan = { scanId:registration.lastScanId, tenantId, status:scan.status as ScanStatus, createdAt:String(scan.createdAt),
         ...(typeof scan.completedAt==='string'?{completedAt:scan.completedAt}:{}), ...(typeof scan.score==='number'?{score:scan.score}:{}) };
     }
-    const destination = latestScan?.status==='complete'||latestScan?.status==='partial'?'report':latestScan?.status==='queued'||latestScan?.status==='running'?'scan':'onboarding';
+    const destination = latestScan ? 'report' : 'onboarding';
     return { tenantId,registered:!!registration,
       consentStatus:(registration?.consentStatus ?? 'notConfigured') as TenantBootstrapRecord['consentStatus'],
       azureRbacStatus:(registration?.azureRbacStatus ?? 'notConfigured') as TenantBootstrapRecord['azureRbacStatus'], latestScan,destination };
@@ -100,6 +100,7 @@ export async function getStarterScan(tenantId:string,scanId:string) {
         ...(typeof value.evidenceJson==='string'?{evidence:JSON.parse(value.evidenceJson) as unknown}:{})};
     });
     return {scanId,tenantId,status:scan.status as ScanStatus,createdAt:String(scan.createdAt),
+      ...(scan.auditScope === 'licensing' ? {auditScope:'licensing' as const} : {}),
       completedAt:scan.completedAt as string|undefined,score:scan.score as number|undefined,subscriptionId:scan.subscriptionId as string|undefined,
       ...(typeof scan.baselineJson==='string'?{baseline:JSON.parse(scan.baselineJson) as BaselineResult}:{}),findings};
   });
@@ -111,7 +112,8 @@ export async function listTenantScans(tenantId:string,limit=25) {
       .query('SELECT TOP(@limit) ScanId,EntityJson FROM app.ScanRuns WHERE OrganizationId=@organizationId AND TenantId=@tenantId ORDER BY CreatedAt DESC,ScanId');
     return result.recordset.map((row:{ScanId:string;EntityJson:string})=>{
       const scan=JSON.parse(row.EntityJson) as Entity;
-      return {scanId:String(scan.rowKey),status:scan.status as ScanStatus,createdAt:String(scan.createdAt),completedAt:scan.completedAt as string|undefined,score:scan.score as number|undefined};
+      return {scanId:String(scan.rowKey),status:scan.status as ScanStatus,createdAt:String(scan.createdAt),completedAt:scan.completedAt as string|undefined,score:scan.score as number|undefined,
+        ...(scan.auditScope==='licensing'?{auditScope:'licensing' as const}:{})};
     });
   });
 }

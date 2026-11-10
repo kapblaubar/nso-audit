@@ -1,4 +1,6 @@
 name: Deploy web
+# Audit data UI requires the corresponding API and migration 017; collection remains disabled
+# until explicit runtime activation. See database/audit-licensing.md.
 
 on:
   push:
@@ -8,6 +10,7 @@ on:
       - "apps/web/**"
       - "config/environments/**"
       - "scripts/Write-NsoAuditWebEnvironment.mjs"
+      - "scripts/test-audit-data-ui.mjs"
       - ".github/workflows/deploy-web.yml"
       - "package.json"
       - "package-lock.json"
@@ -43,6 +46,11 @@ jobs:
 
       - name: Build static frontend
         run: npm run build --workspace @nso-audit/web
+
+      - name: Verify audit collection screens with synthetic API data
+        run: |
+          npx playwright install --with-deps chromium
+          node scripts/test-audit-data-ui.mjs
 
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1

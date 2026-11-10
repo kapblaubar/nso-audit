@@ -41,7 +41,7 @@ async function getApplicationClientSecret(): Promise<string> {
   }
 }
 
-async function customerCredential(tenantId: string): Promise<ClientSecretCredential> {
+export async function customerCredential(tenantId: string): Promise<ClientSecretCredential> {
   const appClientId = process.env.ENTRA_CLIENT_ID;
   if (!appClientId) throw new Error("The App Registration client ID is not configured.");
   return new ClientSecretCredential(tenantId, appClientId, await getApplicationClientSecret());

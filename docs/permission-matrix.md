@@ -10,6 +10,8 @@ the target catalog, not permission to enable every entry immediately.
 |---|---|---|---|---|
 | Entra directory roles and assignments | Microsoft Graph | `RoleManagement.Read.Directory` | Core | No write access; avoid `Directory.Read.All` unless a future implemented check proves it necessary |
 | Privileged assignee names and email addresses | Microsoft Graph | `User.ReadBasic.All` | Core | Resolves the basic profile of user principals returned by role assignments without full-directory profile access |
+| Tenant license inventory | Microsoft Graph | `LicenseAssignment.Read.All` | License audit, opt-in | Read-only subscribed SKU inventory |
+| User license assignment inventory and assignment paths | Microsoft Graph | `User.Read.All` | License audit, opt-in | List users with selected identity/licensing properties; includes direct/group assignment states; requires separate customer consent review |
 | Conditional Access policies | Microsoft Graph | `Policy.Read.All` | Core | Read policies only |
 | Authentication registration coverage | Microsoft Graph | `AuditLog.Read.All` | Core | Reads the authentication-method registration report |
 | Microsoft 365 Secure Score and control recommendations | Microsoft Graph | `SecurityEvents.Read.All` | Core | Reads score history and control profiles |

@@ -1,0 +1,167 @@
+import sql from 'mssql';
+import { getSqlPool, uuidPattern, withOrganization } from '../storage/sql.js';
+import { assertSqlCutoverActivated, withTenant } from '../storage/sqlTenantStore.js';
+import type { AssignmentRecord, LicenseDataType, LicenseRecord } from './licensing.js';
+
+export interface CollectionJob {
+  OrganizationId:string; TenantId:string; ScanId:string; DataType:LicenseDataType;
+  NextLink:string|null; LeaseId:string; Attempts:number;
+}
+export async function requireAuditSql():Promise<void> {
+  if (process.env.TENANT_STORE !== 'sql') throw new Error('Data audits require SQL scan storage.');
+  await assertSqlCutoverActivated();
+}
+function scoped(transaction:sql.Transaction, organizationId:string, tenantId:string, scanId:string) {
+  return new sql.Request(transaction).input('OrganizationId',sql.UniqueIdentifier,organizationId)
+    .input('TenantId',sql.UniqueIdentifier,tenantId).input('ScanId',sql.UniqueIdentifier,scanId);
+}
+function jobRequest(transaction:sql.Transaction, job:CollectionJob) {
+  return scoped(transaction,job.OrganizationId,job.TenantId,job.ScanId)
+    .input('DataType',sql.VarChar(32),job.DataType).input('LeaseId',sql.UniqueIdentifier,job.LeaseId);
+}
+export async function createDataAudit(tenantId:string, initiatedBy:string) {
+  await requireAuditSql();
+  return withTenant(tenantId,async(transaction,organizationId)=>{
+    const scanId=crypto.randomUUID(),createdAt=new Date().toISOString();
+    const scan={partitionKey:tenantId,rowKey:scanId,status:'queued',createdAt,auditScope:'licensing'};
+    await scoped(transaction,organizationId,tenantId,scanId).input('json',sql.NVarChar(sql.MAX),JSON.stringify(scan))
+      .input('InitiatedBy',sql.UniqueIdentifier,initiatedBy).query(`
+      INSERT app.ScanRuns(OrganizationId,TenantId,ScanId,EntityJson) VALUES(@OrganizationId,@TenantId,@ScanId,@json);
+      INSERT app.DataAudits(OrganizationId,TenantId,ScanId,Scope,Status,InitiatedBy,CollectorVersion)
+      VALUES(@OrganizationId,@TenantId,@ScanId,'licensing','queued',@InitiatedBy,'licensing-v1');
+      INSERT app.AuditCollections(OrganizationId,TenantId,ScanId,DataType,Status)
+      VALUES(@OrganizationId,@TenantId,@ScanId,'licenses','queued'),(@OrganizationId,@TenantId,@ScanId,'licenseAssignments','queued');
+      UPDATE app.TenantRegistrations SET EntityJson=JSON_MODIFY(EntityJson,'$.lastScanId',CONVERT(varchar(36),@ScanId))
+      WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId;
+      IF @@ROWCOUNT=0 INSERT app.TenantRegistrations(OrganizationId,TenantId,EntityJson)
+        VALUES(@OrganizationId,@TenantId,JSON_MODIFY(N'{}','$.lastScanId',CONVERT(varchar(36),@ScanId)));`);
+    for (const dataType of ['licenses','licenseAssignments']) {
+      await scoped(transaction,organizationId,tenantId,scanId).input('DataType',sql.VarChar(32),dataType)
+        .execute('security.EnqueueAuditCollection');
+    }
+    return {scanId,tenantId,status:'queued',createdAt,auditScope:'licensing'};
+  });
+}
+export async function claimCollection():Promise<CollectionJob|undefined> {
+  const result=await (await getSqlPool()).request().execute('security.ClaimAuditCollection');
+  return result.recordset[0] as CollectionJob|undefined;
+}
+export async function startCollection(job:CollectionJob):Promise<void> {
+  await withOrganization(job.OrganizationId,async transaction=>{
+    await jobRequest(transaction,job).execute('security.LockAuditCollection');
+    await jobRequest(transaction,job).query(`
+      UPDATE app.DataAudits WITH(UPDLOCK) SET Status='running',StartedAtUtc=COALESCE(StartedAtUtc,SYSUTCDATETIME())
+      WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND Status IN ('queued','running');
+      UPDATE app.AuditCollections SET Status='running',StartedAtUtc=COALESCE(StartedAtUtc,SYSUTCDATETIME())
+      WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND DataType=@DataType;
+      UPDATE app.ScanRuns SET EntityJson=JSON_MODIFY(EntityJson,'$.status','running')
+      WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId;`);
+  });
+}
+
+// Identifiers/types below are static code, never derived from requests or Graph responses.
+const licenseColumns = {
+  SourceId:['nvarchar(128)','sourceId'],SkuId:['uniqueidentifier','skuId'],SkuPartNumber:['nvarchar(256)','skuPartNumber'],
+  ProductName:['nvarchar(256)','productName'],EnabledUnits:['bigint','enabledUnits'],SuspendedUnits:['bigint','suspendedUnits'],
+  WarningUnits:['bigint','warningUnits'],ConsumedUnits:['bigint','consumedUnits'],CapabilityStatus:['nvarchar(64)','capabilityStatus'],
+  AppliesTo:['nvarchar(32)','appliesTo'],CollectedAtUtc:['datetime2','collectedAtUtc'],
+};
+const assignmentColumns = {
+  UserId:['uniqueidentifier','userId'],SkuId:['uniqueidentifier','skuId'],AssignmentSource:['nvarchar(64)','assignmentSource'],
+  UserPrincipalName:['nvarchar(320)','userPrincipalName'],Email:['nvarchar(320)','email'],DisplayName:['nvarchar(256)','displayName'],
+  AssignmentType:['varchar(16)','assignmentType'],AssignmentState:['nvarchar(64)','assignmentState'],
+  AssignmentError:['nvarchar(128)','assignmentError'],DisabledPlansJson:['nvarchar(max)','disabledPlansJson'],
+  SourceUpdatedAtUtc:['datetime2','sourceUpdatedAtUtc'],CollectedAtUtc:['datetime2','collectedAtUtc'],
+};
+function insertPage(dataType:LicenseDataType):string {
+  const columns=dataType==='licenses'?licenseColumns:assignmentColumns;
+  const table=dataType==='licenses'?'app.AuditLicenses':'app.AuditLicenseAssignments';
+  const keys=dataType==='licenses'?['SourceId']:['UserId','SkuId','AssignmentSource'];
+  const names=Object.keys(columns);
+  const definitions=Object.entries(columns).map(([name,[type,path]])=>`${name} ${type} '$.${path}'`).join(',');
+  const match=['OrganizationId=@OrganizationId','TenantId=@TenantId','ScanId=@ScanId',...keys.map(key=>`${key}=page.${key}`)].map(s=>`existing.${s}`).join(' AND ');
+  // A replayed page inserts only missing keys. The cursor advances in this same transaction.
+  return `INSERT ${table}(OrganizationId,TenantId,ScanId,${names.join(',')})
+    SELECT @OrganizationId,@TenantId,@ScanId,${names.map(n=>`page.${n}`).join(',')}
+    FROM OPENJSON(@Rows) WITH(${definitions}) page
+    WHERE NOT EXISTS(SELECT 1 FROM ${table} existing WHERE ${match});`;
+}
+
+export async function checkpointCollection(job:CollectionJob, records:LicenseRecord[]|AssignmentRecord[],
+  nextLink:string|null, error?:{code:string;missingAccess:boolean}):Promise<void> {
+  await withOrganization(job.OrganizationId,async transaction=>{
+    await jobRequest(transaction,job).execute('security.LockAuditCollection');
+    // Serializes finalization of sibling datasets without holding locks during HTTP calls.
+    await jobRequest(transaction,job).query(`SELECT ScanId FROM app.DataAudits WITH(UPDLOCK,HOLDLOCK)
+      WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId;`);
+    if(records.length) await jobRequest(transaction,job).input('Rows',sql.NVarChar(sql.MAX),JSON.stringify(records)).query(insertPage(job.DataType));
+    const finished=!!error||nextLink===null;
+    const table=job.DataType==='licenses'?'app.AuditLicenses':'app.AuditLicenseAssignments';
+    await jobRequest(transaction,job).input('Finished',sql.Bit,finished)
+      .input('ErrorCode',sql.VarChar(64),error?.code??null).input('MissingAccess',sql.Bit,error?.missingAccess??false)
+      .query(`DECLARE @Count int=(SELECT COUNT(*) FROM ${table} WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId);
+      UPDATE app.AuditCollections SET RecordCount=@Count,ErrorCode=@ErrorCode,
+        Status=CASE WHEN @ErrorCode IS NOT NULL THEN CASE WHEN @Count>0 THEN 'partial' WHEN @MissingAccess=1 THEN 'missingAccess' ELSE 'failed' END
+          WHEN @Finished=1 THEN 'complete' ELSE 'running' END,
+        CompletedAtUtc=CASE WHEN @Finished=1 THEN SYSUTCDATETIME() ELSE NULL END
+      WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND DataType=@DataType;
+      IF NOT EXISTS(SELECT 1 FROM app.AuditCollections WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND Status IN ('queued','running'))
+      BEGIN
+        DECLARE @Status varchar(16)=CASE
+          WHEN NOT EXISTS(SELECT 1 FROM app.AuditCollections WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND Status<>'complete') THEN 'complete'
+          WHEN EXISTS(SELECT 1 FROM app.AuditCollections WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND (Status='complete' OR RecordCount>0)) THEN 'partial'
+          ELSE 'failed' END;
+        UPDATE app.DataAudits SET Status=@Status,CompletedAtUtc=SYSUTCDATETIME()
+          WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId;
+        UPDATE app.ScanRuns SET EntityJson=JSON_MODIFY(JSON_MODIFY(EntityJson,'$.status',@Status),'$.completedAt',CONVERT(varchar(33),SYSUTCDATETIME(),126)+'Z')
+          WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId;
+      END;`);
+    await jobRequest(transaction,job).input('NextLink',sql.NVarChar(4000),nextLink).input('Finished',sql.Bit,finished)
+      .execute('security.CheckpointAuditCollection');
+  });
+}
+
+export async function getDataAudit(tenantId:string,scanId:string) {
+  await requireAuditSql();
+  if(!uuidPattern.test(scanId))return null;
+  return withTenant(tenantId,async(transaction,organizationId)=>{
+    const audit=(await scoped(transaction,organizationId,tenantId,scanId).query(`SELECT ScanId,Scope,Status,
+      CollectorVersion,CreatedAtUtc,StartedAtUtc,CompletedAtUtc FROM app.DataAudits
+      WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId;`)).recordset[0];
+    if(!audit)return null;
+    const collections=(await scoped(transaction,organizationId,tenantId,scanId).query(`SELECT DataType,Status,
+      StartedAtUtc,CompletedAtUtc,RecordCount,ErrorCode FROM app.AuditCollections
+      WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId ORDER BY DataType;`)).recordset;
+    return {audit,collections};
+  });
+}
+export async function getLicenseRows(tenantId:string,scanId:string,dataType:LicenseDataType,
+  page:number,search:string,skuId?:string) {
+  await requireAuditSql();
+  if(!uuidPattern.test(scanId))return null;
+  return withTenant(tenantId,async(transaction,organizationId)=>{
+    const exists=(await scoped(transaction,organizationId,tenantId,scanId).query(`SELECT 1 FROM app.DataAudits
+      WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId;`)).recordset[0];
+    if(!exists)return null;
+    const isLicenses=dataType==='licenses';
+    const table=isLicenses?'app.AuditLicenses':'app.AuditLicenseAssignments';
+    const fields=isLicenses?'SourceId,SkuId,SkuPartNumber,ProductName,EnabledUnits,SuspendedUnits,WarningUnits,ConsumedUnits,CapabilityStatus,AppliesTo,CollectedAtUtc,StoredAtUtc':
+      'UserId,SkuId,AssignmentSource,UserPrincipalName,Email,DisplayName,AssignmentType,AssignmentState,AssignmentError,SourceUpdatedAtUtc,CollectedAtUtc,StoredAtUtc';
+    const from=isLicenses?`${table} evidence`:`${table} evidence OUTER APPLY
+      (SELECT TOP(1) SkuPartNumber,ProductName FROM app.AuditLicenses l WHERE l.OrganizationId=evidence.OrganizationId
+        AND l.TenantId=evidence.TenantId AND l.ScanId=evidence.ScanId AND l.SkuId=evidence.SkuId ORDER BY l.SourceId) product`;
+    const searchable=isLicenses?['SkuPartNumber','ProductName','CONVERT(nvarchar(36),evidence.SkuId)']:
+      ['UserPrincipalName','Email','DisplayName','AssignmentType','product.SkuPartNumber','product.ProductName','CONVERT(nvarchar(36),evidence.SkuId)'];
+    const where=`evidence.OrganizationId=@OrganizationId AND evidence.TenantId=@TenantId AND evidence.ScanId=@ScanId
+      AND (@SkuId IS NULL OR evidence.SkuId=@SkuId)
+      AND (@Search='' OR ${searchable.map(f=>`CHARINDEX(@Search,${f})>0`).join(' OR ')})`;
+    const result=await scoped(transaction,organizationId,tenantId,scanId).input('Offset',sql.Int,(page-1)*50)
+      .input('Search',sql.NVarChar(200),search).input('SkuId',sql.UniqueIdentifier,skuId??null)
+      .query(`SELECT COUNT(*) Total FROM ${from} WHERE ${where};
+        SELECT ${fields.split(',').map(f=>`evidence.${f}`).join(',')}${isLicenses?'':',product.SkuPartNumber,product.ProductName'} FROM ${from} WHERE ${where}
+        ORDER BY ${isLicenses?'evidence.SkuPartNumber,evidence.SourceId':'evidence.UserId,evidence.SkuId,evidence.AssignmentSource'}
+        OFFSET @Offset ROWS FETCH NEXT 50 ROWS ONLY;`);
+    const sets=result.recordsets as sql.IRecordSet<unknown>[];
+    return {rows:sets[1]??[],total:(sets[0]?.[0] as {Total:number}|undefined)?.Total??0,page,pageSize:50};
+  });
+}

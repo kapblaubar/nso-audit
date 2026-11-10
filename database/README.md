@@ -1,5 +1,10 @@
 # SQL foundation
 
+The first typed audit-data tables and durable license collector use migration 017. See
+[audit licensing](audit-licensing.md) for schema, source permissions, deployment order,
+validation and rollback. Existing JSON scan history remains intact; historical license
+data is not fabricated or backfilled.
+
 The initial backup questionnaire schema, API/form, deployment order and recovery steps are in
 [questionnaires.md](questionnaires.md). Apply migration 013 before deploying that feature.
 The complete 12-section client questionnaire uses migration 014; see

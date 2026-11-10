@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { loadScanHistory, loadStarterScan, startStarterScan, type ScanHistoryItem, type StarterScan, type TenantBootstrap } from "../api";
 import { FindingDetailsModal } from "../components/FindingDetailsModal";
 import { ThemeToggle } from "../components/ThemeToggle";
+import {DataAuditPage} from './DataAuditPage';
+import {DataAuditLink} from '../components/DataAuditLink';
 
 interface ReportPageProps {
   account: AuditAccount;
@@ -199,6 +201,7 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
     link.click();
     URL.revokeObjectURL(url);
   };
+  if(scan?.auditScope==='licensing')return <DataAuditPage account={account} scanId={scanId} onSignOut={onSignOut}/>;
   return (
     <main className="report-page">
       <nav className="nav" aria-label="Report navigation">
@@ -259,6 +262,7 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
         </div>
         {recommendationFindings.length ? <section className="recommendation-section" aria-labelledby="recommendations-title"><p className="eyebrow">Prioritized actions</p><h2 id="recommendations-title">Recommendations</h2><p>Up to 25 of the most important available recommendations are retained for each area.</p><div className="recommendation-card-grid">{recommendationFindings.map((finding) => <article key={finding.checkId}><span>{finding.checkId === "defender.recommendations" ? "Azure" : "Microsoft 365"}</span><h3>{finding.title}</h3><p>{finding.detail}</p>{finding.evidence !== undefined ? <button className="detail-button" type="button" onClick={() => setSelectedFinding(finding)}>View recommendations</button> : null}</article>)}</div></section> : null}
         <div className="report-actions">
+          <DataAuditLink/>
           <button className="step-action" type="button" onClick={runAgain} disabled={!scan?.subscriptionId || running || ('kind' in account && account.role==='viewer')}>{running ? "Running audit…" : "Run audit again"}</button>
           <button className="detail-button" type="button" onClick={downloadScoreReview} disabled={!scan}>Download score-review report</button>
           {runError ? <p className="auth-error" role="alert">{runError}</p> : null}

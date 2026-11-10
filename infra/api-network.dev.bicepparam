@@ -1,5 +1,7 @@
 using './api-network.bicep'
 param environmentName = 'dev'
+// Activate after migration 017, permission/consent verification and smoke testing.
+param dataAuditsEnabled = false
 param location = 'westus2'
 // Planned migration: preserve the legacy API as rollback; migrate website to this candidate after validation.
 param functionAppName = 'nso-audit-dev-api-flex'

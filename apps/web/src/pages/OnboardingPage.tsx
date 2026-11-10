@@ -3,6 +3,7 @@ import type { AuditAccount } from "../auth";
 import { checkTenantAccess, startStarterScan, type AccessCheckResult, type TenantBootstrap } from "../api";
 import { appConfig } from "../config";
 import { ThemeToggle } from "../components/ThemeToggle";
+import {DataAuditLink} from '../components/DataAuditLink';
 
 interface OnboardingPageProps {
   account: AuditAccount;
@@ -19,6 +20,8 @@ const graphPermissions = [
   ["SecurityEvents.Read.All", "Microsoft 365 Secure Score and recommendations"],
   ["DeviceManagementConfiguration.Read.All", "Intune policies and configuration"],
   ["DeviceManagementApps.Read.All", "Intune app protection policies"],
+  ["LicenseAssignment.Read.All", "Optional license audit: tenant license inventory"],
+  ["User.Read.All", "Optional license audit: user license assignments and assignment states"],
 ];
 
 export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }: OnboardingPageProps) {
@@ -107,6 +110,7 @@ export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }
         <div>
           <p className="eyebrow">Tenant setup</p>
           <h1>Connect your tenant.</h1>
+          <DataAuditLink/>
           <p>Complete the steps below to create your first read-only security scorecard.</p>
         </div>
         <div className="setup-progress" aria-label={`Setup step ${currentStep} of 4`}>

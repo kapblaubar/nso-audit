@@ -6,6 +6,12 @@ for the target environment; credentials and deployment tokens must never be comm
 
 ## Current automation status
 
+Database-backed license collection requires migration 017 and explicit activation after SQL
+validation and customer permission/consent checks. Follow [license audit deployment and recovery](../database/audit-licensing.md).
+It adds a timer worker using existing host storage and a SQL dispatch queue. It is disabled by
+default; API/web deployment alone does not enable or prove working collection. Preserve the
+existing API-to-SQL subnet path and use disposable validation before applying to Dev.
+
 The full client questionnaire requires migrations through 014 before API/web deployment. Follow
 [the client-assessment runbook](../database/client-assessments.md) for the Markdown/catalog build,
 disposable validation, deployment order, live checks and recovery. The deployment wrapper now

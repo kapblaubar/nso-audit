@@ -14,6 +14,9 @@ param(
     [switch] $IncludeIntuneAppPolicies,
 
     [Parameter()]
+    [switch] $IncludeLicenseInventory,
+
+    [Parameter()]
     [switch] $IncludeDefenderVulnerabilityManagement
 )
 
@@ -108,6 +111,9 @@ if ($IncludeIntuneConfiguration) {
 }
 if ($IncludeIntuneAppPolicies) {
     $graphApplicationPermissions += "DeviceManagementApps.Read.All"
+}
+if ($IncludeLicenseInventory) {
+    $graphApplicationPermissions += "LicenseAssignment.Read.All", "User.Read.All"
 }
 
 $graph = Get-ApiServicePrincipal `

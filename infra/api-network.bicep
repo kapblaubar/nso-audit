@@ -24,6 +24,8 @@ param emailSender string
 @minValue(1)
 @maxValue(168)
 param invitationLifetimeHours int = 72
+@description('Enable only after SQL migration 017 and licensing permissions are verified.')
+param dataAuditsEnabled bool = false
 param entraClientSecretName string = 'nso-audit-app-client-secret'
 param entraClientCertificateName string = 'nso-audit-dlp-certificate'
 @allowed([512,2048,4096])
@@ -176,6 +178,7 @@ resource api 'Microsoft.Web/sites@2024-04-01' = {
       SQL_DATABASE: sqlDatabaseName
       SQL_AUTH_MODE: 'managedidentity'
       TENANT_STORE: 'sql'
+      DATA_AUDITS_ENABLED: string(dataAuditsEnabled)
       PORTAL_ORIGIN: portalOrigin
       ACCOUNT_EMAIL_ENDPOINT: emailEndpoint
       ACCOUNT_EMAIL_SENDER: emailSender

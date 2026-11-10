@@ -1,6 +1,8 @@
 name: Deploy API
 # Deployment prerequisite: apply through 015 for existing forms; 016 is required to create client-v3.
 # SQL migrations are operator-managed; see database/questionnaires.md for order and validation.
+# License data audits: migration 017, then API/web, permissions/consent, then explicit activation.
+# DATA_AUDITS_ENABLED defaults false. See database/audit-licensing.md; never migrate live implicitly.
 
 on:
   push:

@@ -27,7 +27,7 @@ export function CustomerEntry(){
     if(window.location.hash)window.history.replaceState({},'',window.location.pathname);
     let cancelled=false;
     const existing=sessionStorage.getItem(storageKey);
-    if(existing&&initial==='login')void call<CustomerSession>('session',undefined,existing).then(result=>{if(!cancelled){setSession(result);window.history.replaceState({},'',window.location.pathname==='/account/questionnaires'?'/account/questionnaires':'/account');}})
+    if(existing&&initial==='login')void call<CustomerSession>('session',undefined,existing).then(result=>{if(!cancelled){setSession(result);if(!/^\/(audit-data|reports)(\/|$)/.test(window.location.pathname))window.history.replaceState({},'',window.location.pathname==='/account/questionnaires'?'/account/questionnaires':'/account');}})
       .catch(()=>sessionStorage.removeItem(storageKey)).finally(()=>{if(!cancelled)setReady(true);});
     else setReady(true);
     return()=>{cancelled=true;};
