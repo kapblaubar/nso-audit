@@ -11,8 +11,9 @@ param sqlServerName = 'nso-audit-dev-257f10d8'
 param sqlDatabaseName = 'nso-audit-dev'
 param storageAccountName = 'nsoauditdev'
 param runtimeIdentityName = 'nso-audit-dev-identity'
-param portalOrigin = 'https://blue-mushroom-0b2666c1e.7.azurestaticapps.net'
-param allowedOrigins = ['https://blue-mushroom-0b2666c1e.7.azurestaticapps.net']
+param portalOrigin = 'https://auditdev.newsommer.com'
+// Keep both origins during custom-domain validation and cutover.
+param allowedOrigins = ['https://blue-mushroom-0b2666c1e.7.azurestaticapps.net','https://auditdev.newsommer.com']
 param entraClientId = 'f293a122-bf49-44a7-bfc9-48cfae6f8376'
 param managementTenantId = 'fe0c1fea-bc61-42cc-b384-bad739ef3c6e'
 param managementObjectId = '28995be7-732b-47c4-a04d-f4ea51eb088e'

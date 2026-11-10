@@ -6,6 +6,14 @@ for the target environment; credentials and deployment tokens must never be comm
 
 ## Current automation status
 
+The Dev custom-domain transition to `auditdev.newsommer.com` is tracked in
+[the cutover record](dev-custom-domain-cutover.md). Both CORS origins are configured through
+the versioned CORS script and Dev parameters; check that record before changing callbacks
+or email-link origins. Dev portalOrigin now uses the custom domain; the versioned
+`Set-NsoAuditPortalOrigin.ps1` applies and verifies that setting independently of CORS.
+The API's account/questionnaire origin check permits only this configured host.
+See the cutover record for validation, remaining callback work and rollback.
+
 Frontend audit/license navigation and readable Conditional Access/location views use the existing
 SQL evidence APIs. See [audit pages and license navigation](audit-pages-and-license-navigation.md)
 for routes and checks. This UI change requires no new schema, permissions or infrastructure.
