@@ -1,6 +1,7 @@
 # Audit data collection plan
 
-Agreed direction: November 9, 2026. No deployment changes have been applied.
+Agreed direction: November 9, 2026. Migration 017 has been applied directly to Dev at the
+user's request; see the [schema deployment record](audit-licensing-dev-deployment-2026-11-09.md).
 
 Implementation progress: the first licensing slice is now implemented locally. See
 [database-backed license audits](../database/audit-licensing.md) for the new migration,

@@ -1,5 +1,9 @@
 # Database-backed license audits
 
+Migration 017 was applied directly to Dev on November 9, 2026, at the user's explicit request.
+See the [deployment verification record](../docs/audit-licensing-dev-deployment-2026-11-09.md).
+This schema deployment does not establish live collection or change its activation setting.
+
 The first data-audit milestone collects tenant license inventory and user assignment paths.
 It does not implement the remaining report datasets, audit comparison, questions, documents,
 to-dos or scoring changes. Existing starter scans remain readable and unchanged.
