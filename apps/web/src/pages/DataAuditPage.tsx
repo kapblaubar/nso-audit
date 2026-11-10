@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react';
 import type {AuditAccount} from '../auth';
-import {loadDataAudit,loadLicenseEvidence,loadScanHistory,startDataAudit,
+import {loadDataAudit,loadLicenseEvidence,loadScanHistory,loadStarterScan,startStarterScan,startDataAudit,
   type DataAudit,type LicenseEvidencePage,type ScanHistoryItem} from '../api';
 import {ThemeToggle} from '../components/ThemeToggle';
 import {clearAuditDestination} from '../auditNavigation';
@@ -15,6 +15,7 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
   useEffect(()=>{clearAuditDestination();},[]);
   const [report,setReport]=useState<DataAudit>(),[history,setHistory]=useState<ScanHistoryItem[]>([]);
   const [error,setError]=useState(''),[running,setRunning]=useState(false),[refresh,setRefresh]=useState(0);
+  const [subscriptionId,setSubscriptionId]=useState(''),[auditRunning,setAuditRunning]=useState(false),[auditError,setAuditError]=useState('');
   const [dataType,setDataType]=useState<'licenses'|'licenseAssignments'>('licenses');
   const [page,setPage]=useState(1),[search,setSearch]=useState(''),[skuId,setSkuId]=useState('');
   const [evidence,setEvidence]=useState<LicenseEvidencePage>(),[loading,setLoading]=useState(false),[dataError,setDataError]=useState('');
@@ -23,7 +24,15 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
   const progress=JSON.stringify(report?.collections);
   useEffect(()=>{
     let cancelled=false;
-    void loadScanHistory(account).then(rows=>{if(!cancelled)setHistory(rows);}).catch(()=>{if(!cancelled)setError('Audit history could not be loaded.');});
+    void loadScanHistory(account).then(async rows=>{
+      if(cancelled)return;
+      setHistory(rows);
+      const prior=rows.find(row=>row.auditScope!=='licensing');
+      if(prior){
+        const scan=await loadStarterScan(account,prior.scanId);
+        if(!cancelled&&scan.subscriptionId)setSubscriptionId(current=>current||scan.subscriptionId!);
+      }
+    }).catch(()=>{if(!cancelled)setError('Audit history or the previous audit settings could not be loaded.');});
     return()=>{cancelled=true;};
   },[account,refresh,active]);
   useEffect(()=>{
@@ -56,6 +65,13 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
     try{const result=await startDataAudit(account);window.location.assign(`/audit-data/${encodeURIComponent(result.scanId)}`);}
     catch(err){setError(err instanceof Error?err.message:'Audit could not be started.');setRunning(false);}
   };
+  const startAudit=async()=>{
+    setAuditRunning(true);setAuditError('');
+    try{
+      const result=await startStarterScan(account,subscriptionId.trim());
+      window.location.assign(`/reports/${encodeURIComponent(result.scanId)}`);
+    }catch(err){setAuditError(err instanceof Error?err.message:'The audit could not be started.');setAuditRunning(false);}
+  };
   const changeTab=(type:typeof dataType)=>{setDataType(type);setPage(1);setSearch('');setSkuId('');};
   const collection=report?.collections.find(c=>c.DataType===dataType);
   return <main className="report-page"><nav className="nav" aria-label="Audit navigation">
@@ -64,9 +80,16 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
   </nav><section className="report-shell audit-data-page">
     <p className="eyebrow">Tenant audit data</p><h1>{scanId?'Audit snapshot':'Audit collection'}</h1>
     <p>Tenant ID: {account.tenantId}</p>
-    <p>Collect tenant licenses and user assignments. Each run keeps its own dated snapshot. Additional audit datasets will follow.</p>
-    <div className="report-actions"><button className="step-action" disabled={viewer||running||active} onClick={()=>void start()}>{running?'Starting audit…':'Run license audit'}</button>
-      <button className="detail-button" onClick={()=>setRefresh(n=>n+1)}>Refresh</button></div>
+    {!scanId?<section aria-labelledby="run-audit-title"><h2 id="run-audit-title">Run tenant audit</h2>
+      <p>Collect the currently supported identity, Conditional Access, MFA, Intune, Microsoft Secure Score, Azure inventory, Defender for Cloud score and recommendation evidence. Save the results and open the audit report.</p>
+      <label className="management-field">Azure subscription ID<input value={subscriptionId} onChange={event=>setSubscriptionId(event.target.value)} autoComplete="off" placeholder="Subscription used for Azure audit collection"/></label>
+      <div className="report-actions"><button className="step-action" disabled={viewer||auditRunning||!(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(subscriptionId.trim()))} onClick={()=>void startAudit()}>{auditRunning?'Running audit…':'Run audit'}</button>
+        <button className="detail-button" onClick={()=>setRefresh(n=>n+1)}>Refresh</button><a className="detail-button" href="/onboarding">Connection settings</a></div>
+      {auditError?<p role="alert" className="auth-error">{auditError}</p>:null}
+      <h2>Additional audit coverage</h2><p>Licenses and user assignments belong to the tenant audit, but are not collected by the current audit. Additional policy and backup datasets are not collected yet.</p>
+    </section>:<><p>License and user-assignment snapshot. This is one dataset within the tenant audit.</p>
+      <div className="report-actions"><a className="step-action" href="/audit-data">Run tenant audit</a><button className="detail-button" disabled={viewer||running||active} onClick={()=>void start()}>{running?'Starting audit…':'Run license audit'}</button>
+        <button className="detail-button" onClick={()=>setRefresh(n=>n+1)}>Refresh</button></div></>}
     {viewer?<p>You have read-only access to saved audits.</p>:null}
     {error?<p role="alert" className="auth-error">{error}</p>:null}
     {scanId&&!report&&!error?<p role="status">Loading audit…</p>:null}

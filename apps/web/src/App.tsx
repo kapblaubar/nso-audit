@@ -79,7 +79,7 @@ function LegacyApp() {
     return <DataAuditPage account={account} onSignOut={beginSignOut} {...(id?{scanId:id}:{})}/>;
   }
 
-  if (bootstrap?.destination === "report" && bootstrap.latestScan) {
+  if (window.location.pathname.startsWith('/reports/') && bootstrap?.latestScan) {
     const requestedScanId = window.location.pathname.match(/^\/reports\/([^/]+)$/)?.[1];
     return <ReportPage account={account} bootstrap={bootstrap} scanId={requestedScanId ? decodeURIComponent(requestedScanId) : bootstrap.latestScan.scanId} onSignOut={beginSignOut} />;
   }

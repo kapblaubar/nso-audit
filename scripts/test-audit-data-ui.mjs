@@ -34,7 +34,13 @@ try{
     assert.equal(request.headers()['x-nso-organization-id'],org);
     if(url.pathname==='/api/me/bootstrap')return respond({tenantId:tenant,registered:true,consentStatus:'granted',azureRbacStatus:'notConfigured',
       latestScan:{scanId:'00000000-0000-4000-8000-000000000099',status:'complete'},destination:'report'});
-    if(url.pathname==='/api/me/scans')return respond({scans:[{scanId:scan,status:'complete',createdAt:at,auditScope:'licensing'}]});
+    if(url.pathname==='/api/me/scans'&&request.method()==='POST'){
+      assert.equal(request.postDataJSON().subscriptionId,tenant);
+      return respond({scanId:'00000000-0000-4000-8000-000000000099',findings:[]},201);
+    }
+    if(url.pathname==='/api/me/scans')return respond({scans:[{scanId:scan,status:'complete',createdAt:at,auditScope:'licensing'},
+      {scanId:'00000000-0000-4000-8000-000000000099',status:'complete',createdAt:at}]});
+    if(url.pathname==='/api/me/scans/00000000-0000-4000-8000-000000000099')return respond({scanId:'00000000-0000-4000-8000-000000000099',subscriptionId:tenant,findings:[]});
     if(url.pathname==='/api/me/audits'&&request.method()==='POST')return respond({scanId:scan},202);
     if(url.pathname===`/api/me/audits/${scan}`){
       firstPollAt ||= Date.now();
@@ -53,8 +59,14 @@ try{
   await page.goto(`${origin}/audit-data`);
   await page.getByRole('heading',{name:'Audit collection',exact:true}).waitFor();
   await page.locator(`.scan-history a[href="/audit-data/${scan}"]`).waitFor();
-  await page.getByRole('button',{name:'Run license audit',exact:true}).click();
-  await page.waitForURL(`**/audit-data/${scan}`);
+  await page.getByLabel('Azure subscription ID',{exact:true}).waitFor();
+  await page.waitForFunction(()=>!document.querySelector('.audit-data-page .step-action')?.disabled);
+  assert.equal(await page.getByRole('button',{name:'Run license audit',exact:true}).count(),0,'License-only launch replaced the main audit.');
+  await page.getByRole('button',{name:'Run audit',exact:true}).click();
+  await page.waitForURL('**/reports/00000000-0000-4000-8000-000000000099');
+  await page.getByRole('heading',{name:'Fixture User',exact:true}).waitFor();
+  assert.ok(requests.includes('POST /api/me/scans'),'Main audit did not use the working collector.');
+  await page.goto(`${origin}/audit-data/${scan}`);
   await page.getByText('Collection is queued or running.',{exact:false}).waitFor();
   await page.getByRole('button',{name:'Run license audit',exact:true}).waitFor({state:'visible'});
   await page.waitForFunction(()=>!document.querySelector('.audit-data-page .step-action')?.disabled,undefined,{timeout:15000});
@@ -109,4 +121,5 @@ try{
   await login.close();
   console.log('PASS: audit launch, progress polling, stored license rows, assignment drill-down/search, missing access, route restoration, viewer controls and mobile layout.');
   console.log('PASS: audit destination survives workspace selection and email sign-in.');
+  console.log('PASS: main Run audit uses the existing tenant collector, restores saved subscription settings and opens the audit report; licensing remains a secondary dataset.');
 }finally{await browser?.close();await server.close();}
