@@ -28,10 +28,12 @@ try{
       headers:{'access-control-allow-origin':origin,'access-control-allow-headers':'*','access-control-allow-methods':'GET,POST,OPTIONS'}});
     if(request.method()==='OPTIONS')return respond({});
     if(url.pathname==='/api/account/login')return respond({token:'synthetic-test-session'});
+    if(url.pathname==='/api/account/logout')return respond({});
     if(url.pathname==='/api/account/session')return respond({user:{name:'Fixture User',email:'fixture@example.invalid'},
       workspaces:[{id:org,name:'Fixture workspace',tenantId:tenant,role}]});
     assert.equal(request.headers()['x-nso-organization-id'],org);
-    if(url.pathname==='/api/me/bootstrap')return respond({tenantId:tenant,registered:true,consentStatus:'granted',azureRbacStatus:'notConfigured',latestScan:null,destination:'onboarding'});
+    if(url.pathname==='/api/me/bootstrap')return respond({tenantId:tenant,registered:true,consentStatus:'granted',azureRbacStatus:'notConfigured',
+      latestScan:{scanId:'00000000-0000-4000-8000-000000000099',status:'complete'},destination:'report'});
     if(url.pathname==='/api/me/scans')return respond({scans:[{scanId:scan,status:'complete',createdAt:at,auditScope:'licensing'}]});
     if(url.pathname==='/api/me/audits'&&request.method()==='POST')return respond({scanId:scan},202);
     if(url.pathname===`/api/me/audits/${scan}`){
@@ -87,14 +89,23 @@ try{
   const login=await browser.newContext();
   await login.route('**/api/**',respondApi);
   const loginPage=await login.newPage();
-  await loginPage.goto(`${origin}/audit-data`);
   await loginPage.goto(`${origin}/signin`);
   await loginPage.getByLabel('Email address',{exact:true}).fill('fixture@example.invalid');
   await loginPage.getByLabel('Password',{exact:true}).fill('Synthetic-password-for-tests');
   await loginPage.getByRole('button',{name:'Sign in with email',exact:true}).click();
   await loginPage.getByRole('button',{name:'Open workspace',exact:true}).click();
   await loginPage.getByRole('heading',{name:'Audit collection',exact:true}).waitFor();
-  assert.equal(new URL(loginPage.url()).pathname,'/audit-data','Sign-in lost the audit destination.');
+  assert.equal(new URL(loginPage.url()).pathname,'/audit-data','Normal sign-in opened an old report.');
+  await loginPage.getByRole('button',{name:'Sign out',exact:true}).click();
+  await loginPage.getByLabel('Email address',{exact:true}).fill('fixture@example.invalid');
+  await loginPage.getByLabel('Password',{exact:true}).fill('Synthetic-password-for-tests');
+  await loginPage.getByRole('button',{name:'Sign in with email',exact:true}).click();
+  await loginPage.getByRole('button',{name:'Open workspace',exact:true}).click();
+  await loginPage.getByRole('heading',{name:'Audit collection',exact:true}).waitFor();
+  assert.equal(new URL(loginPage.url()).pathname,'/audit-data','Sign-out/sign-in returned to an old report.');
+  await loginPage.goto(`${origin}/account/workspace`);
+  await loginPage.getByRole('heading',{name:'Audit collection',exact:true}).waitFor();
+  assert.equal(new URL(loginPage.url()).pathname,'/audit-data','Old workspace bookmark opened a scorecard.');
   await login.close();
   console.log('PASS: audit launch, progress polling, stored license rows, assignment drill-down/search, missing access, route restoration, viewer controls and mobile layout.');
   console.log('PASS: audit destination survives workspace selection and email sign-in.');

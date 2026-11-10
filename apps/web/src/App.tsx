@@ -47,12 +47,8 @@ function LegacyApp() {
     void loadTenantBootstrap(account)
       .then((result) => {
         setBootstrap(result);
-        const destination = result.destination === "report" && result.latestScan
-          ? `/reports/${encodeURIComponent(result.latestScan.scanId)}`
-          : result.destination === "scan" && result.latestScan
-            ? `/scans/${encodeURIComponent(result.latestScan.scanId)}`
-            : "/onboarding";
-        if (!window.location.pathname.startsWith("/reports/")&&!window.location.pathname.startsWith('/audit-data')) window.history.replaceState({}, "", destination);
+        const destination = result.registered ? '/audit-data' : '/onboarding';
+        if (!window.location.pathname.startsWith('/reports/')&&!window.location.pathname.startsWith('/audit-data')&&window.location.pathname!=='/onboarding') window.history.replaceState({}, '', destination);
       })
       .catch((error: unknown) => {
         setBootstrapError(error instanceof Error ? error.message : "Tenant setup could not be loaded.");

@@ -9,6 +9,18 @@ sign-in and workspace selection, and clears the pending destination when the aud
 opens. Microsoft redirect sign-in uses the same validated destination. No API permissions,
 collection activation settings, infrastructure or database schema changed in this fix.
 
+Follow-up: preserving a deep link did not change the normal sign-in default. Connected
+workspaces now open `/audit-data` by default for email and registered Microsoft sessions,
+including an existing `/account/workspace` bookmark. Old scorecards are opened only through
+explicit historical report links. Workspace components are keyed by organization to avoid
+carrying the previous workspace's UI state into another selection. Browser coverage now
+includes a workspace with an existing completed
+scorecard, ordinary email login, sign-out/sign-in and the old workspace bookmark.
+
+The user also authorized cleanup of obsolete Dev audit data when needed. No data deletion
+was needed or performed for this navigation fix; accounts, access and connection settings
+were preserved.
+
 Deployed the verified frontend using `scripts/Publish-NsoAuditWeb.ps1` with
 `config/environments/dev.public.json` to `nso-audit-dev-web` in the Dev `NSO-Audit` resource group.
 The deployment tool's `production` slot means the primary slot of this Dev resource; no Prod
