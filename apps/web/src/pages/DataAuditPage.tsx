@@ -7,7 +7,7 @@ import {clearAuditDestination} from '../auditNavigation';
 import {ConditionalAccessDetails,NamedLocationDetails,sourceRecord} from '../components/AuditPolicyDetails';
 
 const date=(value:string|null|undefined)=>value?new Date(value).toLocaleString():'—';
-const reason:Record<string,string>={missingAccess:'Microsoft denied access. Review source permissions and tenant consent.',
+const reason:Record<string,string>={parentCollectionIncomplete:'The parent policy inventory is incomplete; dependent evidence cannot be complete.',incompleteSettingDefinitions:'Microsoft returned incomplete setting definitions. This dataset is incomplete.',missingAccess:'Microsoft denied access. Review source permissions and tenant consent.',
   authenticationUnavailable:'The tenant connection could not authenticate.',throttled:'Microsoft throttled collection. Start another audit after the service recovers.',
   sourceUnavailable:'The source could not be reached.',invalidResponse:'The source returned data that could not be safely recorded.',
   invalidPagingLink:'The source returned an invalid paging link.',workerInterrupted:'Collection was interrupted repeatedly.'};
@@ -116,7 +116,7 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
         <button className="detail-button" onClick={()=>setRefresh(n=>n+1)}>Refresh</button><a className="detail-button" href="/onboarding">Connection settings</a></div>
       {auditError?<p role="alert" className="auth-error">{auditError}</p>:null}
       <h2>Audit data</h2><p>Each run collects timestamped configuration, scores, recommendations, licenses and user assignments into the audit database. Collection progress and missing access are reported separately for each dataset.</p>
-      <p>DLP, labels, retention, insider risk, threat and alert policies, Sentinel connectors, backup policies, device settings-catalog details, Exposure Score and Secure Score for Devices are not collected yet.</p>
+      <p>DLP, labels, retention, insider risk, threat and alert policies, Sentinel connectors, backup policies, Exposure Score and Secure Score for Devices are not collected yet.</p>
     </section>:<><p>Saved tenant audit evidence. Every dataset below belongs to this audit and retains its collection timestamp.</p>
       <div className="report-actions">{licensePage?<a className="detail-button" href={auditHref}>Back to audit</a>:null}<a className="step-action" href="/audit-data">Run tenant audit</a>
         <button className="detail-button" onClick={()=>setRefresh(n=>n+1)}>Refresh</button></div></>}
@@ -150,7 +150,7 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
         <th>Product / SKU</th><th>Enabled units</th><th>Assigned units</th><th>Suspended / warning</th><th>Status</th><th>Applies to</th><th>Collected</th><th>Users</th>
       </>:<><th>User</th><th>Product / SKU</th><th>Assignment type</th><th>Group ID</th><th>State / error</th><th>Source updated</th><th>Collected</th></>}</tr></thead>
         <tbody>{evidence.rows.map(row=><tr key={row.SourceId??`${row.UserId}:${row.SkuId}:${row.AssignmentSource}`}>
-          {dataType!=='licenses'&&dataType!=='licenseAssignments'?<><td>{row.DisplayName??row.SourceId}<small>{row.SourceId}</small></td><td>{row.State??'—'}</td><td>{date(row.CollectedAtUtc)}</td><td><pre className="audit-source-json">{row.SourceJson?JSON.stringify(JSON.parse(row.SourceJson),null,2):'—'}</pre></td></>:dataType==='licenses'?<><td>{row.ProductName??row.SkuPartNumber??row.SkuId}<small>{row.SkuId}</small></td><td>{row.EnabledUnits??'—'}</td>
+          {dataType!=='licenses'&&dataType!=='licenseAssignments'?<><td>{row.DisplayName??row.SourceId}<small>{row.ParentSourceId?`Policy: ${row.ParentSourceId} / Record: ${row.ChildSourceId}`:row.SourceId}</small></td><td>{row.State??'—'}</td><td>{date(row.CollectedAtUtc)}</td><td><pre className="audit-source-json">{row.SourceJson?JSON.stringify(JSON.parse(row.SourceJson),null,2):'—'}</pre></td></>:dataType==='licenses'?<><td>{row.ProductName??row.SkuPartNumber??row.SkuId}<small>{row.SkuId}</small></td><td>{row.EnabledUnits??'—'}</td>
             <td>{row.ConsumedUnits??'—'}</td><td>{row.SuspendedUnits??'—'} / {row.WarningUnits??'—'}</td><td>{row.CapabilityStatus??'—'}</td><td>{row.AppliesTo??'—'}</td>
             <td>{date(row.CollectedAtUtc)}</td><td><button className="text-button" onClick={()=>window.location.assign(licenseLink('licenseAssignments',row.SkuId))}>View users</button></td></>:
           <><td>{row.Email??row.UserPrincipalName??row.UserId}<small>{row.DisplayName}</small></td><td>{row.ProductName??row.SkuPartNumber??row.SkuId}</td><td>{row.AssignmentType}</td>

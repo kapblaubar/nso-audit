@@ -5,7 +5,7 @@ import {CollectionError} from './licensing.js';
 import {fetchSnapshotPage,normalizeSnapshots,sanitizeEvidence,sourceUrl,validateSnapshotUrl} from './snapshots.js';
 const sub='00000000-0000-4000-8000-000000000001';
 test('unified scope includes dedicated configuration, security and license datasets',()=>{
-  assert.equal(allDataTypes.length,17);assert.equal(new Set(Object.values(datasetCatalog).map(d=>d.table)).size,15);
+  assert.equal(allDataTypes.length,24);assert.equal(new Set(Object.values(datasetCatalog).map(d=>d.table)).size,22);
   for(const type of ['conditionalAccess','namedLocations','compliancePolicies','licenses','licenseAssignments'])assert.equal(isDataType(type),true);
   assert.equal(isDataType('__proto__'),false);assert.equal(isDataType('DROP TABLE'),false);
 });

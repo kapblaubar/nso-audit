@@ -5,6 +5,13 @@ import {uuidPattern} from '../storage/sql.js';
 const secretFields=new Set(['password','clientsecret','secret','sharedsecret','presharedkey','privatekey','accesstoken','refreshtoken','certificatepassword','passwordcredentials','keycredentials']);
 export function sanitizeEvidence(value:unknown):unknown{
   if(Array.isArray(value))return value.map(sanitizeEvidence);
+  if(value&&typeof value==='object'){
+    const item=value as Record<string,unknown>;
+    // Intune custom/encrypted and secret settings put credentials in generic value fields.
+    if(item.isEncrypted===true||/secretsettingvalue|omasettingbase64/i.test(String(item['@odata.type']??'')))
+      return Object.fromEntries(Object.entries(item).map(([key,entry])=>[key,
+        ['value','encryptedValue'].includes(key)?'[redacted]':sanitizeEvidence(entry)]));
+  }
   if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([key,item])=>
     [key,secretFields.has(key.toLowerCase())?'[redacted]':sanitizeEvidence(item)]));
   return value;

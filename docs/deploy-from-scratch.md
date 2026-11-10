@@ -6,6 +6,13 @@ for the target environment; credentials and deployment tokens must never be comm
 
 ## Current automation status
 
+Intune settings/assignments require migration 019 before API deployment. Follow
+[Intune detail deployment and recovery](../database/intune-policy-details.md) for the
+seven linked datasets, direct Dev migration verification, source limitations and deployment order.
+Existing Graph read permission and API-to-SQL VNet configuration are reused.
+Actual Dev deployment and collection results are in the
+[November 10 Intune deployment record](intune-data-dev-deployment-2026-11-10.md).
+
 The Dev custom-domain transition to `auditdev.newsommer.com` is tracked in
 [the cutover record](dev-custom-domain-cutover.md). Both CORS origins are configured through
 the versioned CORS script and Dev parameters; check that record before changing callbacks

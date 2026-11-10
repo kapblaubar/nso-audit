@@ -3,7 +3,8 @@ import { requireAuditUser, AuditAccessError } from '../auth/requireAuditUser.js'
 import { customerCredential } from '../access/customerAccess.js';
 import { uuidPattern } from '../storage/sql.js';
 import { claimCollection, checkpointCollection, createDataAudit, getDataAudit, getLicenseRows,
-  requireAuditSql, startCollection,getJobSubscription,getSnapshotRows } from '../audits/store.js';
+  requireAuditSql, startCollection,getJobSubscription,getSnapshotRows,nextIntuneParent } from '../audits/store.js';
+import {fetchIntuneChildPage,parseIntuneCursor} from '../audits/intune.js';
 import { graphPage, processCollection } from '../audits/worker.js';
 import {datasetCatalog,isDataType,isSnapshotType} from '../audits/catalog.js';
 import {fetchSnapshotPage,sourceJson} from '../audits/snapshots.js';
@@ -68,7 +69,15 @@ async function collectSnapshot(job:CollectionJob):Promise<void>{
       const subscription=await sourceJson(`https://management.azure.com/subscriptions/${subscriptionId}?api-version=2022-12-01`,token);
       if(String(subscription.tenantId??'').toLowerCase()!==job.TenantId.toLowerCase())throw new CollectionError('subscriptionTenantMismatch');
     }
-    page=await fetchSnapshotPage(job.DataType,subscriptionId,job.NextLink,token);
+    if('parent' in source){
+      const cursor=parseIntuneCursor(job.NextLink),{parent,status}=await nextIntuneParent(job,cursor);
+      if(status==='queued'||status==='running')throw new CollectionError('parentCollectionIncomplete');
+      if(!parent){
+        if(cursor.page)throw new CollectionError('invalidPagingLink');
+        if(status!=='complete')throw new CollectionError('parentCollectionIncomplete',status==='missingAccess');
+        page={records:[],nextLink:null};
+      }else page=await fetchIntuneChildPage(job.DataType,parent,cursor,token);
+    }else page=await fetchSnapshotPage(job.DataType,subscriptionId,job.NextLink,token);
   }catch(error){
     const safe=error instanceof CollectionError?error:new CollectionError('sourceUnavailable');
     await checkpointCollection(job,[],null,{code:safe.code,missingAccess:safe.missingAccess});

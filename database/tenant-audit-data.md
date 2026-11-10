@@ -3,11 +3,16 @@
 Dev migration, activation and a real completed source run are recorded in the
 [November 9 deployment verification](../docs/tenant-audit-data-dev-deployment-2026-11-09.md).
 
-Migration 018 extends the run/queue foundation from migration 017. `Run audit` now creates a
-SQL run immediately and queues 17 independent datasets under one ScanId. No questionnaire,
+Migration 018 extends the run/queue foundation from migration 017; 019 adds linked Intune details.
+`Run audit` creates a SQL run immediately and queues 24 datasets under one ScanId. No questionnaire,
 documents, comparisons or grouping UI is required. Existing historical scorecards stay readable.
 
 ## Datasets and tables
+
+Collector v2 adds seven Intune datasets (24 total) after migration 019. See
+[Intune policy details](intune-policy-details.md) for settings catalog policies,
+settings/definitions, assignments and full device configuration/compliance properties.
+Historical v1 audits retain their original 17-dataset scope without fabricated backfill.
 
 | Dataset | SQL table |
 | --- | --- |
@@ -81,11 +86,11 @@ manifest script merely to add licensing. Tenant-wide consent requires the author
 approval. API workers never grant their own permissions.
 
 This is not yet the full example-report catalog. DLP, labels/publishing, retention, insider risk,
-threat/alert policies, Sentinel connectors, backup policies, settings-catalog policy details,
+threat/alert policies, Sentinel connectors, backup policies,
 Exposure Score and Secure Score for Devices are not collected by this version. Device compliance
-and configuration rows contain what their inventory endpoints return; separately fetched settings
-and assignments are future child datasets. Control profiles are source evidence, not a new validated
-recommendation ranking or framework assessment. A completed run means its configured 17 datasets
+and configuration inventory rows retain their original source response; migration 019 adds
+separately fetched properties and assignments as linked child datasets. Control profiles are source evidence, not a new validated
+recommendation ranking or framework assessment. A completed run means its configured datasets
 finished successfully, not that all future modules or compliance criteria were covered.
 
 ## Deployment and recovery
@@ -94,7 +99,7 @@ finished successfully, not that all future modules or compliance criteria were c
    and compile the affected Bicep and environment parameter file. Compilation is not a verified
    clean deployment. Inspect what-if before any infrastructure apply; no resource deployment
    is required for these application changes.
-2. Apply 018 with the versioned migration runner before this API. Dev is NSO-Audit; the user
+2. Apply through 019 with the versioned migration runner before this API. Dev is NSO-Audit; the user
    explicitly requested direct Dev migrations. Preserve applied checksums and existing history.
    No data backfill is needed; do not misrepresent old findings as newly collected source data.
 3. Deploy API and web with the rollout flag off. Configure approved permissions/consent using

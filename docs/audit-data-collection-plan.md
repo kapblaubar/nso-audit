@@ -12,6 +12,10 @@ Subsequent implementation: migration 018 adds 15 configuration/security source t
 unifies them with licensing under one SQL audit run. SQL is the sole normal audit backend.
 Current coverage, activation and remaining datasets are in [tenant audit data](../database/tenant-audit-data.md).
 
+Next slice: migration 019 and collector v2 add the seven Intune detail datasets described
+in [Intune policy details](../database/intune-policy-details.md), following the supplied
+example report's policy settings, platform properties and assignment evidence.
+
 ## Scope
 
 Collect tenant configuration and security evidence first and persist every audit in SQL.

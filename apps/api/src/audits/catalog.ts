@@ -1,5 +1,12 @@
 // Static, reviewed sources and table identifiers. Never accept a URL or SQL table from a request.
 export const datasetCatalog = {
+  settingsCatalogPolicies:{table:'AuditSettingsCatalogPolicies',label:'Settings catalog policies',category:'Device & Endpoint Management',path:'/beta/deviceManagement/configurationPolicies'},
+  settingsCatalogSettings:{table:'AuditSettingsCatalogSettings',label:'Settings catalog settings and definitions',category:'Device & Endpoint Management',path:'/beta/deviceManagement/configurationPolicies',parent:'settingsCatalogPolicies',relationship:'settings',expandDefinitions:true},
+  settingsCatalogAssignments:{table:'AuditSettingsCatalogAssignments',label:'Settings catalog assignments',category:'Device & Endpoint Management',path:'/beta/deviceManagement/configurationPolicies',parent:'settingsCatalogPolicies',relationship:'assignments'},
+  deviceConfigurationDetails:{table:'AuditDeviceConfigurationDetails',label:'Device configuration settings',category:'Device & Endpoint Management',path:'/v1.0/deviceManagement/deviceConfigurations',parent:'deviceConfigurations',relationship:''},
+  deviceConfigurationAssignments:{table:'AuditDeviceConfigurationAssignments',label:'Device configuration assignments',category:'Device & Endpoint Management',path:'/v1.0/deviceManagement/deviceConfigurations',parent:'deviceConfigurations',relationship:'assignments'},
+  compliancePolicyDetails:{table:'AuditCompliancePolicyDetails',label:'Compliance policy settings',category:'Device & Endpoint Management',path:'/v1.0/deviceManagement/deviceCompliancePolicies',parent:'compliancePolicies',relationship:''},
+  compliancePolicyAssignments:{table:'AuditCompliancePolicyAssignments',label:'Compliance policy assignments',category:'Device & Endpoint Management',path:'/v1.0/deviceManagement/deviceCompliancePolicies',parent:'compliancePolicies',relationship:'assignments'},
   conditionalAccess:{table:'AuditConditionalAccessPolicies',label:'Conditional Access policies',category:'Identity & Access',path:'/v1.0/identity/conditionalAccess/policies'},
   namedLocations:{table:'AuditNamedLocations',label:'Named locations',category:'Identity & Access',path:'/v1.0/identity/conditionalAccess/namedLocations'},
   authenticationMethods:{table:'AuditAuthenticationMethods',label:'Authentication method policies',category:'Identity & Access',path:'/v1.0/policies/authenticationMethodsPolicy',singleton:true},
@@ -24,4 +31,6 @@ export function isDataType(value:string):value is DataType{return isSnapshotType
 export interface SnapshotRecord {
   sourceId:string;displayName:string|null;state:string|null;sourceCreatedAtUtc:string|null;
   sourceUpdatedAtUtc:string|null;sourceJson:string;collectedAtUtc:string;
+  parentSourceId?:string;childSourceId?:string;settingDefinitionId?:string|null;
+  targetType?:string|null;groupId?:string|null;filterId?:string|null;filterType?:string|null;
 }

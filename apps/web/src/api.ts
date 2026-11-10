@@ -116,7 +116,7 @@ export interface DataAudit {
   collections:Array<{DataType:string;Label?:string;Category?:string;Status:string;StartedAtUtc:string|null;CompletedAtUtc:string|null;RecordCount:number;ErrorCode:string|null}>;
 }
 export interface LicenseEvidenceRow {
-  SourceId?:string;DisplayName?:string|null;State?:string|null;SourceJson?:string;SkuId:string;SkuPartNumber?:string|null;ProductName?:string|null;
+  SourceId?:string;DisplayName?:string|null;State?:string|null;SourceJson?:string;ParentSourceId?:string;ChildSourceId?:string;SkuId:string;SkuPartNumber?:string|null;ProductName?:string|null;
   EnabledUnits?:number|null;SuspendedUnits?:number|null;WarningUnits?:number|null;ConsumedUnits?:number|null;
   CapabilityStatus?:string|null;AppliesTo?:string|null;UserId?:string;AssignmentSource?:string;
   UserPrincipalName?:string|null;Email?:string|null;AssignmentType?:string;

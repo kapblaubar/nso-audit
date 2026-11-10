@@ -3,6 +3,7 @@ import { getSqlPool, uuidPattern, withOrganization } from '../storage/sql.js';
 import { assertSqlCutoverActivated, withTenant } from '../storage/sqlTenantStore.js';
 import type { AssignmentRecord, LicenseDataType, LicenseRecord } from './licensing.js';
 import {allDataTypes,datasetCatalog,isSnapshotType,type DataType,type SnapshotRecord,type SnapshotDataType} from './catalog.js';
+import type {IntuneCursor,ParentSnapshot} from './intune.js';
 
 export interface CollectionJob {
   OrganizationId:string; TenantId:string; ScanId:string; DataType:DataType;
@@ -31,7 +32,7 @@ export async function createDataAudit(tenantId:string, initiatedBy:string,subscr
       .input('SubscriptionId',sql.UniqueIdentifier,subscriptionId??null).query(`
       INSERT app.ScanRuns(OrganizationId,TenantId,ScanId,EntityJson) VALUES(@OrganizationId,@TenantId,@ScanId,@json);
       INSERT app.DataAudits(OrganizationId,TenantId,ScanId,Scope,Status,InitiatedBy,CollectorVersion,SubscriptionId)
-      VALUES(@OrganizationId,@TenantId,@ScanId,@Scope,'queued',@InitiatedBy,'tenant-data-v1',@SubscriptionId);
+      VALUES(@OrganizationId,@TenantId,@ScanId,@Scope,'queued',@InitiatedBy,'tenant-data-v2-intune',@SubscriptionId);
       UPDATE app.TenantRegistrations SET EntityJson=JSON_MODIFY(EntityJson,'$.lastScanId',CONVERT(varchar(36),@ScanId))
       WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId;
       IF @@ROWCOUNT=0 INSERT app.TenantRegistrations(OrganizationId,TenantId,EntityJson)
@@ -80,7 +81,7 @@ const snapshotColumns={SourceId:['nvarchar(450)','sourceId'],DisplayName:['nvarc
   SourceCreatedAtUtc:['datetime2','sourceCreatedAtUtc'],SourceUpdatedAtUtc:['datetime2','sourceUpdatedAtUtc'],SourceJson:['nvarchar(max)','sourceJson'],CollectedAtUtc:['datetime2','collectedAtUtc']};
 function evidenceTable(dataType:DataType):string{return isSnapshotType(dataType)?`app.${datasetCatalog[dataType].table}`:dataType==='licenses'?'app.AuditLicenses':'app.AuditLicenseAssignments';}
 function insertPage(dataType:DataType):string {
-  const columns=isSnapshotType(dataType)?snapshotColumns:dataType==='licenses'?licenseColumns:assignmentColumns;
+  const columns=isSnapshotType(dataType)?{...snapshotColumns,...('parent' in datasetCatalog[dataType]?intuneColumns:{})}:dataType==='licenses'?licenseColumns:assignmentColumns;
   const table=evidenceTable(dataType);
   const keys=dataType==='licenseAssignments'?['UserId','SkuId','AssignmentSource']:['SourceId'];
   const names=Object.keys(columns);
@@ -192,9 +193,28 @@ export async function getSnapshotRows(tenantId:string,scanId:string,dataType:Sna
       (@Search='' OR CHARINDEX(@Search,DisplayName)>0 OR CHARINDEX(@Search,SourceId)>0 OR CHARINDEX(@Search,SourceJson)>0)`;
     const result=await scoped(transaction,organizationId,tenantId,scanId).input('Offset',sql.Int,(page-1)*50)
       .input('Search',sql.NVarChar(200),search).query(`SELECT COUNT(*) Total FROM ${table} WHERE ${where};
-      SELECT SourceId,DisplayName,State,SourceCreatedAtUtc,SourceUpdatedAtUtc,SourceJson,CollectedAtUtc,StoredAtUtc FROM ${table}
+      SELECT SourceId,DisplayName,State,SourceCreatedAtUtc,SourceUpdatedAtUtc,SourceJson,CollectedAtUtc,StoredAtUtc${'parent' in datasetCatalog[dataType]?','+Object.keys(intuneColumns).join(','):''} FROM ${table}
       WHERE ${where} ORDER BY SourceId OFFSET @Offset ROWS FETCH NEXT 50 ROWS ONLY;`);
     const sets=result.recordsets as sql.IRecordSet<unknown>[];
     return {rows:sets[1]??[],total:(sets[0]?.[0] as {Total:number}|undefined)?.Total??0,page,pageSize:50};
+  });
+}
+
+const intuneColumns={ParentSourceId:['nvarchar(450)','parentSourceId'],ChildSourceId:['nvarchar(450)','childSourceId'],
+  SettingDefinitionId:['nvarchar(512)','settingDefinitionId'],TargetType:['nvarchar(128)','targetType'],GroupId:['nvarchar(128)','groupId'],
+  FilterId:['nvarchar(128)','filterId'],FilterType:['nvarchar(64)','filterType']};
+export async function nextIntuneParent(job:CollectionJob,cursor:IntuneCursor):Promise<{parent:ParentSnapshot|null;status:string}>{
+  if(!isSnapshotType(job.DataType))throw new Error('Invalid child type.');
+  const source=datasetCatalog[job.DataType];
+  if(!('parent' in source))throw new Error('Invalid child type.');
+  return withOrganization(job.OrganizationId,async transaction=>{
+    const result=await jobRequest(transaction,job).input('ParentType',sql.VarChar(32),source.parent)
+      .input('After',sql.NVarChar(450),cursor.after).query(`
+      SELECT Status FROM app.AuditCollections WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND DataType=@ParentType;
+      SELECT TOP(1) SourceId,DisplayName FROM ${evidenceTable(source.parent)}
+      WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND SourceId${cursor.page?'=':'>'}@After ORDER BY SourceId;`);
+    const sets=result.recordsets as sql.IRecordSet<any>[];
+    const status=sets[0]?.[0]?.Status??'failed',row=sets[1]?.[0];
+    return {status,parent:row?{sourceId:row.SourceId,displayName:row.DisplayName,status}:null};
   });
 }
