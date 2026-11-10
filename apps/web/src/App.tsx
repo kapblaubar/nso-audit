@@ -74,7 +74,7 @@ function LegacyApp() {
     return <LandingPage authReady={authReady} {...(authError ? { authError } : {})} onSignIn={beginSignIn} />;
   }
 
-  if(/^\/audit-data(?:\/[^/]+)?$/.test(window.location.pathname)){
+  if(/^\/audit-data(?:\/[^/]+(?:\/licenses)?)?$/.test(window.location.pathname)){
     const id=window.location.pathname.split('/')[2];
     return <DataAuditPage account={account} onSignOut={beginSignOut} {...(id?{scanId:id}:{})}/>;
   }

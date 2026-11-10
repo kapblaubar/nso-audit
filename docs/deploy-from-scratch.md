@@ -6,6 +6,10 @@ for the target environment; credentials and deployment tokens must never be comm
 
 ## Current automation status
 
+Frontend audit/license navigation and readable Conditional Access/location views use the existing
+SQL evidence APIs. See [audit pages and license navigation](audit-pages-and-license-navigation.md)
+for routes and checks. This UI change requires no new schema, permissions or infrastructure.
+
 Unified tenant data collection requires migration 018, then API/web deployment and explicit
 DATA_AUDITS_ENABLED activation. See [tenant audit data deployment](../database/tenant-audit-data.md).
 Normal audit evidence uses SQL only; legacy Azure Tables are no longer a runtime backend. Keep
