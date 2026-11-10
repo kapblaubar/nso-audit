@@ -8,11 +8,11 @@ param(
     [Parameter(Mandatory)][Guid] $ManagementTenantId,
     [Parameter(Mandatory)][Guid] $ManagementObjectId,
     [ValidateSet('dev', 'prod')][Parameter(Mandatory)][string] $EnvironmentName,
-    [ValidateSet('tables', 'sql')][string] $TenantStore = 'tables',
+    [ValidateSet('sql')][string] $TenantStore = 'sql',
     [ValidateSet('true', 'false')][string] $DataAuditsEnabled = 'false'
 )
 $ErrorActionPreference = 'Stop'
-if ($DataAuditsEnabled -eq 'true' -and $TenantStore -ne 'sql') { throw 'Data audits require SQL storage and migration 017.' }
+if ($DataAuditsEnabled -eq 'true' -and $TenantStore -ne 'sql') { throw 'Data audits require SQL storage and migration 018.' }
 & az functionapp config appsettings set --subscription $SubscriptionId --resource-group $ResourceGroupName `
     --name $FunctionAppName --settings "SQL_SERVER=$SqlServerFqdn" "SQL_DATABASE=$SqlDatabaseName" `
     "ENTRA_MANAGEMENT_TENANT_ID=$ManagementTenantId" "ENTRA_MANAGEMENT_OBJECT_ID=$ManagementObjectId" "APP_ENVIRONMENT=$EnvironmentName" "TENANT_STORE=$TenantStore" "DATA_AUDITS_ENABLED=$DataAuditsEnabled" 'SQL_AUTH_MODE=managedidentity' --query '[].name' -o json

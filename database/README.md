@@ -1,5 +1,9 @@
 # SQL foundation
 
+Migration 018 adds the unified tenant collection datasets and makes SQL the only runtime audit
+backend. See [tenant audit data](tenant-audit-data.md) for tables, coverage, permissions,
+activation and recovery. Storage remains for Functions hosting and other non-audit uses.
+
 The first typed audit-data tables and durable license collector use migration 017. See
 [audit licensing](audit-licensing.md) for schema, source permissions, deployment order,
 validation and rollback. Existing JSON scan history remains intact; historical license

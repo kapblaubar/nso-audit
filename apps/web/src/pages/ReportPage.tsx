@@ -201,7 +201,7 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
     link.click();
     URL.revokeObjectURL(url);
   };
-  if(scan?.auditScope==='licensing')return <DataAuditPage account={account} scanId={scanId} onSignOut={onSignOut}/>;
+  if(scan?.auditScope==='licensing'||scan?.auditScope==='tenant')return <DataAuditPage account={account} scanId={scanId} onSignOut={onSignOut}/>;
   return (
     <main className="report-page">
       <nav className="nav" aria-label="Report navigation">

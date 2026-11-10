@@ -1,5 +1,10 @@
 # Azure setup scripts
 
+Unified SQL collection: migration 018 and `Set-NsoAuditSqlRuntime.ps1 -TenantStore sql
+-DataAuditsEnabled true`. `Set-NsoAuditLicensePermissions.ps1` adds only the two licensing
+read permissions, preserves existing permissions, supports -WhatIf and requires explicit
+-GrantConsent for tenant consent. See `../database/tenant-audit-data.md`.
+
 Client questionnaires: `Deploy-NsoAuditQuestionnaires.ps1` plans disposable validation resources
 and, with `-Apply` after what-if review, validates migration 014 on a 013 baseline, migrates Dev, deploys API/web and
 runs live synthetic API/browser checks. It cleans temporary SQL access and the disposable

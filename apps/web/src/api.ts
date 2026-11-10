@@ -79,8 +79,8 @@ export interface BaselineResult {
   controls: BaselineControlResult[];
 }
 
-export interface StarterScan { scanId: string; auditScope?: 'licensing'; score?: number; subscriptionId?: string; baseline?: BaselineResult; findings: Array<{ checkId: string; title: string; status: string; detail: string; evidence?: unknown }> }
-export interface ScanHistoryItem { scanId: string; auditScope?: 'licensing'; status: string; createdAt: string; completedAt?: string; score?: number }
+export interface StarterScan { scanId: string; auditScope?: 'licensing'|'tenant'; score?: number; subscriptionId?: string; baseline?: BaselineResult; findings: Array<{ checkId: string; title: string; status: string; detail: string; evidence?: unknown }> }
+export interface ScanHistoryItem { scanId: string; auditScope?: 'licensing'|'tenant'; status: string; createdAt: string; completedAt?: string; score?: number }
 
 export async function startStarterScan(account: AuditAccount, subscriptionId: string): Promise<StarterScan> {
   if (!appConfig.apiBaseUrl) throw new Error("The NSO Audit API URL is not configured.");
@@ -112,14 +112,14 @@ function workspaceHeader(account:AuditAccount):Record<string,string>{
 }
 
 export interface DataAudit {
-  audit:{ScanId:string;Scope:string;Status:string;CollectorVersion:string;CreatedAtUtc:string;StartedAtUtc:string|null;CompletedAtUtc:string|null};
-  collections:Array<{DataType:string;Status:string;StartedAtUtc:string|null;CompletedAtUtc:string|null;RecordCount:number;ErrorCode:string|null}>;
+  audit:{ScanId:string;Scope:string;SubscriptionId?:string;Status:string;CollectorVersion:string;CreatedAtUtc:string;StartedAtUtc:string|null;CompletedAtUtc:string|null};
+  collections:Array<{DataType:string;Label?:string;Category?:string;Status:string;StartedAtUtc:string|null;CompletedAtUtc:string|null;RecordCount:number;ErrorCode:string|null}>;
 }
 export interface LicenseEvidenceRow {
-  SourceId?:string;SkuId:string;SkuPartNumber?:string|null;ProductName?:string|null;
+  SourceId?:string;DisplayName?:string|null;State?:string|null;SourceJson?:string;SkuId:string;SkuPartNumber?:string|null;ProductName?:string|null;
   EnabledUnits?:number|null;SuspendedUnits?:number|null;WarningUnits?:number|null;ConsumedUnits?:number|null;
   CapabilityStatus?:string|null;AppliesTo?:string|null;UserId?:string;AssignmentSource?:string;
-  UserPrincipalName?:string|null;Email?:string|null;DisplayName?:string|null;AssignmentType?:string;
+  UserPrincipalName?:string|null;Email?:string|null;AssignmentType?:string;
   AssignmentState?:string|null;AssignmentError?:string|null;SourceUpdatedAtUtc?:string|null;
   CollectedAtUtc:string;StoredAtUtc:string;
 }
@@ -135,7 +135,7 @@ async function dataAuditRequest<T>(account:AuditAccount,path:string,method='GET'
 }
 export const startDataAudit=(account:AuditAccount)=>dataAuditRequest<{scanId:string}>(account,'','POST');
 export const loadDataAudit=(account:AuditAccount,scanId:string)=>dataAuditRequest<DataAudit>(account,`/${encodeURIComponent(scanId)}`);
-export const loadLicenseEvidence=(account:AuditAccount,scanId:string,dataType:'licenses'|'licenseAssignments',
+export const loadLicenseEvidence=(account:AuditAccount,scanId:string,dataType:string,
   page:number,search:string,skuId:string)=>{
   const query=new URLSearchParams({page:String(page),search,...(skuId?{skuId}:{})});
   return dataAuditRequest<LicenseEvidencePage>(account,`/${encodeURIComponent(scanId)}/${dataType}?${query}`);

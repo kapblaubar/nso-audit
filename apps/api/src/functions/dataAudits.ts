@@ -3,8 +3,13 @@ import { requireAuditUser, AuditAccessError } from '../auth/requireAuditUser.js'
 import { customerCredential } from '../access/customerAccess.js';
 import { uuidPattern } from '../storage/sql.js';
 import { claimCollection, checkpointCollection, createDataAudit, getDataAudit, getLicenseRows,
-  requireAuditSql, startCollection } from '../audits/store.js';
+  requireAuditSql, startCollection,getJobSubscription,getSnapshotRows } from '../audits/store.js';
 import { graphPage, processCollection } from '../audits/worker.js';
+import {datasetCatalog,isDataType,isSnapshotType} from '../audits/catalog.js';
+import {fetchSnapshotPage,sourceJson} from '../audits/snapshots.js';
+import {CollectionError} from '../audits/licensing.js';
+import type {CollectionJob} from '../audits/store.js';
+import type {SnapshotRecord} from '../audits/catalog.js';
 
 function enabled():boolean {return process.env.DATA_AUDITS_ENABLED==='true';}
 async function handle(request:HttpRequest,context:InvocationContext,
@@ -39,12 +44,37 @@ export async function readEvidence(request:HttpRequest,context:InvocationContext
     const scanId=request.params.scanId??'',dataType=request.params.dataType;
     const rawPage=request.query.get('page')??'1',page=Number(rawPage),search=(request.query.get('search')??'').trim();
     const skuId=request.query.get('skuId')??undefined;
-    if(!uuidPattern.test(scanId)||(dataType!=='licenses'&&dataType!=='licenseAssignments')||
+    if(!uuidPattern.test(scanId)||!dataType||!isDataType(dataType)||
       !/^\d+$/.test(rawPage)||!Number.isSafeInteger(page)||page<1||page>1000000||search.length>200||
       (skuId!==undefined&&!uuidPattern.test(skuId)))return {status:400,jsonBody:{error:'Invalid audit data filter.'}};
-    const result=await getLicenseRows(tenantId,scanId,dataType,page,search,skuId);
+    const result=isSnapshotType(dataType)?await getSnapshotRows(tenantId,scanId,dataType,page,search):await getLicenseRows(tenantId,scanId,dataType,page,search,skuId);
     return result?{status:200,jsonBody:result}:{status:404,jsonBody:{error:'Audit not found.'}};
   });
+}
+async function collectSnapshot(job:CollectionJob):Promise<void>{
+  if(!isSnapshotType(job.DataType))throw new Error('Invalid snapshot type.');
+  await startCollection(job);
+  let page:{records:SnapshotRecord[];nextLink:string|null};
+  try{
+    if(job.Attempts>3)throw new CollectionError('workerInterrupted');
+    const subscriptionId=await getJobSubscription(job);
+    const source=datasetCatalog[job.DataType];
+    const credential=await customerCredential(job.TenantId);
+    let token:string;
+    try{token=(await credential.getToken('arm' in source?'https://management.azure.com/.default':'https://graph.microsoft.com/.default')).token;}
+    catch{throw new CollectionError('authenticationUnavailable');}
+    if('arm' in source){
+      if(!subscriptionId)throw new CollectionError('missingSubscription');
+      const subscription=await sourceJson(`https://management.azure.com/subscriptions/${subscriptionId}?api-version=2022-12-01`,token);
+      if(String(subscription.tenantId??'').toLowerCase()!==job.TenantId.toLowerCase())throw new CollectionError('subscriptionTenantMismatch');
+    }
+    page=await fetchSnapshotPage(job.DataType,subscriptionId,job.NextLink,token);
+  }catch(error){
+    const safe=error instanceof CollectionError?error:new CollectionError('sourceUnavailable');
+    await checkpointCollection(job,[],null,{code:safe.code,missingAccess:safe.missingAccess});
+    return;
+  }
+  await checkpointCollection(job,page.records,page.nextLink);
 }
 export async function collectAuditData(_timer:unknown,context:InvocationContext):Promise<void>{
   if(!enabled())return;
@@ -54,6 +84,7 @@ export async function collectAuditData(_timer:unknown,context:InvocationContext)
     const job=await claimCollection();
     if(!job)return;
     try{
+      if(isSnapshotType(job.DataType)){await collectSnapshot(job);continue;}
       await processCollection(job,{start:startCollection,checkpoint:checkpointCollection,page:graphPage,
         token:async tenantId=>(await (await customerCredential(tenantId)).getToken('https://graph.microsoft.com/.default')).token});
     }catch{

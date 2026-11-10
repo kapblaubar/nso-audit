@@ -19,7 +19,7 @@ try{
   browser=await chromium.launch({headless:true,...(process.platform==='win32'?{channel:'msedge'}:{})});
   const context=await browser.newContext();
   await context.addInitScript(({org})=>{sessionStorage.setItem('nso.customerSession','synthetic-test-session');sessionStorage.setItem('nso.customerWorkspace',org);},{org});
-  let role='owner',firstPollAt=0,fail=false;
+  let role='owner',firstPollAt=0,fail=false,fullStarted=false;
   const requests=[];
   const respondApi=async route=>{
     const request=route.request(),url=new URL(request.url());
@@ -36,11 +36,16 @@ try{
       latestScan:{scanId:'00000000-0000-4000-8000-000000000099',status:'complete'},destination:'report'});
     if(url.pathname==='/api/me/scans'&&request.method()==='POST'){
       assert.equal(request.postDataJSON().subscriptionId,tenant);
-      return respond({scanId:'00000000-0000-4000-8000-000000000099',findings:[]},201);
+      fullStarted=true;
+      return respond({scanId:'00000000-0000-4000-8000-000000000099',auditScope:'tenant',status:'queued'},202);
     }
     if(url.pathname==='/api/me/scans')return respond({scans:[{scanId:scan,status:'complete',createdAt:at,auditScope:'licensing'},
       {scanId:'00000000-0000-4000-8000-000000000099',status:'complete',createdAt:at}]});
-    if(url.pathname==='/api/me/scans/00000000-0000-4000-8000-000000000099')return respond({scanId:'00000000-0000-4000-8000-000000000099',subscriptionId:tenant,findings:[]});
+    if(url.pathname==='/api/me/scans/00000000-0000-4000-8000-000000000099')return respond({scanId:'00000000-0000-4000-8000-000000000099',subscriptionId:tenant,findings:[],...(fullStarted?{auditScope:'tenant'}:{})});
+    if(url.pathname==='/api/me/audits/00000000-0000-4000-8000-000000000099')return respond({audit:{ScanId:'00000000-0000-4000-8000-000000000099',Scope:'tenant',Status:'complete',CreatedAtUtc:at,StartedAtUtc:at,CompletedAtUtc:at},
+      collections:[{DataType:'conditionalAccess',Label:'Conditional Access policies',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'licenses',Label:'Licenses',Status:'complete',RecordCount:1,ErrorCode:null}]});
+    if(url.pathname==='/api/me/audits/00000000-0000-4000-8000-000000000099/conditionalAccess')return respond({rows:[{SourceId:'fixture-policy',DisplayName:'Fixture MFA policy',State:'enabled',CollectedAtUtc:at,SourceJson:JSON.stringify({id:'fixture-policy',grantControls:{builtInControls:['mfa']}})}],total:1,page:1,pageSize:50});
+    if(url.pathname==='/api/me/audits/00000000-0000-4000-8000-000000000099/licenses')return respond({rows:[],total:0,page:1,pageSize:50});
     if(url.pathname==='/api/me/audits'&&request.method()==='POST')return respond({scanId:scan},202);
     if(url.pathname===`/api/me/audits/${scan}`){
       firstPollAt ||= Date.now();
@@ -64,7 +69,9 @@ try{
   assert.equal(await page.getByRole('button',{name:'Run license audit',exact:true}).count(),0,'License-only launch replaced the main audit.');
   await page.getByRole('button',{name:'Run audit',exact:true}).click();
   await page.waitForURL('**/reports/00000000-0000-4000-8000-000000000099');
-  await page.getByRole('heading',{name:'Fixture User',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Audit snapshot',exact:true}).waitFor();
+  await page.getByRole('cell',{name:'enabled',exact:true}).waitFor();
+  await page.locator('.audit-source-json').filter({hasText:'grantControls'}).waitFor();
   assert.ok(requests.includes('POST /api/me/scans'),'Main audit did not use the working collector.');
   await page.goto(`${origin}/audit-data/${scan}`);
   await page.getByText('Collection is queued or running.',{exact:false}).waitFor();
@@ -121,5 +128,5 @@ try{
   await login.close();
   console.log('PASS: audit launch, progress polling, stored license rows, assignment drill-down/search, missing access, route restoration, viewer controls and mobile layout.');
   console.log('PASS: audit destination survives workspace selection and email sign-in.');
-  console.log('PASS: main Run audit uses the existing tenant collector, restores saved subscription settings and opens the audit report; licensing remains a secondary dataset.');
+  console.log('PASS: main Run audit starts a unified SQL audit, restores saved subscription settings and opens stored configuration evidence; licensing is part of the same run.');
 }finally{await browser?.close();await server.close();}

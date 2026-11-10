@@ -2,9 +2,10 @@ import sql from 'mssql';
 import { getSqlPool, uuidPattern, withOrganization } from '../storage/sql.js';
 import { assertSqlCutoverActivated, withTenant } from '../storage/sqlTenantStore.js';
 import type { AssignmentRecord, LicenseDataType, LicenseRecord } from './licensing.js';
+import {allDataTypes,datasetCatalog,isSnapshotType,type DataType,type SnapshotRecord,type SnapshotDataType} from './catalog.js';
 
 export interface CollectionJob {
-  OrganizationId:string; TenantId:string; ScanId:string; DataType:LicenseDataType;
+  OrganizationId:string; TenantId:string; ScanId:string; DataType:DataType;
   NextLink:string|null; LeaseId:string; Attempts:number;
 }
 export async function requireAuditSql():Promise<void> {
@@ -19,27 +20,29 @@ function jobRequest(transaction:sql.Transaction, job:CollectionJob) {
   return scoped(transaction,job.OrganizationId,job.TenantId,job.ScanId)
     .input('DataType',sql.VarChar(32),job.DataType).input('LeaseId',sql.UniqueIdentifier,job.LeaseId);
 }
-export async function createDataAudit(tenantId:string, initiatedBy:string) {
+export async function createDataAudit(tenantId:string, initiatedBy:string,subscriptionId?:string) {
   await requireAuditSql();
   return withTenant(tenantId,async(transaction,organizationId)=>{
     const scanId=crypto.randomUUID(),createdAt=new Date().toISOString();
-    const scan={partitionKey:tenantId,rowKey:scanId,status:'queued',createdAt,auditScope:'licensing'};
+    const scope=subscriptionId?'tenant':'licensing';
+    const scan={partitionKey:tenantId,rowKey:scanId,status:'queued',createdAt,auditScope:scope,...(subscriptionId?{subscriptionId}:{})};
     await scoped(transaction,organizationId,tenantId,scanId).input('json',sql.NVarChar(sql.MAX),JSON.stringify(scan))
-      .input('InitiatedBy',sql.UniqueIdentifier,initiatedBy).query(`
+      .input('InitiatedBy',sql.UniqueIdentifier,initiatedBy).input('Scope',sql.VarChar(32),scope)
+      .input('SubscriptionId',sql.UniqueIdentifier,subscriptionId??null).query(`
       INSERT app.ScanRuns(OrganizationId,TenantId,ScanId,EntityJson) VALUES(@OrganizationId,@TenantId,@ScanId,@json);
-      INSERT app.DataAudits(OrganizationId,TenantId,ScanId,Scope,Status,InitiatedBy,CollectorVersion)
-      VALUES(@OrganizationId,@TenantId,@ScanId,'licensing','queued',@InitiatedBy,'licensing-v1');
-      INSERT app.AuditCollections(OrganizationId,TenantId,ScanId,DataType,Status)
-      VALUES(@OrganizationId,@TenantId,@ScanId,'licenses','queued'),(@OrganizationId,@TenantId,@ScanId,'licenseAssignments','queued');
+      INSERT app.DataAudits(OrganizationId,TenantId,ScanId,Scope,Status,InitiatedBy,CollectorVersion,SubscriptionId)
+      VALUES(@OrganizationId,@TenantId,@ScanId,@Scope,'queued',@InitiatedBy,'tenant-data-v1',@SubscriptionId);
       UPDATE app.TenantRegistrations SET EntityJson=JSON_MODIFY(EntityJson,'$.lastScanId',CONVERT(varchar(36),@ScanId))
       WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId;
       IF @@ROWCOUNT=0 INSERT app.TenantRegistrations(OrganizationId,TenantId,EntityJson)
         VALUES(@OrganizationId,@TenantId,JSON_MODIFY(N'{}','$.lastScanId',CONVERT(varchar(36),@ScanId)));`);
-    for (const dataType of ['licenses','licenseAssignments']) {
+    for (const dataType of subscriptionId?allDataTypes:['licenses','licenseAssignments']) {
+      await scoped(transaction,organizationId,tenantId,scanId).input('DataType',sql.VarChar(32),dataType)
+        .query(`INSERT app.AuditCollections(OrganizationId,TenantId,ScanId,DataType,Status) VALUES(@OrganizationId,@TenantId,@ScanId,@DataType,'queued');`);
       await scoped(transaction,organizationId,tenantId,scanId).input('DataType',sql.VarChar(32),dataType)
         .execute('security.EnqueueAuditCollection');
     }
-    return {scanId,tenantId,status:'queued',createdAt,auditScope:'licensing'};
+    return {scanId,tenantId,status:'queued',createdAt,auditScope:scope};
   });
 }
 export async function claimCollection():Promise<CollectionJob|undefined> {
@@ -73,10 +76,13 @@ const assignmentColumns = {
   AssignmentError:['nvarchar(128)','assignmentError'],DisabledPlansJson:['nvarchar(max)','disabledPlansJson'],
   SourceUpdatedAtUtc:['datetime2','sourceUpdatedAtUtc'],CollectedAtUtc:['datetime2','collectedAtUtc'],
 };
-function insertPage(dataType:LicenseDataType):string {
-  const columns=dataType==='licenses'?licenseColumns:assignmentColumns;
-  const table=dataType==='licenses'?'app.AuditLicenses':'app.AuditLicenseAssignments';
-  const keys=dataType==='licenses'?['SourceId']:['UserId','SkuId','AssignmentSource'];
+const snapshotColumns={SourceId:['nvarchar(450)','sourceId'],DisplayName:['nvarchar(512)','displayName'],State:['nvarchar(128)','state'],
+  SourceCreatedAtUtc:['datetime2','sourceCreatedAtUtc'],SourceUpdatedAtUtc:['datetime2','sourceUpdatedAtUtc'],SourceJson:['nvarchar(max)','sourceJson'],CollectedAtUtc:['datetime2','collectedAtUtc']};
+function evidenceTable(dataType:DataType):string{return isSnapshotType(dataType)?`app.${datasetCatalog[dataType].table}`:dataType==='licenses'?'app.AuditLicenses':'app.AuditLicenseAssignments';}
+function insertPage(dataType:DataType):string {
+  const columns=isSnapshotType(dataType)?snapshotColumns:dataType==='licenses'?licenseColumns:assignmentColumns;
+  const table=evidenceTable(dataType);
+  const keys=dataType==='licenseAssignments'?['UserId','SkuId','AssignmentSource']:['SourceId'];
   const names=Object.keys(columns);
   const definitions=Object.entries(columns).map(([name,[type,path]])=>`${name} ${type} '$.${path}'`).join(',');
   const match=['OrganizationId=@OrganizationId','TenantId=@TenantId','ScanId=@ScanId',...keys.map(key=>`${key}=page.${key}`)].map(s=>`existing.${s}`).join(' AND ');
@@ -87,7 +93,7 @@ function insertPage(dataType:LicenseDataType):string {
     WHERE NOT EXISTS(SELECT 1 FROM ${table} existing WHERE ${match});`;
 }
 
-export async function checkpointCollection(job:CollectionJob, records:LicenseRecord[]|AssignmentRecord[],
+export async function checkpointCollection(job:CollectionJob, records:LicenseRecord[]|AssignmentRecord[]|SnapshotRecord[],
   nextLink:string|null, error?:{code:string;missingAccess:boolean}):Promise<void> {
   await withOrganization(job.OrganizationId,async transaction=>{
     await jobRequest(transaction,job).execute('security.LockAuditCollection');
@@ -96,7 +102,7 @@ export async function checkpointCollection(job:CollectionJob, records:LicenseRec
       WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId;`);
     if(records.length) await jobRequest(transaction,job).input('Rows',sql.NVarChar(sql.MAX),JSON.stringify(records)).query(insertPage(job.DataType));
     const finished=!!error||nextLink===null;
-    const table=job.DataType==='licenses'?'app.AuditLicenses':'app.AuditLicenseAssignments';
+    const table=evidenceTable(job.DataType);
     await jobRequest(transaction,job).input('Finished',sql.Bit,finished)
       .input('ErrorCode',sql.VarChar(64),error?.code??null).input('MissingAccess',sql.Bit,error?.missingAccess??false)
       .query(`DECLARE @Count int=(SELECT COUNT(*) FROM ${table} WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId);
@@ -126,13 +132,16 @@ export async function getDataAudit(tenantId:string,scanId:string) {
   if(!uuidPattern.test(scanId))return null;
   return withTenant(tenantId,async(transaction,organizationId)=>{
     const audit=(await scoped(transaction,organizationId,tenantId,scanId).query(`SELECT ScanId,Scope,Status,
-      CollectorVersion,CreatedAtUtc,StartedAtUtc,CompletedAtUtc FROM app.DataAudits
+      CollectorVersion,SubscriptionId,CreatedAtUtc,StartedAtUtc,CompletedAtUtc FROM app.DataAudits
       WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId;`)).recordset[0];
     if(!audit)return null;
     const collections=(await scoped(transaction,organizationId,tenantId,scanId).query(`SELECT DataType,Status,
       StartedAtUtc,CompletedAtUtc,RecordCount,ErrorCode FROM app.AuditCollections
       WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId ORDER BY DataType;`)).recordset;
-    return {audit,collections};
+    return {audit,collections:collections.map(row=>{
+      const dataType=String(row.DataType);
+      return {...row,...(isSnapshotType(dataType)?{Label:datasetCatalog[dataType].label,Category:datasetCatalog[dataType].category}:{Label:dataType==='licenses'?'Licenses':'License assignments',Category:'Licensing'})};
+    })};
   });
 }
 export async function getLicenseRows(tenantId:string,scanId:string,dataType:LicenseDataType,
@@ -161,6 +170,30 @@ export async function getLicenseRows(tenantId:string,scanId:string,dataType:Lice
         SELECT ${fields.split(',').map(f=>`evidence.${f}`).join(',')}${isLicenses?'':',product.SkuPartNumber,product.ProductName'} FROM ${from} WHERE ${where}
         ORDER BY ${isLicenses?'evidence.SkuPartNumber,evidence.SourceId':'evidence.UserId,evidence.SkuId,evidence.AssignmentSource'}
         OFFSET @Offset ROWS FETCH NEXT 50 ROWS ONLY;`);
+    const sets=result.recordsets as sql.IRecordSet<unknown>[];
+    return {rows:sets[1]??[],total:(sets[0]?.[0] as {Total:number}|undefined)?.Total??0,page,pageSize:50};
+  });
+}
+
+export async function getJobSubscription(job:CollectionJob):Promise<string|null>{
+  return withOrganization(job.OrganizationId,async transaction=>{
+    const row=(await jobRequest(transaction,job).query(`SELECT SubscriptionId FROM app.DataAudits
+      WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId;`)).recordset[0];
+    return row?.SubscriptionId??null;
+  });
+}
+export async function getSnapshotRows(tenantId:string,scanId:string,dataType:SnapshotDataType,page:number,search:string){
+  await requireAuditSql();
+  return withTenant(tenantId,async(transaction,organizationId)=>{
+    const table=evidenceTable(dataType);
+    const exists=(await scoped(transaction,organizationId,tenantId,scanId).query(`SELECT 1 FROM app.DataAudits WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId;`)).recordset[0];
+    if(!exists)return null;
+    const where=`OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND
+      (@Search='' OR CHARINDEX(@Search,DisplayName)>0 OR CHARINDEX(@Search,SourceId)>0 OR CHARINDEX(@Search,SourceJson)>0)`;
+    const result=await scoped(transaction,organizationId,tenantId,scanId).input('Offset',sql.Int,(page-1)*50)
+      .input('Search',sql.NVarChar(200),search).query(`SELECT COUNT(*) Total FROM ${table} WHERE ${where};
+      SELECT SourceId,DisplayName,State,SourceCreatedAtUtc,SourceUpdatedAtUtc,SourceJson,CollectedAtUtc,StoredAtUtc FROM ${table}
+      WHERE ${where} ORDER BY SourceId OFFSET @Offset ROWS FETCH NEXT 50 ROWS ONLY;`);
     const sets=result.recordsets as sql.IRecordSet<unknown>[];
     return {rows:sets[1]??[],total:(sets[0]?.[0] as {Total:number}|undefined)?.Total??0,page,pageSize:50};
   });

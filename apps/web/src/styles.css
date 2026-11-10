@@ -680,3 +680,4 @@ html[data-theme="light"] .questionnaire-page { --mg-panel:#fff; --mg-field:#f7fa
 .audit-evidence-table small { display:block; overflow-wrap:anywhere; opacity:.75; margin-top:4px; }
 .audit-data-page .report-actions { flex-wrap:wrap; align-items:center; gap:12px; }
 .audit-data-page button[aria-pressed=true] { outline:2px solid currentColor; outline-offset:2px; }
+.audit-source-json { min-width:280px; max-width:680px; max-height:600px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; font-size:.8rem; }

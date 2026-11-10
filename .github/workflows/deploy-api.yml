@@ -1,8 +1,10 @@
 name: Deploy API
 # Deployment prerequisite: apply through 015 for existing forms; 016 is required to create client-v3.
 # SQL migrations are operator-managed; see database/questionnaires.md for order and validation.
-# License data audits: migration 017, then API/web, permissions/consent, then explicit activation.
-# DATA_AUDITS_ENABLED defaults false. See database/audit-licensing.md; never migrate live implicitly.
+# Migration 017 supplies the licensing foundation; 018 is required for unified collection.
+# Dev activation is explicit; never apply SQL migrations to live implicitly in this workflow.
+# Unified tenant datasets: apply 018 before API deployment; explicit activation is versioned in
+# the SQL runtime script/Dev Bicep parameters. SQL is the only audit backend. See database/tenant-audit-data.md.
 
 on:
   push:

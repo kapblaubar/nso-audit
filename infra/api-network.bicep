@@ -24,7 +24,7 @@ param emailSender string
 @minValue(1)
 @maxValue(168)
 param invitationLifetimeHours int = 72
-@description('Enable only after SQL migration 017 and licensing permissions are verified.')
+@description('Enable unified SQL audit collection after migration 018 and source access review. Source access failures are recorded per dataset.')
 param dataAuditsEnabled bool = false
 param entraClientSecretName string = 'nso-audit-app-client-secret'
 param entraClientCertificateName string = 'nso-audit-dlp-certificate'

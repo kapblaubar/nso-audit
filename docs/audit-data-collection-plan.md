@@ -8,6 +8,10 @@ Implementation progress: the first licensing slice is now implemented locally. S
 worker, UI, activation requirements and remaining disposable/live verification. The
 original plan below describes the full intended collection scope, not completed coverage.
 
+Subsequent implementation: migration 018 adds 15 configuration/security source tables and
+unifies them with licensing under one SQL audit run. SQL is the sole normal audit backend.
+Current coverage, activation and remaining datasets are in [tenant audit data](../database/tenant-audit-data.md).
+
 ## Scope
 
 Collect tenant configuration and security evidence first and persist every audit in SQL.

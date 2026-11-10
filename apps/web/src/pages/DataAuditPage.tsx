@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useState,useRef} from 'react';
 import type {AuditAccount} from '../auth';
 import {loadDataAudit,loadLicenseEvidence,loadScanHistory,loadStarterScan,startStarterScan,startDataAudit,
   type DataAudit,type LicenseEvidencePage,type ScanHistoryItem} from '../api';
@@ -14,9 +14,10 @@ const reason:Record<string,string>={missingAccess:'Microsoft denied access. Revi
 export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;onSignOut:()=>void;scanId?:string}){
   useEffect(()=>{clearAuditDestination();},[]);
   const [report,setReport]=useState<DataAudit>(),[history,setHistory]=useState<ScanHistoryItem[]>([]);
+  const initialized=useRef(false);
   const [error,setError]=useState(''),[running,setRunning]=useState(false),[refresh,setRefresh]=useState(0);
   const [subscriptionId,setSubscriptionId]=useState(''),[auditRunning,setAuditRunning]=useState(false),[auditError,setAuditError]=useState('');
-  const [dataType,setDataType]=useState<'licenses'|'licenseAssignments'>('licenses');
+  const [dataType,setDataType]=useState<string>('licenses');
   const [page,setPage]=useState(1),[search,setSearch]=useState(''),[skuId,setSkuId]=useState('');
   const [evidence,setEvidence]=useState<LicenseEvidencePage>(),[loading,setLoading]=useState(false),[dataError,setDataError]=useState('');
   const viewer='kind' in account&&account.role==='viewer';
@@ -42,6 +43,7 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
       try{
         const result=await loadDataAudit(account,scanId);
         if(cancelled)return;
+        if(!initialized.current){if(result.audit.Scope==='tenant')setDataType('conditionalAccess');initialized.current=true;}
         setReport(result);setError('');
         if(['queued','running'].includes(result.audit.Status))timer=setTimeout(()=>void load(),5000);
       }catch(err){if(!cancelled)setError(err instanceof Error?err.message:'Audit could not be loaded.');}
@@ -86,9 +88,10 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
       <div className="report-actions"><button className="step-action" disabled={viewer||auditRunning||!(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(subscriptionId.trim()))} onClick={()=>void startAudit()}>{auditRunning?'Running audit…':'Run audit'}</button>
         <button className="detail-button" onClick={()=>setRefresh(n=>n+1)}>Refresh</button><a className="detail-button" href="/onboarding">Connection settings</a></div>
       {auditError?<p role="alert" className="auth-error">{auditError}</p>:null}
-      <h2>Additional audit coverage</h2><p>Licenses and user assignments belong to the tenant audit, but are not collected by the current audit. Additional policy and backup datasets are not collected yet.</p>
-    </section>:<><p>License and user-assignment snapshot. This is one dataset within the tenant audit.</p>
-      <div className="report-actions"><a className="step-action" href="/audit-data">Run tenant audit</a><button className="detail-button" disabled={viewer||running||active} onClick={()=>void start()}>{running?'Starting audit…':'Run license audit'}</button>
+      <h2>Audit data</h2><p>Each run collects timestamped configuration, scores, recommendations, licenses and user assignments into the audit database. Collection progress and missing access are reported separately for each dataset.</p>
+      <p>DLP, labels, retention, insider risk, threat and alert policies, Sentinel connectors, backup policies, device settings-catalog details, Exposure Score and Secure Score for Devices are not collected yet.</p>
+    </section>:<><p>Saved tenant audit evidence. Every dataset below belongs to this audit and retains its collection timestamp.</p>
+      <div className="report-actions"><a className="step-action" href="/audit-data">Run tenant audit</a>{report?.audit.Scope==='licensing'?<button className="detail-button" disabled={viewer||running||active} onClick={()=>void start()}>{running?'Starting audit…':'Run license audit'}</button>:null}
         <button className="detail-button" onClick={()=>setRefresh(n=>n+1)}>Refresh</button></div></>}
     {viewer?<p>You have read-only access to saved audits.</p>:null}
     {error?<p role="alert" className="auth-error">{error}</p>:null}
@@ -98,22 +101,25 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
         <dt>Created</dt><dd>{date(report.audit.CreatedAtUtc)}</dd><dt>Started</dt><dd>{date(report.audit.StartedAtUtc)}</dd>
         <dt>Completed</dt><dd>{date(report.audit.CompletedAtUtc)}</dd></dl>
       {active?<p role="status">Collection is queued or running. You can leave this page and return later. Progress refreshes automatically.</p>:null}
-      <ul>{report.collections.map(item=><li key={item.DataType}><strong>{item.DataType==='licenses'?'License summary':'User license assignments'}</strong>: {item.Status} · {item.RecordCount} records
+      <ul>{report.collections.map(item=><li key={item.DataType}><button className="text-button" onClick={()=>{setDataType(item.DataType);setPage(1);setSearch('');setSkuId('');}}>{item.Label??(item.DataType==='licenses'?'License summary':item.DataType==='licenseAssignments'?'User license assignments':item.DataType)}</button>: {item.Status} · {item.RecordCount} records
         {item.ErrorCode?<p role="status">{reason[item.ErrorCode]??`Collection failed (${item.ErrorCode}).`} {item.RecordCount?'Saved rows are incomplete.':''}</p>:null}</li>)}</ul>
-    </section><section aria-label="License evidence"><h2>Tenant licenses</h2>
+    </section><section aria-label="Audit evidence"><h2>{collection?.Label??(dataType==='licenses'?'Tenant licenses':dataType==='licenseAssignments'?'Assigned users':dataType)}</h2>
+      {report.audit.Scope==='tenant'?<label className="management-field">Dataset<select value={dataType} onChange={event=>{setDataType(event.target.value);setPage(1);setSearch('');setSkuId('');}}>
+        {report.collections.map(item=><option value={item.DataType} key={item.DataType}>{item.Label??item.DataType} ({item.RecordCount})</option>)}
+      </select></label>:null}
       <div className="report-actions"><button className="detail-button" aria-pressed={dataType==='licenses'} onClick={()=>changeTab('licenses')}>License summary</button>
         <button className="detail-button" aria-pressed={dataType==='licenseAssignments'} onClick={()=>changeTab('licenseAssignments')}>Assigned users</button></div>
-      <p>Products display their SKU when a friendly product name is unavailable. Assignment rows include direct, group, unknown, and error states; their count is not a unique-user total.</p>
-      <label className="management-field">Search licenses or assignments<input type="search" maxLength={200} value={search} onChange={event=>{setSearch(event.target.value);setPage(1);}}/></label>
+      {dataType==='licenses'||dataType==='licenseAssignments'?<p>Products display their SKU when a friendly product name is unavailable. Assignment rows include direct, group, unknown, and error states; their count is not a unique-user total.</p>:null}
+      <label className="management-field">Search audit data<input type="search" maxLength={200} value={search} onChange={event=>{setSearch(event.target.value);setPage(1);}}/></label>
       {skuId?<p>Filtered to SKU {skuId}. <button className="text-button" onClick={()=>{setSkuId('');setPage(1);}}>Clear license filter</button></p>:null}
       {loading?<p role="status">Loading saved evidence…</p>:null}
       {dataError?<p role="alert">{dataError}</p>:null}
       {evidence?<><p>{evidence.total} matching records. {collection?.Status!=='complete'?'Collection is incomplete; these rows are not a full inventory.':''}</p>
-      <div className="audit-table-scroll"><table className="audit-evidence-table"><thead><tr>{dataType==='licenses'?<>
+      <div className="audit-table-scroll"><table className="audit-evidence-table"><thead><tr>{dataType!=='licenses'&&dataType!=='licenseAssignments'?<><th>Name / source ID</th><th>State</th><th>Collected</th><th>Configuration evidence</th></>:dataType==='licenses'?<>
         <th>Product / SKU</th><th>Enabled units</th><th>Assigned units</th><th>Suspended / warning</th><th>Status</th><th>Applies to</th><th>Collected</th><th>Users</th>
       </>:<><th>User</th><th>Product / SKU</th><th>Assignment type</th><th>Group ID</th><th>State / error</th><th>Source updated</th><th>Collected</th></>}</tr></thead>
         <tbody>{evidence.rows.map(row=><tr key={row.SourceId??`${row.UserId}:${row.SkuId}:${row.AssignmentSource}`}>
-          {dataType==='licenses'?<><td>{row.ProductName??row.SkuPartNumber??row.SkuId}<small>{row.SkuId}</small></td><td>{row.EnabledUnits??'—'}</td>
+          {dataType!=='licenses'&&dataType!=='licenseAssignments'?<><td>{row.DisplayName??row.SourceId}<small>{row.SourceId}</small></td><td>{row.State??'—'}</td><td>{date(row.CollectedAtUtc)}</td><td><pre className="audit-source-json">{row.SourceJson?JSON.stringify(JSON.parse(row.SourceJson),null,2):'—'}</pre></td></>:dataType==='licenses'?<><td>{row.ProductName??row.SkuPartNumber??row.SkuId}<small>{row.SkuId}</small></td><td>{row.EnabledUnits??'—'}</td>
             <td>{row.ConsumedUnits??'—'}</td><td>{row.SuspendedUnits??'—'} / {row.WarningUnits??'—'}</td><td>{row.CapabilityStatus??'—'}</td><td>{row.AppliesTo??'—'}</td>
             <td>{date(row.CollectedAtUtc)}</td><td><button className="text-button" onClick={()=>{setDataType('licenseAssignments');setSkuId(row.SkuId);setPage(1);setSearch('');}}>View users</button></td></>:
           <><td>{row.Email??row.UserPrincipalName??row.UserId}<small>{row.DisplayName}</small></td><td>{row.ProductName??row.SkuPartNumber??row.SkuId}</td><td>{row.AssignmentType}</td>

@@ -100,7 +100,7 @@ export async function getStarterScan(tenantId:string,scanId:string) {
         ...(typeof value.evidenceJson==='string'?{evidence:JSON.parse(value.evidenceJson) as unknown}:{})};
     });
     return {scanId,tenantId,status:scan.status as ScanStatus,createdAt:String(scan.createdAt),
-      ...(scan.auditScope === 'licensing' ? {auditScope:'licensing' as const} : {}),
+      ...(scan.auditScope === 'licensing' ? {auditScope:'licensing' as const} : scan.auditScope==='tenant'?{auditScope:'tenant' as const}:{}),
       completedAt:scan.completedAt as string|undefined,score:scan.score as number|undefined,subscriptionId:scan.subscriptionId as string|undefined,
       ...(typeof scan.baselineJson==='string'?{baseline:JSON.parse(scan.baselineJson) as BaselineResult}:{}),findings};
   });
@@ -113,7 +113,7 @@ export async function listTenantScans(tenantId:string,limit=25) {
     return result.recordset.map((row:{ScanId:string;EntityJson:string})=>{
       const scan=JSON.parse(row.EntityJson) as Entity;
       return {scanId:String(scan.rowKey),status:scan.status as ScanStatus,createdAt:String(scan.createdAt),completedAt:scan.completedAt as string|undefined,score:scan.score as number|undefined,
-        ...(scan.auditScope==='licensing'?{auditScope:'licensing' as const}:{})};
+        ...(scan.auditScope==='licensing'?{auditScope:'licensing' as const}:scan.auditScope==='tenant'?{auditScope:'tenant' as const}:{})};
     });
   });
 }

@@ -6,6 +6,13 @@ for the target environment; credentials and deployment tokens must never be comm
 
 ## Current automation status
 
+Unified tenant data collection requires migration 018, then API/web deployment and explicit
+DATA_AUDITS_ENABLED activation. See [tenant audit data deployment](../database/tenant-audit-data.md).
+Normal audit evidence uses SQL only; legacy Azure Tables are no longer a runtime backend. Keep
+the storage account for Functions host coordination and other uses. The user authorized direct
+Dev database migration for this work. New environments still require their own validation and
+isolated parameters/identities; this change does not establish a proven Prod rebuild.
+
 Database-backed license collection requires migration 017 and explicit activation after SQL
 validation and customer permission/consent checks. Follow [license audit deployment and recovery](../database/audit-licensing.md).
 It adds a timer worker using existing host storage and a SQL dispatch queue. It is disabled by

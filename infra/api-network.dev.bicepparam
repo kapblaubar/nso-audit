@@ -1,7 +1,7 @@
 using './api-network.bicep'
 param environmentName = 'dev'
-// Activate after migration 017, permission/consent verification and smoke testing.
-param dataAuditsEnabled = false
+// Unified SQL datasets (migration 018). Source access is reported per dataset.
+param dataAuditsEnabled = true
 param location = 'westus2'
 // Planned migration: preserve the legacy API as rollback; migrate website to this candidate after validation.
 param functionAppName = 'nso-audit-dev-api-flex'

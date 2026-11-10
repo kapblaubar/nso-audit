@@ -3,12 +3,15 @@ import { requireAuditUser, AuditAccessError } from "../auth/requireAuditUser.js"
 import { runStarterCollection } from "../access/customerAccess.js";
 import { evaluateBaseline } from "../scoring/baseline.js";
 import { getStarterScan, listTenantScans, saveStarterScan } from "../storage/tenantStore.js";
+import {createDataAudit} from '../audits/store.js';
+import {uuidPattern} from '../storage/sql.js';
 
 export async function startScan(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   try {
     const user = await requireAuditUser(request);
     const body = await request.json() as { subscriptionId?: unknown };
-    if (typeof body.subscriptionId !== "string" || !/^[0-9a-f-]{36}$/i.test(body.subscriptionId)) return { status: 400, jsonBody: { error: "A valid Subscription ID is required." } };
+    if (typeof body.subscriptionId !== "string" || !uuidPattern.test(body.subscriptionId)) return { status: 400, jsonBody: { error: "A valid Subscription ID is required." } };
+    if(process.env.DATA_AUDITS_ENABLED==='true')return {status:202,jsonBody:await createDataAudit(user.tenantId,user.objectId,body.subscriptionId)};
     const findings = await runStarterCollection(user.tenantId, body.subscriptionId);
     const baseline = evaluateBaseline(findings);
     return { status: 201, jsonBody: await saveStarterScan(user.tenantId, body.subscriptionId, findings, baseline) };

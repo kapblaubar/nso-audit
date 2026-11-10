@@ -27,4 +27,7 @@ export async function processCollection(job:CollectionJob,deps:WorkerDependencie
   }
   await deps.checkpoint(job,records,page.nextLink);
 }
-export const graphPage:WorkerDependencies['page']=(job,token)=>fetchLicensePage(job.DataType,job.NextLink,token);
+export const graphPage:WorkerDependencies['page']=(job,token)=>{
+  if(job.DataType!=='licenses'&&job.DataType!=='licenseAssignments')throw new CollectionError('invalidDataType');
+  return fetchLicensePage(job.DataType,job.NextLink,token);
+};
