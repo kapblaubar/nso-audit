@@ -39,3 +39,15 @@ test('Graph and ARM page links are retained and singleton policies are saved as 
     (error:unknown)=>error instanceof CollectionError&&error.missingAccess);
   await assert.rejects(()=>fetchSnapshotPage('conditionalAccess',null,null,'fixture',async()=>Response.json({})),/invalidResponse/);
 });
+
+test('role collection expands role and principal and retains snapshot identity',async()=>{
+  const value={id:'assignment-1',roleDefinitionId:'role-1',principalId:'user-1',roleDefinition:{id:'role-1',displayName:'Global Administrator',templateId:'62e90394-69f5-4237-9190-012177145e10'},principal:{id:'user-1','@odata.type':'#microsoft.graph.user',displayName:'Test Admin',userPrincipalName:'admin@example.test'}};
+  const page=await fetchSnapshotPage('roleAssignments',null,null,'fixture',async url=>{
+    assert.equal(new URL(String(url)).searchParams.get('$expand'),'roleDefinition,principal');
+    return Response.json({value:[value]});
+  });
+  assert.equal(page.records[0]?.displayName,'Global Administrator');
+  assert.equal(page.records[0]?.sourceId,'assignment-1');
+  assert.deepEqual(JSON.parse(page.records[0]!.sourceJson),value);
+  assert.equal(normalizeSnapshots([{id:'older',roleDefinitionId:'role-1',principalId:'user-1'}],'2026-11-10T00:00:00Z')[0]?.displayName,null);
+});

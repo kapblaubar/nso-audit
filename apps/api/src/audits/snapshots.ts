@@ -59,7 +59,8 @@ export function normalizeSnapshots(values:unknown[],collectedAtUtc:string):Snaps
     const sourceId=item.id??item.name;
     if(typeof sourceId!=='string'||!sourceId||sourceId.length>450)throw new CollectionError('invalidSourceIdentifier');
     const properties=item.properties&&typeof item.properties==='object'?item.properties as Record<string,unknown>:{};
-    const display=item.displayName??properties.displayName??item.name??item.userPrincipalName;
+    const role=item.roleDefinition&&typeof item.roleDefinition==='object'?item.roleDefinition as Record<string,unknown>:{};
+    const display=item.displayName??role.displayName??properties.displayName??item.name??item.userPrincipalName;
     const state=item.state??properties.provisioningState;
     rows.set(sourceId,{sourceId,displayName:typeof display==='string'?display.slice(0,512):null,
       state:typeof state==='string'?state.slice(0,128):null,

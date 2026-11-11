@@ -1,5 +1,12 @@
 # SQL foundation
 
+Start with the [data dictionary](data-dictionary.md) for all 62 project tables: purpose,
+API readers/writers, keys, relationships, source APIs and lifecycle notes. The
+[CSV version](data-dictionary.csv) can be opened in Excel. Run the read-only
+[SSMS schema inspection script](inspect-schema.sql) to see current columns and constraints
+in your connected database. Regenerate/check the source inventory with
+`python scripts/build-data-dictionary.py` / `python scripts/build-data-dictionary.py --check`.
+
 Migration 018 adds the unified tenant collection datasets and makes SQL the only runtime audit
 backend. See [tenant audit data](tenant-audit-data.md) for tables, coverage, permissions,
 activation and recovery. Storage remains for Functions hosting and other non-audit uses.

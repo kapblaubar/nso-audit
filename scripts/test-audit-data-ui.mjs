@@ -43,7 +43,18 @@ try{
       {scanId:'00000000-0000-4000-8000-000000000099',status:'complete',createdAt:at}]});
     if(url.pathname==='/api/me/scans/00000000-0000-4000-8000-000000000099')return respond({scanId:'00000000-0000-4000-8000-000000000099',subscriptionId:tenant,findings:[],...(fullStarted?{auditScope:'tenant'}:{})});
     if(url.pathname==='/api/me/audits/00000000-0000-4000-8000-000000000099')return respond({audit:{ScanId:'00000000-0000-4000-8000-000000000099',Scope:'tenant',Status:'complete',CreatedAtUtc:at,StartedAtUtc:at,CompletedAtUtc:at},
-      collections:[{DataType:'conditionalAccess',Label:'Conditional Access policies',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'namedLocations',Label:'Named locations',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'licenses',Label:'Licenses',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'licenseAssignments',Label:'License assignments',Status:'complete',RecordCount:1,ErrorCode:null}]});
+      collections:[{DataType:'roleAssignments',Label:'Directory role assignments',Status:'complete',RecordCount:3,ErrorCode:null},{DataType:'settingsCatalogPolicies',Label:'Settings catalog policies',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'settingsCatalogSettings',Label:'Settings',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'settingsCatalogAssignments',Label:'Assignments',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'conditionalAccess',Label:'Conditional Access policies',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'namedLocations',Label:'Named locations',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'licenses',Label:'Licenses',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'licenseAssignments',Label:'License assignments',Status:'complete',RecordCount:1,ErrorCode:null}]});
+    if(url.pathname==='/api/me/audits/00000000-0000-4000-8000-000000000099/roleAssignments'){
+      const p=Number(url.searchParams.get('page')??1);
+      const source={id:`assignment-${p}`,roleDefinitionId:'role-ga',principalId:p===1?'user-a':'group-a',roleDefinition:{displayName:'Global Administrator',templateId:'62e90394-69f5-4237-9190-012177145e10'},principal:{displayName:p===1?'Fixture Admin':'Admin Group','@odata.type':p===1?'#microsoft.graph.user':'#microsoft.graph.group'},directoryScopeId:'/'};
+      return respond({rows:[{SourceId:source.id,CollectedAtUtc:at,SourceJson:JSON.stringify(source)}],total:2,page:p,pageSize:1});
+    }
+    if(url.pathname==='/api/me/audits/00000000-0000-4000-8000-000000000099/settingsCatalogPolicies')return respond({rows:[{SourceId:'policy-a',DisplayName:'Endpoint hardening',CollectedAtUtc:at,SourceJson:JSON.stringify({name:'Endpoint hardening',platforms:'windows10',description:'Fixture configuration'})},{SourceId:'policy-b',DisplayName:'Browser controls',CollectedAtUtc:at,SourceJson:JSON.stringify({name:'Browser controls',platforms:'windows10'})}],total:2,page:1,pageSize:50});
+    if(url.pathname==='/api/me/audits/00000000-0000-4000-8000-000000000099/settingsCatalogSettings'){
+      const second=url.searchParams.get('page')==='2';
+      return respond({rows:[{SourceId:second?'child-a':'child-b',ParentSourceId:second?'policy-a':'policy-b',ChildSourceId:'0',CollectedAtUtc:at,SourceJson:JSON.stringify({settingInstance:{settingDefinitionId:second?'def-a':'def-b',choiceSettingValue:{value:'enabled',children:[{settingDefinitionId:'nested',simpleSettingValue:{value:30}}]}},settingDefinitions:[{id:second?'def-a':'def-b',displayName:second?'Block untrusted applications':'Browser-only setting',options:[{itemId:'enabled',displayName:'Enabled'}]},{id:'nested',displayName:'Timeout minutes'}]})}],total:2,page:second?2:1,pageSize:1});
+    }
+    if(url.pathname==='/api/me/audits/00000000-0000-4000-8000-000000000099/settingsCatalogAssignments')return respond({rows:[{SourceId:'assignment-a',ParentSourceId:'policy-a',ChildSourceId:'0',CollectedAtUtc:at,SourceJson:JSON.stringify({target:{'@odata.type':'#microsoft.graph.allDevicesAssignmentTarget'}})}],total:1,page:1,pageSize:50});
     if(url.pathname==='/api/me/audits/00000000-0000-4000-8000-000000000099/conditionalAccess')return respond({rows:[{SourceId:'fixture-policy',DisplayName:'Fixture MFA policy',State:'enabled',CollectedAtUtc:at,SourceJson:JSON.stringify({id:'fixture-policy',displayName:'Fixture MFA policy',state:'enabled',conditions:{users:{includeUsers:['All'],excludeUsers:[]},applications:{includeApplications:['All']},locations:{includeLocations:['fixture-hq'],excludeLocations:['AllTrusted']},clientAppTypes:['browser'],platforms:{includePlatforms:['all']}},grantControls:{builtInControls:['mfa'],operator:'AND'}})}],total:1,page:1,pageSize:50});
     if(url.pathname==='/api/me/audits/00000000-0000-4000-8000-000000000099/namedLocations')return respond({rows:[{SourceId:'fixture-hq',DisplayName:'HQ network',CollectedAtUtc:at,SourceJson:JSON.stringify({'@odata.type':'#microsoft.graph.ipNamedLocation',displayName:'HQ network',isTrusted:true,ipRanges:[{cidrAddress:'192.0.2.0/24'},{cidrAddress:'2001:db8::/32'}]})},{SourceId:'fixture-countries',DisplayName:'Allowed countries',CollectedAtUtc:at,SourceJson:JSON.stringify({'@odata.type':'#microsoft.graph.countryNamedLocation',displayName:'Allowed countries',countriesAndRegions:['US','GB'],includeUnknownCountriesAndRegions:true})}],total:2,page:1,pageSize:50});
     if(url.pathname==='/api/me/audits/00000000-0000-4000-8000-000000000099/licenses')return respond({rows:[{SourceId:'fixture',SkuId:sku,SkuPartNumber:'FIXTURE_SKU',EnabledUnits:10,ConsumedUnits:1,CollectedAtUtc:at}],total:1,page:1,pageSize:50});
@@ -77,15 +88,47 @@ try{
   await page.locator('.audit-policy-card').getByText('HQ network',{exact:true}).waitFor();
   await page.getByText('All platforms',{exact:true}).waitFor();
   assert.equal(await page.locator('.audit-raw-evidence[open]').count(),0,'JSON should be optional, not the default policy view.');
-  await page.getByLabel('Dataset',{exact:true}).selectOption('namedLocations');
+  await page.getByRole('button',{name:/^Directory role assignments/}).click();
+  await page.getByRole('heading',{name:'Global Administrator',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Fixture Admin',exact:true}).waitFor();
+  await page.getByText('2 observed assignments ? 1 identified direct users',{exact:true}).waitFor();
+  assert.ok(requests.some(r=>r.includes('roleAssignments?page=2')),'Role summary must include all pages.');
+  await page.getByRole('button',{name:'Next',exact:true}).click();
+  await page.getByRole('heading',{name:'Admin Group',exact:true}).waitFor();
+  await page.getByText('2 observed assignments ? 1 identified direct users',{exact:true}).waitFor();
+  await page.getByRole('navigation',{name:'Audit categories'}).getByRole('button',{name:/^Devices/}).click();
+  await page.getByRole('heading',{name:'Endpoint hardening',exact:true}).waitFor();
+  await page.getByRole('tab',{name:'Settings',exact:true}).click();
+  await page.getByRole('heading',{name:'Block untrusted applications',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Timeout minutes',exact:true}).waitFor();
+  if(process.env.AUDIT_UI_SCREENSHOT)await page.evaluate(()=>window.scrollTo(0,0));
+  if(process.env.AUDIT_UI_SCREENSHOT)await page.screenshot({path:process.env.AUDIT_UI_SCREENSHOT,fullPage:true});
+  assert.equal(await page.getByRole('heading',{name:'Browser-only setting',exact:true}).count(),0,'A different policy leaked into selected settings.');
+  assert.ok(requests.some(r=>r.includes('settingsCatalogSettings?page=2')),'Child pagination was truncated.');
+  await page.getByRole('tab',{name:'Assignments',exact:true}).click();
+  await page.getByText(/Included.*All Devices/).waitFor();
+  await page.getByRole('button',{name:/Browser controls.*View details/}).click();
+  await page.getByRole('tab',{name:'Settings',exact:true}).click();
+  await page.getByRole('heading',{name:'Browser-only setting',exact:true}).waitFor();
+  assert.equal(await page.getByRole('heading',{name:'Block untrusted applications',exact:true}).count(),0);
+  await page.getByRole('tab',{name:'Assignments',exact:true}).click();
+  await page.getByText('No assignments returned for this policy.',{exact:true}).waitFor();
+  await page.reload();await page.getByRole('heading',{name:'Browser controls',exact:true}).waitFor();
+  await page.getByRole('tab',{name:'Source evidence',exact:true}).click();
+  assert.equal(await page.locator('.audit-raw-evidence[open]').count(),0);
+  await page.getByRole('navigation',{name:'Audit categories'}).getByRole('button',{name:/^Backups/}).click();
+  await page.getByText('Not collected in this audit.',{exact:true}).waitFor();
+  await page.getByRole('navigation',{name:'Audit categories'}).getByRole('button',{name:/^Identity/}).click();
+  await page.getByRole('navigation',{name:'Audit categories'}).getByRole('button',{name:/Named locations/}).click();
   await page.getByRole('cell',{name:'Trusted',exact:true}).waitFor();
   await page.getByText('192.0.2.0/24',{exact:true}).waitFor();
   await page.getByText('2001:db8::/32',{exact:true}).waitFor();
+  await page.getByRole('button',{name:/Allowed countries.*View details/}).click();
   await page.getByText('United States (US)',{exact:true}).waitFor();
   await page.getByText('United Kingdom (GB)',{exact:true}).waitFor();
   assert.equal(await page.getByRole('row').filter({hasText:'Allowed countries'}).getByRole('cell',{name:'Not provided',exact:true}).count(),1,'Missing trust metadata must not be presented as Not trusted.');
   await page.setViewportSize({width:390,height:844});
-  await page.getByLabel('Dataset',{exact:true}).selectOption('conditionalAccess');
+  await page.getByRole('navigation',{name:'Audit categories'}).getByRole('button',{name:/Conditional Access policies/}).click();
   await page.getByRole('heading',{name:'Fixture MFA policy',exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth),false,'Policy details overflow the mobile viewport.');
   await page.evaluate(()=>document.documentElement.dataset.theme='light');
@@ -179,5 +222,6 @@ try{
   console.log('PASS: audit launch, progress polling, stored license rows, assignment drill-down/search, missing access, route restoration, viewer controls and mobile layout.');
   console.log('PASS: audit destination survives workspace selection and email sign-in.');
   console.log('PASS: main Run audit starts a unified SQL audit, restores saved subscription settings and opens stored configuration evidence; licensing is part of the same run.');
+  console.log('PASS: linked policy settings, nested definition labels, complete child pagination, assignment isolation, empty assignments, deep-link reload and unavailable categories.');
   console.log('PASS: readable CAP/location evidence, resolved location names, license provider navigation, assignment deep links, reload and return to the same audit.');
 }finally{await browser?.close();await server.close();}

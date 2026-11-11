@@ -12,7 +12,7 @@ export const datasetCatalog = {
   authenticationMethods:{table:'AuditAuthenticationMethods',label:'Authentication method policies',category:'Identity & Access',path:'/v1.0/policies/authenticationMethodsPolicy',singleton:true},
   registrations:{table:'AuditAuthenticationRegistrations',label:'Authentication registration',category:'Identity & Access',path:'/v1.0/reports/authenticationMethods/userRegistrationDetails'},
   authorizationPolicy:{table:'AuditAuthorizationPolicies',label:'Authorization policy',category:'Identity & Access',path:'/v1.0/policies/authorizationPolicy',singleton:true},
-  roleAssignments:{table:'AuditRoleAssignments',label:'Directory role assignments',category:'Identity & Access',path:'/v1.0/roleManagement/directory/roleAssignments'},
+  roleAssignments:{table:'AuditRoleAssignments',label:'Directory role assignments',category:'Identity & Access',path:'/v1.0/roleManagement/directory/roleAssignments?$expand=roleDefinition,principal'},
   deviceConfigurations:{table:'AuditDeviceConfigurations',label:'Device configuration profiles',category:'Device & Endpoint Management',path:'/v1.0/deviceManagement/deviceConfigurations'},
   compliancePolicies:{table:'AuditCompliancePolicies',label:'Device compliance policies',category:'Device & Endpoint Management',path:'/v1.0/deviceManagement/deviceCompliancePolicies'},
   appProtectionPolicies:{table:'AuditAppProtectionPolicies',label:'App protection policies',category:'Device & Endpoint Management',path:'/v1.0/deviceAppManagement/managedAppPolicies'},

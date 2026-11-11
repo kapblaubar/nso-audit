@@ -25,11 +25,11 @@ function Values({value,allLabel,locations}:{value:unknown;allLabel?:string;locat
     return <li key={`${id}:${index}`}>{text}</li>;
   })}</ul>;
 }
-function Fields({value}:{value:unknown}){
+export function Fields({value}:{value:unknown}){
   if(value===null||value===undefined)return <span>Not provided</span>;
   if(Array.isArray(value))return value.length?<ul className="audit-value-list">{value.map((v,i)=><li key={i}><Fields value={v}/></li>)}</ul>:<span>None</span>;
   if(typeof value==='object'){
-    const entries=Object.entries(object(value)).filter(([key])=>key!=='@odata.context'&&key!=='@odata.type');
+    const entries=Object.entries(object(value)).filter(([key])=>!key.includes('@odata.'));
     return entries.length?<dl className="audit-policy-fields">{entries.map(([key,item])=><div key={key}><dt>{label(key)}</dt><dd><Fields value={item}/></dd></div>)}</dl>:<span>No settings returned</span>;
   }
   return <span>{display(value)}</span>;
@@ -57,9 +57,9 @@ export function ConditionalAccessDetails({rows,locations}:{rows:LicenseEvidenceR
       {policy.state==='enabledForReportingButNotEnforced'?<p>Report-only: this policy evaluates access but does not enforce these controls.</p>:policy.state==='disabled'?<p>This policy is disabled and does not enforce these controls.</p>:null}
       <h4>Who and what this policy targets</h4>
       <dl className="audit-policy-fields">{targeting.map(([title,value,...rest])=><div key={title}><dt>{title}</dt><dd><Values value={value} {...(rest[0]?{allLabel:rest[0]}:{})} {...(title.includes('locations')?{locations}:{})}/></dd></div>)}</dl>
-      <h4>Access requirements</h4><dl className="audit-policy-fields"><div><dt>Controls</dt><dd><Values value={grant.builtInControls}/></dd></div>
+      <h4>Access requirements</h4><dl className="audit-policy-fields"><div><dt>Built-in controls</dt><dd><Values value={grant.builtInControls}/></dd></div>
         <div><dt>How controls combine</dt><dd>{grant.operator==='AND'?'All listed controls are required':grant.operator==='OR'?'At least one listed control is required':'Not provided'}</dd></div>
-        {Object.entries(grant).filter(([key])=>!['builtInControls','operator'].includes(key)).map(([key,item])=><div key={key}><dt>{label(key)}</dt><dd><Fields value={item}/></dd></div>)}
+        {Object.entries(grant).filter(([key])=>!['builtInControls','operator'].includes(key)&&!key.includes('@odata.')).map(([key,item])=><div key={key}><dt>{label(key)}</dt><dd><Fields value={item}/></dd></div>)}
       </dl><h4>Session controls</h4>{policy.sessionControls?<Fields value={policy.sessionControls}/>:<p>No session controls returned.</p>}
       {Object.values(userExtra).some(v=>v!=null)?<><h4>Additional user targeting</h4><Fields value={userExtra}/></>:null}
       {Object.values(appExtra).some(v=>v!=null)?<><h4>Additional application targeting</h4><Fields value={appExtra}/></>:null}

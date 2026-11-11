@@ -1,5 +1,38 @@
 # Audit pages, licenses and readable policy evidence
 
+## Audit explorer (November 10, 2026)
+
+Tenant audit snapshots now use category navigation, a searchable/paginated inventory and
+a selected-item detail panel. Collection status/counts remain in a compact header with
+expandable collection details. Unsupported categories explicitly say not collected;
+completed empty datasets, incomplete collection and failed HTTP loads have distinct messages.
+
+Device policy inventories combine their saved settings and assignments in Overview,
+Settings, Assignments and Source evidence tabs. Child pages are retrieved completely and
+filtered by ParentSourceId within the same authorized tenant/audit. Nested settings use
+saved setting definitions and choice labels; unknown values retain their source identifiers.
+Group names remain unresolved when the snapshot contains only IDs. Raw JSON is optional.
+Conditional Access/location views are retained for the selected record; Graph metadata
+annotations are omitted from readable fields while retained in source evidence.
+
+Dataset bookmarks remain supported; child-dataset bookmarks open the parent inventory and
+appropriate detail tab. Selected records are bookmarkable using `item=<source-id>`.
+Licensing keeps its existing inventory/assigned-user routes. Tabs support arrow/Home/End
+keys; layouts adapt to mobile and both existing themes.
+
+Validation: production web build and `scripts/test-audit-data-ui.mjs`, including multiple
+child pages, nested labels, parent isolation, empty assignments, unavailable categories,
+reload, existing authentication/navigation and mobile overflow checks. Browser fixtures
+intercept API requests; no real account is impersonated. No schema, API, collector, identity
+or infrastructure change is required. Deploy with `Publish-NsoAuditWeb.ps1` and the existing
+Dev public parameters. Recovery is publishing the previous frontend; saved audits remain intact.
+
+Published to the existing Dev `nso-audit-dev-web` on November 10, 2026. The expanded browser
+suite also passed against `https://auditdev.newsommer.com` using intercepted synthetic API
+responses, verifying the deployed explorer and existing license/navigation flows.
+
+## Previous deployment
+
 Deployed November 9, 2026 to the existing Dev `nso-audit-dev-web` resource in `NSO-Audit`
 using the versioned web publishing script and Dev public configuration. Production web
 build/typecheck and local browser checks passed. The same browser checks passed against

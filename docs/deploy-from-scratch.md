@@ -21,7 +21,7 @@ or email-link origins. Dev portalOrigin now uses the custom domain; the versione
 The API's account/questionnaire origin check permits only this configured host.
 See the cutover record for validation, remaining callback work and rollback.
 
-Frontend audit/license navigation and readable Conditional Access/location views use the existing
+The frontend audit explorer, license navigation and readable Conditional Access/location views use the existing
 SQL evidence APIs. See [audit pages and license navigation](audit-pages-and-license-navigation.md)
 for routes and checks. This UI change requires no new schema, permissions or infrastructure.
 
@@ -351,3 +351,5 @@ disposable-first requirements, release limits and rollback. The additive release
 [deployed and verified in Dev on 2026-10-28](technology-questionnaire-deployment-2026-10-28.md).
 This validates the questionnaire catalog and feature release, not a complete clean platform
 deployment or a Prod rebuild.
+
+Directory role evidence collection and application-only deployment/recovery: [directory-role-evidence.md](directory-role-evidence.md).

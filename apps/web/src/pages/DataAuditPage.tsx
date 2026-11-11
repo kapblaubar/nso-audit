@@ -2,6 +2,7 @@ import {useEffect,useState,useRef} from 'react';
 import type {AuditAccount} from '../auth';
 import {loadDataAudit,loadLicenseEvidence,loadScanHistory,loadStarterScan,startStarterScan,
   type DataAudit,type LicenseEvidencePage,type ScanHistoryItem} from '../api';
+import {AuditExplorer} from '../components/AuditExplorer';
 import {ThemeToggle} from '../components/ThemeToggle';
 import {clearAuditDestination} from '../auditNavigation';
 import {ConditionalAccessDetails,NamedLocationDetails,sourceRecord} from '../components/AuditPolicyDetails';
@@ -61,7 +62,7 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
     return()=>{cancelled=true;clearTimeout(timer);};
   },[account,scanId,refresh]);
   useEffect(()=>{
-    if(!scanId||!report||(licensePage&&provider!=='microsoft'))return;
+    if(!scanId||!report||(!licensePage&&report.audit.Scope==='tenant')||(licensePage&&provider!=='microsoft'))return;
     let cancelled=false;
     setLoading(true);setEvidence(undefined);setDataError('');
     const timer=setTimeout(()=>{
@@ -72,7 +73,7 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
     return()=>{cancelled=true;clearTimeout(timer);};
   },[account,scanId,dataType,page,search,skuId,progress,refresh]);
   useEffect(()=>{
-    if(!scanId||dataType!=='conditionalAccess'||licensePage)return;
+    if(!scanId||dataType!=='conditionalAccess'||licensePage||report?.audit.Scope==='tenant')return;
     let cancelled=false;
     setLocations(new Map());setReferenceError('');
     void (async()=>{
@@ -125,7 +126,7 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
     {scanId&&!report&&!error?<p role="status">Loading audit…</p>:null}
     {licensePage?<nav className="audit-provider-tabs" aria-label="License providers">{[['microsoft','Microsoft 365'],['google','Google Workspace'],['aws','AWS']].map(([id,name])=><a key={id} href={`${licensesHref}?provider=${id}`} aria-current={provider===id?'page':undefined}>{name}</a>)}</nav>:null}
     {licensePage&&provider!=='microsoft'?<section className="audit-provider-empty"><h2>{provider==='google'?'Google Workspace':'AWS'} licenses</h2><p>License collection for this provider is not available yet. No license data for this provider is shown in this audit.</p><a href={auditHref}>Back to audit</a></section>:null}
-    {report?<><section className="audit-run-summary" aria-label="Audit summary">
+    {report&&!licensePage&&report.audit.Scope==='tenant'?<AuditExplorer key={`${account.tenantId}:${scanId}`} account={account} report={report} refresh={refresh}/>:report?<><section className="audit-run-summary" aria-label="Audit summary">
       <h2>Audit summary</h2><dl><dt>Audit ID</dt><dd>{report.audit.ScanId}</dd><dt>Status</dt><dd>{report.audit.Status}</dd>
         <dt>Created</dt><dd>{date(report.audit.CreatedAtUtc)}</dd><dt>Started</dt><dd>{date(report.audit.StartedAtUtc)}</dd>
         <dt>Completed</dt><dd>{date(report.audit.CompletedAtUtc)}</dd></dl>

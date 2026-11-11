@@ -705,3 +705,41 @@ html[data-theme="light"] .audit-workspace-menu { background:#fff; }
 .audit-raw-evidence { margin-top:16px; }
 .audit-raw-evidence summary { cursor:pointer; font-size:.85rem; }
 @media(max-width:600px) { .audit-policy-fields { grid-template-columns:1fr; } .audit-policy-card { padding:16px; } .audit-workspace-menu { position:static; padding:8px; } .audit-workspace-menu a { padding:8px; } }
+/* Audit explorer: category, inventory, and linked evidence. */
+.audit-data-page:has(.audit-explorer) { width:min(1540px,calc(100% - 40px)); }
+.audit-explorer { --ex-panel:#0d1b23; --ex-soft:#10232c; --ex-line:#30454f; --ex-muted:#a8bcc7; --ex-accent:#57e6b4; }
+.explorer-summary { display:flex; flex-wrap:wrap; gap:24px; justify-content:space-between; align-items:start; padding:22px 24px; border:1px solid var(--ex-line); border-radius:14px; margin-bottom:24px; background:var(--ex-panel); }
+.explorer-summary h2 { margin:8px 0; font-size:1.35rem; }.explorer-summary p { margin:6px 0; }.explorer-summary details { max-width:540px; overflow-wrap:anywhere; }.explorer-summary summary { cursor:pointer; padding:10px; }
+.explorer-layout { display:grid; grid-template-columns:220px minmax(240px,310px) minmax(0,1fr); gap:16px; align-items:start; }
+.explorer-layout>*,.explorer-layout section,.explorer-layout div { min-width:0; }
+.explorer-categories,.explorer-inventory,.explorer-detail { border:1px solid var(--ex-line); border-radius:14px; background:var(--ex-panel); }
+.explorer-categories { padding:10px; }.explorer-categories button { display:block; width:100%; color:inherit; background:none; border:0; border-radius:8px; text-align:left; padding:12px; cursor:pointer; }
+.explorer-categories>div>button { font-weight:700; }.explorer-categories small { display:block; margin-top:5px; font-size:.72rem; color:var(--ex-muted); font-weight:400; }
+.explorer-categories button:hover { background:var(--ex-soft); }.explorer-categories button[aria-expanded=true] { color:var(--ex-accent); }
+.explorer-datasets { border-left:2px solid var(--ex-line); margin:0 5px 12px 12px; padding-left:6px; }.explorer-datasets button { font-size:.82rem; display:flex; gap:10px; justify-content:space-between; }.explorer-datasets button[aria-current=page] { background:var(--ex-soft); box-shadow:inset 3px 0 var(--ex-accent); }
+.explorer-inventory { padding:20px; }.explorer-inventory h2 { font-size:1.15rem; margin-top:8px; }.explorer-inventory label { display:block; font-size:.8rem; color:var(--ex-muted); }
+.explorer-inventory input { width:100%; margin-top:8px; border:1px solid var(--ex-line); border-radius:8px; padding:11px; font:inherit; color:inherit; background:var(--ex-soft); }
+.explorer-count { color:var(--ex-muted); font-size:.8rem; }.explorer-items { display:grid; gap:10px; }
+.explorer-items button { text-align:left; border:1px solid var(--ex-line); border-radius:10px; background:none; color:inherit; padding:15px; cursor:pointer; overflow-wrap:anywhere; }
+.audit-data-page .explorer-items button[aria-pressed=true] { outline:none; border-color:var(--ex-accent); background:var(--ex-soft); box-shadow:inset 3px 0 var(--ex-accent); }
+.explorer-items small,.explorer-items span { display:block; margin-top:9px; font-size:.74rem; color:var(--ex-muted); }.explorer-items span { color:var(--ex-accent); }
+.explorer-detail { padding:24px; overflow-wrap:anywhere; }.explorer-detail>header h2 { font-size:1.4rem; margin:10px 0; }.explorer-empty { min-height:260px; display:flex; flex-direction:column; justify-content:center; }
+.explorer-tabs { display:flex; flex-wrap:wrap; gap:5px; padding-bottom:12px; margin:20px 0; border-bottom:1px solid var(--ex-line); }.explorer-tabs button,.explorer-pagination button { color:inherit; background:none; border:1px solid var(--ex-line); padding:9px 12px; border-radius:8px; cursor:pointer; }.explorer-tabs button[aria-selected=true] { background:var(--ex-accent); color:#082219; border-color:var(--ex-accent); }
+.explorer-pagination { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; margin-top:20px; font-size:.75rem; }.explorer-pagination button:disabled { opacity:.4; cursor:default; }
+.explorer-notice { border-left:3px solid #e7b65a; padding:10px; background:var(--ex-soft); font-size:.85rem; }
+.explorer-detail .audit-policy-card { border:0; padding:0; }.explorer-detail .audit-policy-card>header,.explorer-detail .audit-policy-card>.audit-evidence-date:first-of-type { display:none; }.explorer-detail .audit-source-json { min-width:0; max-width:100%; }.explorer-detail .audit-policy-fields { grid-template-columns:1fr; }
+.explorer-setting { border-left:2px solid var(--ex-line); padding-left:16px; margin:18px 0; }.explorer-setting h4 { font-size:.94rem; margin:0 0 8px; }.explorer-setting-value { color:var(--ex-accent); margin:6px 0; }.explorer-assignments article { border-bottom:1px solid var(--ex-line); padding:16px 0; }.explorer-assignments p { color:var(--ex-muted); font-size:.8rem; }
+.audit-explorer button:focus-visible,.audit-explorer input:focus-visible,.audit-explorer summary:focus-visible { outline:2px solid var(--ex-accent); outline-offset:3px; }
+html[data-theme=light] .audit-explorer { --ex-panel:#fff; --ex-soft:#eef6f3; --ex-line:#cfddd7; --ex-muted:#52675f; --ex-accent:#08785c; }
+html[data-theme=light] .explorer-tabs button[aria-selected=true] { color:white; }
+@media(max-width:1100px) { .explorer-layout { grid-template-columns:180px minmax(0,1fr); }.explorer-detail { grid-column:2; }.explorer-categories { grid-row:span 2; } }
+@media(max-width:700px) { .explorer-layout { display:flex; flex-direction:column; }.explorer-layout>* { width:100%; }.explorer-categories { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }.explorer-summary,.explorer-detail { padding:18px; }.explorer-detail .audit-evidence-table { font-size:.8rem; }.audit-data-page:has(.audit-explorer) { width:calc(100% - 24px); } }
+.audit-data-page:has(.audit-explorer) { padding-top:24px; }
+.audit-data-page:has(.audit-explorer)>.audit-workspace-menu { position:static; margin-bottom:24px; }
+.audit-data-page:has(.audit-explorer)>h1 { font-size:2.2rem; margin:8px 0; }
+.audit-data-page:has(.audit-explorer)>.eyebrow { margin:12px 0; }
+.audit-data-page:has(.audit-explorer)>.scan-history h2 { font-size:1.4rem; }
+
+.role-summary { border:1px solid var(--border); border-radius:12px; padding:1rem; margin-bottom:1rem; }
+.role-summary p { font-size:.85rem; }
+.role-summary > div { margin-block:.75rem; }

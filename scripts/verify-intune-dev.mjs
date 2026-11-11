@@ -33,6 +33,21 @@ try{
     if(scan){
       const result=await getDataAudit(tenant,scan);assert.ok(result);
       console.log(JSON.stringify({audit:result.audit,collections:result.collections.map(c=>({type:c.DataType,status:c.Status,count:c.RecordCount,error:c.ErrorCode}))},null,2));
+      if(process.argv.includes('--verify-roles')){
+        const collection=result.collections.find(c=>c.DataType==='roleAssignments');
+        assert.equal(collection?.Status,'complete','Role collection must be complete.');
+        const rows=[];let page=1;
+        while(true){const evidence=await getSnapshotRows(tenant,scan,'roleAssignments',page++,'');rows.push(...evidence.rows);if(rows.length>=evidence.total)break;}
+        const values=rows.map(r=>JSON.parse(r.SourceJson));
+        assert.ok(values.length,'Dev verification expects existing directory assignments.');
+        for(const [i,value] of values.entries()){
+          assert.ok(value.roleDefinition?.displayName,'Role name missing');
+          assert.equal(value.roleDefinition.id,value.roleDefinitionId);
+          assert.equal(value.principal?.id,value.principalId);
+          assert.equal(rows[i].DisplayName,value.roleDefinition.displayName);
+        }
+        console.log(JSON.stringify({roleEvidenceVerified:true,assignments:values.length,namedRoles:values.filter(v=>v.roleDefinition?.displayName).length,namedPrincipals:values.filter(v=>v.principal?.displayName).length,globalAdministratorAssignments:values.filter(v=>v.roleDefinition?.templateId==='62e90394-69f5-4237-9190-012177145e10').length}));
+      }
       if(process.argv.includes('--verify-evidence')){
         assert.equal(result.audit.Status,'complete','Real collection must complete before evidence verification.');
         const load=async type=>{
