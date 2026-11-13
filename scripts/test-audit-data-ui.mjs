@@ -43,7 +43,10 @@ try{
       {scanId:'00000000-0000-4000-8000-000000000099',status:'complete',createdAt:at}]});
     if(url.pathname==='/api/me/scans/00000000-0000-4000-8000-000000000099')return respond({scanId:'00000000-0000-4000-8000-000000000099',subscriptionId:tenant,findings:[],...(fullStarted?{auditScope:'tenant'}:{})});
     if(url.pathname==='/api/me/audits/00000000-0000-4000-8000-000000000099')return respond({audit:{ScanId:'00000000-0000-4000-8000-000000000099',Scope:'tenant',Status:'complete',CreatedAtUtc:at,StartedAtUtc:at,CompletedAtUtc:at},
-      collections:[{DataType:'roleAssignments',Label:'Directory role assignments',Status:'complete',RecordCount:3,ErrorCode:null},{DataType:'settingsCatalogPolicies',Label:'Settings catalog policies',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'settingsCatalogSettings',Label:'Settings',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'settingsCatalogAssignments',Label:'Assignments',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'conditionalAccess',Label:'Conditional Access policies',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'namedLocations',Label:'Named locations',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'licenses',Label:'Licenses',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'licenseAssignments',Label:'License assignments',Status:'complete',RecordCount:1,ErrorCode:null}]});
+      collections:['secureScores','secureScoreProfiles','defenderRecommendations','defenderMetadata'].map(DataType=>({DataType,Status:'complete',RecordCount:1,CompletedAtUtc:at})).concat([{DataType:'roleAssignments',Label:'Directory role assignments',Status:'complete',RecordCount:3,ErrorCode:null},{DataType:'settingsCatalogPolicies',Label:'Settings catalog policies',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'settingsCatalogSettings',Label:'Settings',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'settingsCatalogAssignments',Label:'Assignments',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'conditionalAccess',Label:'Conditional Access policies',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'namedLocations',Label:'Named locations',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'licenses',Label:'Licenses',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'licenseAssignments',Label:'License assignments',Status:'complete',RecordCount:1,ErrorCode:null}])});
+    const recommendationFixtures={secureScores:{createdDateTime:at,controlScores:[{controlName:'fixture-control',scoreInPercentage:25}]},secureScoreProfiles:{id:'fixture-control',title:'Protect fixture accounts',maxScore:8,remediation:'Enable protection'},defenderRecommendations:{name:'fixture-assessment',properties:{displayName:'Protect fixture resources',status:{code:'Unhealthy'},resourceDetails:{Id:'/fixture/resource'}}},defenderMetadata:{name:'fixture-assessment',properties:{severity:'High',remediationDescription:'Apply fixture fix'}}};
+    const fixture=recommendationFixtures[url.pathname.split('/').pop()];
+    if(fixture)return respond({rows:[{SourceId:fixture.id??fixture.name??'score',SourceJson:JSON.stringify(fixture),CollectedAtUtc:at}],total:1,page:1,pageSize:50});
     if(url.pathname==='/api/me/audits/00000000-0000-4000-8000-000000000099/roleAssignments'){
       const p=Number(url.searchParams.get('page')??1);
       const source={id:`assignment-${p}`,roleDefinitionId:'role-ga',principalId:p===1?'user-a':'group-a',roleDefinition:{displayName:'Global Administrator',templateId:'62e90394-69f5-4237-9190-012177145e10'},principal:{displayName:p===1?'Fixture Admin':'Admin Group','@odata.type':p===1?'#microsoft.graph.user':'#microsoft.graph.group'},directoryScopeId:'/'};
@@ -72,6 +75,7 @@ try{
     throw new Error(`Unexpected API request: ${url.pathname}`);
   };
   await context.route('**/api/**',respondApi);
+  context.setDefaultTimeout(15000);
   const page=await context.newPage();
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto(`${origin}/audit-data`);
@@ -88,6 +92,17 @@ try{
   await page.locator('.audit-policy-card').getByText('HQ network',{exact:true}).waitFor();
   await page.getByText('All platforms',{exact:true}).waitFor();
   assert.equal(await page.locator('.audit-raw-evidence[open]').count(),0,'JSON should be optional, not the default policy view.');
+  await page.getByRole('link',{name:'Recommendations',exact:true}).click();
+  await page.getByRole('heading',{name:'Protect fixture accounts',exact:true}).waitFor();
+  await page.getByText(/6 potential points .* 25% complete/).waitFor();
+  await page.getByRole('button',{name:'Defender for Cloud',exact:true}).click();
+  await page.getByRole('heading',{name:'Protect fixture resources',exact:true}).waitFor();
+  await page.getByText(/High severity .* 1 affected resource/).waitFor();
+  await page.getByRole('button',{name:'Exposure Score',exact:true}).click();
+  await page.getByText('This source is not collected yet.',{exact:false}).waitFor();
+  await page.reload();
+  await page.getByRole('button',{name:'Exposure Score',exact:true,pressed:true}).waitFor();
+  await page.getByRole('link',{name:'Current audit',exact:true}).click();
   await page.getByRole('button',{name:/^Directory role assignments/}).click();
   await page.getByRole('heading',{name:'Global Administrator',exact:true}).waitFor();
   await page.getByRole('heading',{name:'Fixture Admin',exact:true}).waitFor();
