@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {datasetCatalog,allDataTypes,isDataType} from './catalog.js';
 import {CollectionError} from './licensing.js';
-import {fetchSnapshotPage,normalizeSnapshots,sanitizeEvidence,sourceUrl,validateSnapshotUrl} from './snapshots.js';
+import {sourceScope,sourceJson,fetchSnapshotPage,normalizeSnapshots,sanitizeEvidence,sourceUrl,validateSnapshotUrl} from './snapshots.js';
 const sub='00000000-0000-4000-8000-000000000001';
 test('unified scope includes dedicated configuration, security and license datasets',()=>{
   assert.equal(allDataTypes.length,27);assert.equal(new Set(Object.values(datasetCatalog).map(d=>d.table)).size,25);
@@ -53,7 +53,7 @@ test('role collection expands role and principal and retains snapshot identity',
 });
 test('Defender score snapshots preserve zero scores and validate singleton responses',async()=>{
   for(const type of ['exposureScores','deviceSecureScores'] as const){
-    assert.ok(sourceUrl(type,null).startsWith('https://api.security.microsoft.com/api/'));
+    assert.ok(sourceUrl(type,null).startsWith('https://api.securitycenter.microsoft.com/api/'));
     const page=await fetchSnapshotPage(type,null,null,'fixture',async()=>Response.json({score:0,time:'2026-11-13T12:00:00Z'}));
     assert.equal(page.records[0]?.sourceId,type);
     assert.equal(JSON.parse(page.records[0]!.sourceJson).score,0);
@@ -64,4 +64,12 @@ test('Defender score snapshots preserve zero scores and validate singleton respo
   const next=initial+'?$skip=1';
   const page=await fetchSnapshotPage('endpointRecommendations',null,null,'fixture',async()=>Response.json({value:[{id:'rec'}],'@odata.nextLink':next}));
   assert.equal(page.records[0]?.sourceId,'rec');assert.equal(page.nextLink,next);
+});
+
+test('Endpoint token audience retains the granted WindowsDefenderATP roles',()=>{
+  for(const type of ['exposureScores','deviceSecureScores','endpointRecommendations'] as const)assert.equal(sourceScope(type),'https://api.securitycenter.microsoft.com/.default');
+  assert.equal(sourceScope('secureScores'),'https://graph.microsoft.com/.default');
+});
+test('source timeouts remain distinguishable from permission denials',async()=>{
+  await assert.rejects(()=>sourceJson('https://graph.microsoft.com/v1.0/security/secureScores','fixture',async()=>{throw new DOMException('Timed out','TimeoutError');}),/sourceTimeout/);
 });

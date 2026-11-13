@@ -166,7 +166,8 @@ main {
 .recommendation-list h3 { margin: 0; font-size: 1rem; }
 .recommendation-list header p { margin: 6px 0 0; color: #82949e; font-size: .74rem; }
 .recommendation-list dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 22px; margin: 18px 0 0 48px; }
-.recommendation-list dl > div { padding: 9px 0; border-top: 1px solid #203139; }
+.recommendation-list dl > div { display: block; padding: 9px 0; border-top: 1px solid #203139; }
+.recommendation-list dd div { display: block; padding: 0; border: 0; font-size: inherit; }
 .recommendation-list dt { color: #71858e; font-size: .66rem; text-transform: uppercase; }
 .recommendation-list dd { margin: 5px 0 0; color: #bdc9ce; font-size: .78rem; line-height: 1.5; overflow-wrap: anywhere; }
 .recommendation-list .recommendation-remediation { grid-column: 1 / -1; }

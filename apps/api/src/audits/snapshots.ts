@@ -16,13 +16,17 @@ export function sanitizeEvidence(value:unknown):unknown{
     [key,secretFields.has(key.toLowerCase())?'[redacted]':sanitizeEvidence(item)]));
   return value;
 }
+export function sourceScope(dataType:SnapshotDataType):string{
+  const source=datasetCatalog[dataType];
+  return 'arm' in source?'https://management.azure.com/.default':'endpoint' in source?'https://api.securitycenter.microsoft.com/.default':'https://graph.microsoft.com/.default';
+}
 export function sourceUrl(dataType:SnapshotDataType,subscriptionId:string|null):string{
   const source=datasetCatalog[dataType];
   if('arm' in source){
     if(!subscriptionId||!uuidPattern.test(subscriptionId))throw new CollectionError('missingSubscription');
     return `https://management.azure.com/subscriptions/${subscriptionId}${source.path}`;
   }
-  return `${'endpoint' in source?'https://api.security.microsoft.com':'https://graph.microsoft.com'}${source.path}`;
+  return `${'endpoint' in source?'https://api.securitycenter.microsoft.com':'https://graph.microsoft.com'}${source.path}`;
 }
 export function validateSnapshotUrl(value:string,initial:string):string{
   const url=new URL(value),base=new URL(initial);
@@ -34,7 +38,7 @@ export async function sourceJson(url:string,token:string,fetcher:typeof fetch=fe
   for(let attempt=0;attempt<3;attempt++){
     let response:Response;
     try{response=await fetcher(url,{headers:{Authorization:`Bearer ${token}`,Accept:'application/json'},redirect:'error',signal:AbortSignal.timeout(30000)});}
-    catch{throw new CollectionError('sourceUnavailable');}
+    catch(error){throw new CollectionError(error instanceof Error&&error.name==='TimeoutError'?'sourceTimeout':'sourceUnavailable');}
     if(response.ok){
       let body:unknown;try{body=await response.json();}catch{throw new CollectionError('invalidResponse');}
       if(!body||typeof body!=='object'||Array.isArray(body))throw new CollectionError('invalidResponse');
@@ -45,7 +49,7 @@ export async function sourceJson(url:string,token:string,fetcher:typeof fetch=fe
     const retry=response.headers.get('retry-after');
     const seconds=retry?Number(retry):NaN;
     const delay=Number.isFinite(seconds)?seconds*1000:retry?Date.parse(retry)-Date.now():1000*(attempt+1);
-    if(attempt===2||delay>10000)throw new CollectionError(response.status===429?'throttled':'sourceUnavailable');
+    if(attempt===2||delay>10000)throw new CollectionError(response.status===429?'throttled':response.status===504?'sourceTimeout':'sourceUnavailable');
     await new Promise(resolve=>setTimeout(resolve,Math.max(0,Number.isFinite(delay)?delay:1000)));
   }
   throw new CollectionError('sourceUnavailable');
