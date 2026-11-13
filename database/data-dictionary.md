@@ -872,3 +872,14 @@ The following describes normal application access plus important operator paths.
 - Before November/December comparisons, use ScanId + dataset completeness + original source IDs. Compare source configuration, not collection dates or job metadata. Historical scans can have different supported datasets.
 
 No live table contents, credentials or customer examples are included. No database schema, data, permissions, firewall or deployment changes were made to produce this dictionary.
+
+## Endpoint score extension (migration 020)
+
+The November 10 inventory above predates this extension. Migration 020 adds
+`app.AuditExposureScores`, `app.AuditDeviceSecureScores` and `app.AuditEndpointRecommendations`.
+Each uses the standard snapshot columns: OrganizationId, TenantId, ScanId, SourceId, DisplayName,
+State, SourceCreatedAtUtc, SourceUpdatedAtUtc, SourceJson, CollectedAtUtc and StoredAtUtc.
+The composite audit foreign key and organization filter/block predicates match existing snapshot
+tables. Score singleton IDs are the dataset name; recommendation IDs come from Defender.
+SourceJson retains the response with the existing evidence sanitization.
+This addition is source-based; live schema reconciliation remains a separate validation step.

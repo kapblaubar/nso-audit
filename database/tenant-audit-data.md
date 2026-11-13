@@ -4,7 +4,7 @@ Dev migration, activation and a real completed source run are recorded in the
 [November 9 deployment verification](../docs/tenant-audit-data-dev-deployment-2026-11-09.md).
 
 Migration 018 extends the run/queue foundation from migration 017; 019 adds linked Intune details.
-`Run audit` creates a SQL run immediately and queues 24 datasets under one ScanId. No questionnaire,
+`Run audit` creates a SQL run immediately and queues 27 datasets under one ScanId. No questionnaire,
 documents, comparisons or grouping UI is required. Existing historical scorecards stay readable.
 
 ## Datasets and tables
@@ -116,3 +116,10 @@ and deploy a known-good API/web if necessary. There is no destructive down migra
 API can read old scorecards but will not render new tenant data runs; reopen an earlier report.
 Do not restore old Azure Tables as a live backend. Application access to SQL remains through the
 approved subnet; operator access remains temporary and exact-IP. No worker IP allowlist is added.
+
+## Endpoint score extension
+
+Collector `tenant-data-v4-endpoint` adds Exposure Score, Secure Score for Devices and shared
+Defender for Endpoint recommendations (27 datasets total). Apply migration 020 before API
+deployment. See [deployment, validation and recovery](endpoint-scores.md). Historical audits
+retain their original datasets; run a new audit to collect these sources.

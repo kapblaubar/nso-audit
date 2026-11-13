@@ -5,7 +5,7 @@ import {CollectionError} from './licensing.js';
 import {fetchSnapshotPage,normalizeSnapshots,sanitizeEvidence,sourceUrl,validateSnapshotUrl} from './snapshots.js';
 const sub='00000000-0000-4000-8000-000000000001';
 test('unified scope includes dedicated configuration, security and license datasets',()=>{
-  assert.equal(allDataTypes.length,24);assert.equal(new Set(Object.values(datasetCatalog).map(d=>d.table)).size,22);
+  assert.equal(allDataTypes.length,27);assert.equal(new Set(Object.values(datasetCatalog).map(d=>d.table)).size,25);
   for(const type of ['conditionalAccess','namedLocations','compliancePolicies','licenses','licenseAssignments'])assert.equal(isDataType(type),true);
   assert.equal(isDataType('__proto__'),false);assert.equal(isDataType('DROP TABLE'),false);
 });
@@ -50,4 +50,18 @@ test('role collection expands role and principal and retains snapshot identity',
   assert.equal(page.records[0]?.sourceId,'assignment-1');
   assert.deepEqual(JSON.parse(page.records[0]!.sourceJson),value);
   assert.equal(normalizeSnapshots([{id:'older',roleDefinitionId:'role-1',principalId:'user-1'}],'2026-11-10T00:00:00Z')[0]?.displayName,null);
+});
+test('Defender score snapshots preserve zero scores and validate singleton responses',async()=>{
+  for(const type of ['exposureScores','deviceSecureScores'] as const){
+    assert.ok(sourceUrl(type,null).startsWith('https://api.security.microsoft.com/api/'));
+    const page=await fetchSnapshotPage(type,null,null,'fixture',async()=>Response.json({score:0,time:'2026-11-13T12:00:00Z'}));
+    assert.equal(page.records[0]?.sourceId,type);
+    assert.equal(JSON.parse(page.records[0]!.sourceJson).score,0);
+    await assert.rejects(()=>fetchSnapshotPage(type,null,null,'fixture',async()=>Response.json({})),/invalidResponse/);
+  }
+  const initial=sourceUrl('endpointRecommendations',null);
+  assert.throws(()=>validateSnapshotUrl('https://graph.microsoft.com/api/recommendations',initial),/invalidPagingLink/);
+  const next=initial+'?$skip=1';
+  const page=await fetchSnapshotPage('endpointRecommendations',null,null,'fixture',async()=>Response.json({value:[{id:'rec'}],'@odata.nextLink':next}));
+  assert.equal(page.records[0]?.sourceId,'rec');assert.equal(page.nextLink,next);
 });

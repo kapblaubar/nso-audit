@@ -22,7 +22,7 @@ export function sourceUrl(dataType:SnapshotDataType,subscriptionId:string|null):
     if(!subscriptionId||!uuidPattern.test(subscriptionId))throw new CollectionError('missingSubscription');
     return `https://management.azure.com/subscriptions/${subscriptionId}${source.path}`;
   }
-  return `https://graph.microsoft.com${source.path}`;
+  return `${'endpoint' in source?'https://api.security.microsoft.com':'https://graph.microsoft.com'}${source.path}`;
 }
 export function validateSnapshotUrl(value:string,initial:string):string{
   const url=new URL(value),base=new URL(initial);
@@ -60,7 +60,7 @@ export function normalizeSnapshots(values:unknown[],collectedAtUtc:string):Snaps
     if(typeof sourceId!=='string'||!sourceId||sourceId.length>450)throw new CollectionError('invalidSourceIdentifier');
     const properties=item.properties&&typeof item.properties==='object'?item.properties as Record<string,unknown>:{};
     const role=item.roleDefinition&&typeof item.roleDefinition==='object'?item.roleDefinition as Record<string,unknown>:{};
-    const display=item.displayName??role.displayName??properties.displayName??item.name??item.userPrincipalName;
+    const display=item.displayName??item.recommendationName??role.displayName??properties.displayName??item.name??item.userPrincipalName;
     const state=item.state??properties.provisioningState;
     rows.set(sourceId,{sourceId,displayName:typeof display==='string'?display.slice(0,512):null,
       state:typeof state==='string'?state.slice(0,128):null,
@@ -78,7 +78,10 @@ export async function fetchSnapshotPage(dataType:SnapshotDataType,subscriptionId
   const nextUrl=typeof next==='string'&&next?validateSnapshotUrl(next,initial):null;
   if(nextUrl===url)throw new CollectionError('invalidPagingLink');
   const source=datasetCatalog[dataType];
-  const values='singleton' in source?[body]:body.value;
+  if('endpoint' in source&&'singleton' in source){
+    if(typeof body.score!=='number'||!Number.isFinite(body.score)||typeof body.time!=='string'||!Number.isFinite(Date.parse(body.time)))throw new CollectionError('invalidResponse');
+  }
+  const values='singleton' in source?[('endpoint' in source?{...body,id:dataType,lastModifiedDateTime:body.time}:body)]:body.value;
   if(!Array.isArray(values))throw new CollectionError('invalidResponse');
   return {records:normalizeSnapshots(values,new Date().toISOString()),nextLink:nextUrl};
 }

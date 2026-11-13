@@ -119,7 +119,7 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
         <button className="detail-button" onClick={()=>setRefresh(n=>n+1)}>Refresh</button><a className="detail-button" href="/onboarding">Connection settings</a></div>
       {auditError?<p role="alert" className="auth-error">{auditError}</p>:null}
       <h2>Audit data</h2><p>Each run collects timestamped configuration, scores, recommendations, licenses and user assignments into the audit database. Collection progress and missing access are reported separately for each dataset.</p>
-      <p>DLP, labels, retention, insider risk, threat and alert policies, Sentinel connectors, backup policies, Exposure Score and Secure Score for Devices are not collected yet.</p>
+      <p>DLP, labels, retention, insider risk, threat and alert policies, Sentinel connectors, backup policies are not collected yet.</p>
     </section>:<><p>Saved tenant audit evidence. Every dataset below belongs to this audit and retains its collection timestamp.</p>
       <div className="report-actions">{licensePage?<a className="detail-button" href={auditHref}>Back to audit</a>:null}<a className="step-action" href="/audit-data">Run tenant audit</a>
         <button className="detail-button" onClick={()=>setRefresh(n=>n+1)}>Refresh</button></div></>}

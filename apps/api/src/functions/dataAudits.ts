@@ -62,7 +62,7 @@ async function collectSnapshot(job:CollectionJob):Promise<void>{
     const source=datasetCatalog[job.DataType];
     const credential=await customerCredential(job.TenantId);
     let token:string;
-    try{token=(await credential.getToken('arm' in source?'https://management.azure.com/.default':'https://graph.microsoft.com/.default')).token;}
+    try{token=(await credential.getToken('arm' in source?'https://management.azure.com/.default':'endpoint' in source?'https://api.security.microsoft.com/.default':'https://graph.microsoft.com/.default')).token;}
     catch{throw new CollectionError('authenticationUnavailable');}
     if('arm' in source){
       if(!subscriptionId)throw new CollectionError('missingSubscription');

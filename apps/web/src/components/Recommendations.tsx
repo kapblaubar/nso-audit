@@ -11,7 +11,7 @@ export function Recommendations({account,report,refresh}:{account:AuditAccount;r
   const [tab,setTab]=useState(tabs.some(([id])=>id===requested)?requested!:'secure');
   const [datasets,setDatasets]=useState<Record<string,LicenseEvidenceRow[]>>({});
   const [error,setError]=useState(''),[loading,setLoading]=useState(false);
-  const types=tab==='secure'?['secureScores','secureScoreProfiles']:tab==='defender'?['defenderRecommendations','defenderMetadata']:[];
+  const types=tab==='secure'?['secureScores','secureScoreProfiles']:tab==='defender'?['defenderRecommendations','defenderMetadata']:[tab==='exposure'?'exposureScores':'deviceSecureScores','endpointRecommendations'];
   const typeKey=types.join(','),progress=JSON.stringify(report.collections);
   useEffect(()=>{
     let cancelled=false;setDatasets({});setError('');setLoading(true);
@@ -48,6 +48,10 @@ export function Recommendations({account,report,refresh}:{account:AuditAccount;r
   }
   const severity:Record<string,number>={high:0,medium:1,low:2};
   const defender=Array.from(grouped.values()).sort((a,b)=>(severity[String(a.severity).toLowerCase()]??3)-(severity[String(b.severity).toLowerCase()]??3));
+  const endpoint=tab==='exposure'||tab==='devices';
+  const impact=tab==='exposure'?'exposureImpact':'configScoreImpact';
+  const endpointRows=(datasets.endpointRecommendations??[]).map(sourceRecord).filter(item=>String(item.status).toLowerCase()==='active'&&Number(item[impact])>0).sort((a,b)=>Number(b[impact])-Number(a[impact]));
+  const score=sourceRecord((datasets[tab==='exposure'?'exposureScores':'deviceSecureScores']??[])[0]??{} as LicenseEvidenceRow);
   const recommendations=tab==='secure'?secure:defender;
   const complete=types.length>0&&types.every(type=>report.collections.find(c=>c.DataType===type)?.Status==='complete');
   const select=(id:string)=>{setTab(id);const params=new URLSearchParams(window.location.search);params.set('source',id);window.history.replaceState({},'',`${window.location.pathname}?${params}`);};
@@ -55,8 +59,10 @@ export function Recommendations({account,report,refresh}:{account:AuditAccount;r
     <nav className="audit-provider-tabs" aria-label="Recommendation sources">{tabs.map(([id,label])=><button type="button" key={id} className="detail-button" aria-pressed={tab===id} onClick={()=>select(id)}>{label}</button>)}</nav>
     <div aria-live="polite">{!types.length?<section className="audit-provider-empty"><h3>{tabs.find(([id])=>id===tab)?.[1]}</h3><p>This source is not collected yet. No recommendations from this source are available in saved audits.</p></section>:<>
       {types.map(type=>{const collection=report.collections.find(c=>c.DataType===type);return <p key={type}>{collection?.Label??type}: {collection?.Status??'Not collected in this audit'}{collection?.CompletedAtUtc?` · Collected ${new Date(collection.CompletedAtUtc).toLocaleString()}`:''}{collection?.ErrorCode?` · ${collection.ErrorCode}`:''}</p>;})}
-      {!complete?<p role="status">Collection is incomplete or unavailable. Saved recommendations may be incomplete.</p>:null}
-      {loading?<p role="status">Loading saved recommendations…</p>:error?<p role="alert">{error}</p>:recommendations.length?<><p>{recommendations.length} outstanding recommendations from this audit, ordered by {tab==='secure'?'potential points gained':'severity'}.</p><RecommendationDetails evidence={{recommendations}} defender={tab==='defender'}/></>:<p>{complete?'No outstanding recommendations returned in this snapshot.':'No recommendation evidence is available from the saved records yet.'}</p>}
+      {!complete?<p role="status">Collection is incomplete or unavailable. Saved recommendations may be incomplete. Older audits do not include newly added sources; run a new audit to collect them.</p>:null}
+      {endpoint&&typeof score.score==='number'?<p><strong>{tabs.find(([id])=>id===tab)?.[1]}: {score.score.toLocaleString(undefined,{maximumFractionDigits:2})}</strong>{tab==='exposure'?' - Lower is better.':' - Higher is better.'}{typeof score.time==='string'?` - Source updated ${new Date(score.time).toLocaleString()}`:''}</p>:null}
+      {endpoint&&!loading&&!error?<>{endpointRows.length?<div className="recommendation-list">{endpointRows.map((item,index)=><article key={String(item.id??index)}><h3>{String(item.recommendationName??item.id)}</h3><p>{String(item[impact])} {tab==='exposure'?'exposure':'configuration score'} impact - {String(item.exposedMachinesCount??'Unknown')} exposed devices</p><p>{String(item.remediationType??'Review')} - {String(item.productName??item.relatedComponent??'')}</p><p>{item.publicExploit===true?'Public exploit reported. ':''}{item.activeAlert===true?'Active alert reported.':''}</p><a href={`https://security.microsoft.com/security-recommendations?recommendationId=${encodeURIComponent(String(item.id))}`} target="_blank" rel="noreferrer">Open Microsoft recommendation</a></article>)}</div>:<p>{complete?'No active recommendations with a positive impact were returned.':'No recommendation evidence is available yet. Run a new audit after checking Defender permissions and licensing.'}</p>}</>:null}
+      {loading?<p role="status">Loading saved recommendations…</p>:error?<p role="alert">{error}</p>:endpoint?null:recommendations.length?<><p>{recommendations.length} outstanding recommendations from this audit, ordered by {tab==='secure'?'potential points gained':'severity'}.</p><RecommendationDetails evidence={{recommendations}} defender={tab==='defender'}/></>:<p>{complete?'No outstanding recommendations returned in this snapshot.':'No recommendation evidence is available from the saved records yet.'}</p>}
     </>}</div>
   </section>;
 }

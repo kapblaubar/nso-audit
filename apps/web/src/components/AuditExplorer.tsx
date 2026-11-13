@@ -9,8 +9,8 @@ const groups=[
   {name:'Identity & access',types:['conditionalAccess','namedLocations','authenticationMethods','registrations','authorizationPolicy','roleAssignments']},
   {name:'Devices',types:['settingsCatalogPolicies','deviceConfigurations','compliancePolicies','appProtectionPolicies']},
   {name:'Data protection',types:[]},
-  {name:'Threat protection',types:['defenderRecommendations','defenderMetadata','resourceGroups']},
-  {name:'Scores',types:['secureScores','secureScoreProfiles','defenderScores']},
+  {name:'Threat protection',types:['defenderRecommendations','defenderMetadata','endpointRecommendations','resourceGroups']},
+  {name:'Scores',types:['secureScores','secureScoreProfiles','defenderScores','exposureScores','deviceSecureScores']},
   {name:'Backups',types:[]},
   {name:'Licensing',types:['licenses','licenseAssignments']}
 ];

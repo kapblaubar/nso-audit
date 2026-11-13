@@ -132,3 +132,6 @@ only `operator-ssms-chris`; it preserves API subnet rules and rejects conflictin
 After the session, run the same script with `-Action Close` and the same IP, preview then
 `-Apply`, to remove temporary access. This rule does not expire automatically. Keep permanent
 SQL parameters free of operator IPs. No schema or infrastructure redeployment is needed.
+
+Defender for Endpoint score collection requires migration 020 before API deployment. See
+[Endpoint score deployment and recovery](endpoint-scores.md) for permissions and validation.

@@ -32,7 +32,7 @@ export async function createDataAudit(tenantId:string, initiatedBy:string,subscr
       .input('SubscriptionId',sql.UniqueIdentifier,subscriptionId??null).query(`
       INSERT app.ScanRuns(OrganizationId,TenantId,ScanId,EntityJson) VALUES(@OrganizationId,@TenantId,@ScanId,@json);
       INSERT app.DataAudits(OrganizationId,TenantId,ScanId,Scope,Status,InitiatedBy,CollectorVersion,SubscriptionId)
-      VALUES(@OrganizationId,@TenantId,@ScanId,@Scope,'queued',@InitiatedBy,'tenant-data-v3-roles',@SubscriptionId);
+      VALUES(@OrganizationId,@TenantId,@ScanId,@Scope,'queued',@InitiatedBy,'tenant-data-v4-endpoint',@SubscriptionId);
       UPDATE app.TenantRegistrations SET EntityJson=JSON_MODIFY(EntityJson,'$.lastScanId',CONVERT(varchar(36),@ScanId))
       WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId;
       IF @@ROWCOUNT=0 INSERT app.TenantRegistrations(OrganizationId,TenantId,EntityJson)

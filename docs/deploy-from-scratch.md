@@ -6,6 +6,10 @@ for the target environment; credentials and deployment tokens must never be comm
 
 ## Current automation status
 
+Defender Exposure Score and Secure Score for Devices require migration 020 before API/web
+deployment. Follow [Endpoint score deployment and recovery](../database/endpoint-scores.md).
+This implementation requires separate SQL migration and live collection validation.
+
 Intune settings/assignments require migration 019 before API deployment. Follow
 [Intune detail deployment and recovery](../database/intune-policy-details.md) for the
 seven linked datasets, direct Dev migration verification, source limitations and deployment order.
