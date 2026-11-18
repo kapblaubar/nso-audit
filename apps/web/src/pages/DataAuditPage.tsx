@@ -166,8 +166,8 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
         <div className="report-actions"><button className="detail-button" disabled={page===1} onClick={()=>setPage(p=>p-1)}>Previous</button><span>Page {page}</span>
           <button className="detail-button" disabled={page*evidence.pageSize>=evidence.total} onClick={()=>setPage(p=>p+1)}>Next</button></div></>:null}
     </section>:null}</>:null}
-    <section className="scan-history"><h2>Audit history</h2><p>{history.length} recent runs shown, including earlier scans.</p>
+    <details className="scan-history snapshot-history" open={!report||licensePage||directoryPage||recommendationsPage||report.audit.Scope!=='tenant'}><summary><h2>Audit history</h2><span className="history-count">{history.length} recent runs</span></summary>
       <div>{history.map(item=><a href={`/${item.auditScope?'audit-data':'reports'}/${encodeURIComponent(item.scanId)}${item.auditScope==='licensing'?'/licenses':''}`} key={item.scanId}><span>{date(item.createdAt)}</span><small>{item.status}</small></a>)}</div>
-    </section>
+    </details>
   </section></main>;
 }

@@ -176,6 +176,12 @@ try{
   await page.getByRole('navigation',{name:'Audit categories'}).getByRole('button',{name:/^Backups/}).click();
   await page.getByRole('heading',{name:'FixtureVault',exact:true}).waitFor();
   await page.getByText('Locked',{exact:true}).waitFor();
+  assert.equal(await page.getByLabel('Search inventory').count(),0,'A single vault should not need search.');
+  assert.equal(await page.getByRole('button',{name:'Next',exact:true}).count(),0,'A single vault page should not need pagination.');
+  assert.equal(await page.locator('.snapshot-history').evaluate(history=>history.open),false);
+  await page.locator('.snapshot-history summary').click();
+  await page.locator(`.scan-history a[href="/audit-data/${scan}/licenses"]`).waitFor();
+  await page.locator('.snapshot-history summary').click();
   await page.locator('summary').filter({hasText:'Fixture SQL policy'}).click();
   await page.getByRole('heading',{name:'Full',exact:true}).waitFor();
   await page.getByRole('heading',{name:'Log',exact:true}).waitFor();
