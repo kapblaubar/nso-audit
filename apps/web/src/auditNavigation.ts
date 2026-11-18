@@ -1,5 +1,5 @@
 const key='nso.auditDataDestination';
-const valid=(path:string)=>/^\/audit-data(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:licenses|recommendations))?)?$/i.test(path);
+const valid=(path:string)=>/^\/audit-data(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:licenses|recommendations|directory-access))?)?$/i.test(path);
 export function rememberAuditDestination(){
   if(valid(window.location.pathname)){
     const params=new URLSearchParams(window.location.search),saved=new URLSearchParams();

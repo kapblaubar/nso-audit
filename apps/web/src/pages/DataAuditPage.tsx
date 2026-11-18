@@ -1,4 +1,5 @@
 import {Recommendations} from '../components/Recommendations';
+import {DirectoryAccess} from '../components/DirectoryAccess';
 import {useEffect,useState,useRef} from 'react';
 import type {AuditAccount} from '../auth';
 import {loadDataAudit,loadLicenseEvidence,loadScanHistory,loadStarterScan,startStarterScan,
@@ -16,6 +17,7 @@ const reason:Record<string,string>={parentCollectionIncomplete:'The parent polic
 
 export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;onSignOut:()=>void;scanId?:string}){
   const recommendationsPage=window.location.pathname.endsWith('/recommendations');
+  const directoryPage=window.location.pathname.endsWith('/directory-access');
   const licensePage=window.location.pathname.endsWith('/licenses');
   const query=new URLSearchParams(window.location.search);
   const provider=['google','aws'].includes(query.get('provider')??'')?query.get('provider')!:'microsoft';
@@ -64,7 +66,7 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
     return()=>{cancelled=true;clearTimeout(timer);};
   },[account,scanId,refresh]);
   useEffect(()=>{
-    if(recommendationsPage||!scanId||!report||(!licensePage&&report.audit.Scope==='tenant')||(licensePage&&provider!=='microsoft'))return;
+    if(directoryPage||recommendationsPage||!scanId||!report||(!licensePage&&report.audit.Scope==='tenant')||(licensePage&&provider!=='microsoft'))return;
     let cancelled=false;
     setLoading(true);setEvidence(undefined);setDataError('');
     const timer=setTimeout(()=>{
@@ -75,7 +77,7 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
     return()=>{cancelled=true;clearTimeout(timer);};
   },[account,scanId,dataType,page,search,skuId,progress,refresh]);
   useEffect(()=>{
-    if(recommendationsPage||!scanId||dataType!=='conditionalAccess'||licensePage||report?.audit.Scope==='tenant')return;
+    if(directoryPage||recommendationsPage||!scanId||dataType!=='conditionalAccess'||licensePage||report?.audit.Scope==='tenant')return;
     let cancelled=false;
     setLocations(new Map());setReferenceError('');
     void (async()=>{
@@ -108,9 +110,9 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
     <div className="nav-actions"><ThemeToggle/><button className="text-button" onClick={onSignOut}>Sign out</button></div>
   </nav><section className="report-shell audit-data-page">
     <nav className="audit-workspace-menu" aria-label="Workspace menu"><a href="/audit-data" aria-current={!scanId?'page':undefined}>Audits</a>
-      {currentId?<><a href={auditHref} aria-current={scanId&&!licensePage&&!recommendationsPage?'page':undefined}>Current audit</a><a href={`${auditHref}/recommendations`} aria-current={recommendationsPage?'page':undefined}>Recommendations</a><a href={licensesHref} aria-current={licensePage?'page':undefined}>Licenses</a></>:<span>Licenses · run an audit first</span>}
+      {currentId?<><a href={auditHref} aria-current={scanId&&!licensePage&&!recommendationsPage&&!directoryPage?'page':undefined}>Current audit</a><a href={`${auditHref}/recommendations`} aria-current={recommendationsPage?'page':undefined}>Recommendations</a><a href={licensesHref} aria-current={licensePage?'page':undefined}>Licenses</a><a href={`${auditHref}/directory-access`} aria-current={directoryPage?'page':undefined}>Users, Groups &amp; Roles</a></>:<span>Licenses · run an audit first</span>}
       <a href="/onboarding">Connection settings</a></nav>
-    <p className="eyebrow">Tenant audit data</p><h1>{recommendationsPage?'Recommendations':licensePage?'Licenses':scanId?'Audit snapshot':'Audit collection'}</h1>
+    <p className="eyebrow">Tenant audit data</p><h1>{directoryPage?'Users, Groups & Roles':recommendationsPage?'Recommendations':licensePage?'Licenses':scanId?'Audit snapshot':'Audit collection'}</h1>
     <p>Tenant ID: {account.tenantId}</p>
     {!scanId?<section aria-labelledby="run-audit-title"><h2 id="run-audit-title">Run tenant audit</h2>
       <p>Collect the currently supported identity, Conditional Access, MFA, Intune, Microsoft Secure Score, Azure inventory, Defender for Cloud score and recommendation evidence. Save the results and open the audit report.</p>
@@ -128,7 +130,7 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
     {scanId&&!report&&!error?<p role="status">Loading audit…</p>:null}
     {licensePage?<nav className="audit-provider-tabs" aria-label="License providers">{[['microsoft','Microsoft 365'],['google','Google Workspace'],['aws','AWS']].map(([id,name])=><a key={id} href={`${licensesHref}?provider=${id}`} aria-current={provider===id?'page':undefined}>{name}</a>)}</nav>:null}
     {licensePage&&provider!=='microsoft'?<section className="audit-provider-empty"><h2>{provider==='google'?'Google Workspace':'AWS'} licenses</h2><p>License collection for this provider is not available yet. No license data for this provider is shown in this audit.</p><a href={auditHref}>Back to audit</a></section>:null}
-    {recommendationsPage&&report?<Recommendations account={account} report={report} refresh={refresh}/>:report&&!licensePage&&report.audit.Scope==='tenant'?<AuditExplorer key={`${account.tenantId}:${scanId}`} account={account} report={report} refresh={refresh}/>:report?<><section className="audit-run-summary" aria-label="Audit summary">
+    {directoryPage&&report?<DirectoryAccess key={report.audit.ScanId} account={account} report={report} refresh={refresh}/>:recommendationsPage&&report?<Recommendations account={account} report={report} refresh={refresh}/>:report&&!licensePage&&report.audit.Scope==='tenant'?<AuditExplorer key={`${account.tenantId}:${scanId}`} account={account} report={report} refresh={refresh}/>:report?<><section className="audit-run-summary" aria-label="Audit summary">
       <h2>Audit summary</h2><dl><dt>Audit ID</dt><dd>{report.audit.ScanId}</dd><dt>Status</dt><dd>{report.audit.Status}</dd>
         <dt>Created</dt><dd>{date(report.audit.CreatedAtUtc)}</dd><dt>Started</dt><dd>{date(report.audit.StartedAtUtc)}</dd>
         <dt>Completed</dt><dd>{date(report.audit.CompletedAtUtc)}</dd></dl>

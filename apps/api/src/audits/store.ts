@@ -32,7 +32,7 @@ export async function createDataAudit(tenantId:string, initiatedBy:string,subscr
       .input('SubscriptionId',sql.UniqueIdentifier,subscriptionId??null).query(`
       INSERT app.ScanRuns(OrganizationId,TenantId,ScanId,EntityJson) VALUES(@OrganizationId,@TenantId,@ScanId,@json);
       INSERT app.DataAudits(OrganizationId,TenantId,ScanId,Scope,Status,InitiatedBy,CollectorVersion,SubscriptionId)
-      VALUES(@OrganizationId,@TenantId,@ScanId,@Scope,'queued',@InitiatedBy,'tenant-data-v4-endpoint',@SubscriptionId);
+      VALUES(@OrganizationId,@TenantId,@ScanId,@Scope,'queued',@InitiatedBy,'tenant-data-v5-directory',@SubscriptionId);
       UPDATE app.TenantRegistrations SET EntityJson=JSON_MODIFY(EntityJson,'$.lastScanId',CONVERT(varchar(36),@ScanId))
       WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId;
       IF @@ROWCOUNT=0 INSERT app.TenantRegistrations(OrganizationId,TenantId,EntityJson)
@@ -189,11 +189,16 @@ export async function getSnapshotRows(tenantId:string,scanId:string,dataType:Sna
     const table=evidenceTable(dataType);
     const exists=(await scoped(transaction,organizationId,tenantId,scanId).query(`SELECT 1 FROM app.DataAudits WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId;`)).recordset[0];
     if(!exists)return null;
+    const roleSearch=dataType==='roleAssignments'?` OR EXISTS (
+      SELECT 1 FROM app.AuditDirectoryRoleDefinitions role
+      WHERE role.OrganizationId=@OrganizationId AND role.TenantId=@TenantId AND role.ScanId=@ScanId
+        AND role.SourceId=JSON_VALUE(evidence.SourceJson,'$.roleDefinitionId')
+        AND CHARINDEX(@Search,role.DisplayName)>0)`:'';
     const where=`OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND
-      (@Search='' OR CHARINDEX(@Search,DisplayName)>0 OR CHARINDEX(@Search,SourceId)>0 OR CHARINDEX(@Search,SourceJson)>0)`;
+      (@Search='' OR CHARINDEX(@Search,DisplayName)>0 OR CHARINDEX(@Search,SourceId)>0 OR CHARINDEX(@Search,SourceJson)>0${roleSearch})`;
     const result=await scoped(transaction,organizationId,tenantId,scanId).input('Offset',sql.Int,(page-1)*50)
-      .input('Search',sql.NVarChar(200),search).query(`SELECT COUNT(*) Total FROM ${table} WHERE ${where};
-      SELECT SourceId,DisplayName,State,SourceCreatedAtUtc,SourceUpdatedAtUtc,SourceJson,CollectedAtUtc,StoredAtUtc${'parent' in datasetCatalog[dataType]?','+Object.keys(intuneColumns).join(','):''} FROM ${table}
+      .input('Search',sql.NVarChar(200),search).query(`SELECT COUNT(*) Total FROM ${table} evidence WHERE ${where};
+      SELECT SourceId,DisplayName,State,SourceCreatedAtUtc,SourceUpdatedAtUtc,SourceJson,CollectedAtUtc,StoredAtUtc${'parent' in datasetCatalog[dataType]?','+Object.keys(intuneColumns).join(','):''} FROM ${table} evidence
       WHERE ${where} ORDER BY SourceId OFFSET @Offset ROWS FETCH NEXT 50 ROWS ONLY;`);
     const sets=result.recordsets as sql.IRecordSet<unknown>[];
     return {rows:sets[1]??[],total:(sets[0]?.[0] as {Total:number}|undefined)?.Total??0,page,pageSize:50};

@@ -107,13 +107,21 @@ The following describes normal application access plus important operator paths.
 | [app.AuditDeviceConfigurationAssignments](#appauditdeviceconfigurationassignments) | Collected evidence | Device configuration assignments. Saved source evidence, not an automatically evaluated compliance finding. |
 | [app.AuditDeviceConfigurationDetails](#appauditdeviceconfigurationdetails) | Collected evidence | Device configuration settings. Saved source evidence, not an automatically evaluated compliance finding. |
 | [app.AuditDeviceConfigurations](#appauditdeviceconfigurations) | Collected evidence | Device configuration profiles. Saved source evidence, not an automatically evaluated compliance finding. |
+| [app.AuditDeviceSecureScores](#appauditdevicesecurescores) | Collected evidence | Secure Score for Devices. Saved source evidence, not an automatically evaluated compliance finding. |
+| [app.AuditDirectoryGroupMembers](#appauditdirectorygroupmembers) | Collected evidence | Direct group membership. Saved source evidence, not an automatically evaluated compliance finding. |
+| [app.AuditDirectoryGroups](#appauditdirectorygroups) | Collected evidence | Entra groups. Saved source evidence, not an automatically evaluated compliance finding. |
+| [app.AuditDirectoryRoleDefinitions](#appauditdirectoryroledefinitions) | Collected evidence | Entra role definitions. Saved source evidence, not an automatically evaluated compliance finding. |
+| [app.AuditDirectoryRoleEligibility](#appauditdirectoryroleeligibility) | Collected evidence | PIM role eligibility. Saved source evidence, not an automatically evaluated compliance finding. |
+| [app.AuditDirectoryUsers](#appauditdirectoryusers) | Collected evidence | Entra users. Saved source evidence, not an automatically evaluated compliance finding. |
+| [app.AuditEndpointRecommendations](#appauditendpointrecommendations) | Collected evidence | Defender for Endpoint recommendations. Saved source evidence, not an automatically evaluated compliance finding. |
 | [app.AuditEvents](#appauditevents) | Questionnaires | Application activity log: actor, action and event time, such as customer edits or questionnaire saves. |
+| [app.AuditExposureScores](#appauditexposurescores) | Collected evidence | Exposure Score. Saved source evidence, not an automatically evaluated compliance finding. |
 | [app.AuditLicenseAssignments](#appauditlicenseassignments) | Collected evidence | User-to-SKU assignment paths: direct/group, state/error and disabled plans. |
 | [app.AuditLicenses](#appauditlicenses) | Collected evidence | Tenant subscribed license SKU inventory: purchased/enabled/suspended/warning units and consumed counts. |
 | [app.AuditMicrosoftSecureScores](#appauditmicrosoftsecurescores) | Collected evidence | Microsoft Secure Score source history returned during an audit; several historical source scores may belong to one NSO audit. |
 | [app.AuditNamedLocations](#appauditnamedlocations) | Collected evidence | Named locations. Saved source evidence, not an automatically evaluated compliance finding. |
 | [app.AuditResourceGroups](#appauditresourcegroups) | Collected evidence | Azure resource groups. Saved source evidence, not an automatically evaluated compliance finding. |
-| [app.AuditRoleAssignments](#appauditroleassignments) | Collected evidence | Entra directory role assignments captured per audit, including expanded role definition and principal in SourceJson for new audits; DisplayName is the role name. Does not expand group membership or collect PIM eligibility. |
+| [app.AuditRoleAssignments](#appauditroleassignments) | Collected evidence | Entra directory role assignments with expanded principal. The roleDefinitionId links to the separately captured role catalog in the same audit. Earlier snapshots may include inline role definitions. |
 | [app.AuditSecureScoreProfiles](#appauditsecurescoreprofiles) | Collected evidence | Secure Score control profiles. Reference/control definitions captured with the audit; not evidence that each control is implemented. |
 | [app.AuditSettingsCatalogAssignments](#appauditsettingscatalogassignments) | Collected evidence | Settings catalog assignments. Saved source evidence, not an automatically evaluated compliance finding. |
 | [app.AuditSettingsCatalogPolicies](#appauditsettingscatalogpolicies) | Collected evidence | Settings catalog policies. Saved source evidence, not an automatically evaluated compliance finding. |
@@ -163,7 +171,7 @@ The following describes normal application access plus important operator paths.
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,DataType`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Distinguish empty complete, missingAccess, failed and partial. This is dataset status, not individual evidence.
-- **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
+- **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
 - **Application implementation:** [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 - **SQL procedures referencing this table:** `security.EnqueueAuditCollection (017_audit_licensing.sql)`
 
@@ -175,7 +183,7 @@ The following describes normal application access plus important operator paths.
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId`
 - **Parent relationships (creation DDL):** app.ScanRuns (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** One typed run; completed evidence retained as a snapshot. A complete run covers its requested datasets only.
-- **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
+- **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
 - **Application implementation:** [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts), [apps/api/src/functions/scans.ts](../apps/api/src/functions/scans.ts)
 
 #### app.ScanFindings
@@ -230,7 +238,7 @@ The following describes normal application access plus important operator paths.
 - **Primary key (creation DDL):** `DataType`
 - **Parent relationships (creation DDL):** No table foreign key in original CREATE TABLE; see later migrations/live metadata.
 - **Lifecycle / cautions:** Reference configuration, not tenant evidence. Children wait for parent inventory to become terminal.
-- **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
+- **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
 - **SQL procedures referencing this table:** `security.ClaimAuditCollection (019_intune_policy_details.sql)`
 
 #### dbo.ScanStorageCutover
@@ -318,7 +326,7 @@ The following describes normal application access plus important operator paths.
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditCompliancePolicies (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
-- **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /v1.0/deviceManagement/deviceCompliancePolicies/{policyId}/assignments. Parent dataset: compliancePolicies. Child IDs are local to a policy; ParentSourceId links within the same organization, tenant and ScanId.
+- **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /v1.0/deviceManagement/deviceCompliancePolicies/{policyId}/assignments. Parent dataset: compliancePolicies. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
@@ -329,7 +337,7 @@ The following describes normal application access plus important operator paths.
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditCompliancePolicies (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
-- **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /v1.0/deviceManagement/deviceCompliancePolicies/{policyId}. Parent dataset: compliancePolicies. Child IDs are local to a policy; ParentSourceId links within the same organization, tenant and ScanId.
+- **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /v1.0/deviceManagement/deviceCompliancePolicies/{policyId}. Parent dataset: compliancePolicies. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
@@ -384,7 +392,7 @@ The following describes normal application access plus important operator paths.
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditDeviceConfigurations (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
-- **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /v1.0/deviceManagement/deviceConfigurations/{policyId}/assignments. Parent dataset: deviceConfigurations. Child IDs are local to a policy; ParentSourceId links within the same organization, tenant and ScanId.
+- **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /v1.0/deviceManagement/deviceConfigurations/{policyId}/assignments. Parent dataset: deviceConfigurations. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
@@ -395,7 +403,7 @@ The following describes normal application access plus important operator paths.
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditDeviceConfigurations (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
-- **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /v1.0/deviceManagement/deviceConfigurations/{policyId}. Parent dataset: deviceConfigurations. Child IDs are local to a policy; ParentSourceId links within the same organization, tenant and ScanId.
+- **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /v1.0/deviceManagement/deviceConfigurations/{policyId}. Parent dataset: deviceConfigurations. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
@@ -408,6 +416,94 @@ The following describes normal application access plus important operator paths.
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /v1.0/deviceManagement/deviceConfigurations.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditDeviceSecureScores
+
+- **Stores:** Secure Score for Devices. Saved source evidence, not an automatically evaluated compliance finding.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=deviceSecureScores)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Scores. Graph GET /api/configurationScore.
+- **Schema sources:** [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditDirectoryGroupMembers
+
+- **Stores:** Direct group membership. Saved source evidence, not an automatically evaluated compliance finding.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=directoryGroupMembers)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.AuditSettingsCatalogPolicies (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/groups/{groupId}/members?$select=id. Parent dataset: directoryGroups. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
+- **Schema sources:** [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditDirectoryGroups
+
+- **Stores:** Entra groups. Saved source evidence, not an automatically evaluated compliance finding.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=directoryGroups)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/groups?$select=id,displayName,mail,groupTypes,securityEnabled,onPremisesSyncEnabled.
+- **Schema sources:** [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditDirectoryRoleDefinitions
+
+- **Stores:** Entra role definitions. Saved source evidence, not an automatically evaluated compliance finding.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=directoryRoleDefinitions)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/roleManagement/directory/roleDefinitions?$select=id,displayName,description,isBuiltIn,isPrivileged,templateId.
+- **Schema sources:** [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditDirectoryRoleEligibility
+
+- **Stores:** PIM role eligibility. Saved source evidence, not an automatically evaluated compliance finding.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=directoryRoleEligibility)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/roleManagement/directory/roleEligibilityScheduleInstances.
+- **Schema sources:** [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditDirectoryUsers
+
+- **Stores:** Entra users. Saved source evidence, not an automatically evaluated compliance finding.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=directoryUsers)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/users?$select=id,displayName,userPrincipalName,mail,accountEnabled,userType.
+- **Schema sources:** [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditEndpointRecommendations
+
+- **Stores:** Defender for Endpoint recommendations. Saved source evidence, not an automatically evaluated compliance finding.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=endpointRecommendations)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Threat Protection & Security Operations. Graph GET /api/recommendations.
+- **Schema sources:** [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditExposureScores
+
+- **Stores:** Exposure Score. Saved source evidence, not an automatically evaluated compliance finding.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=exposureScores)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Scores. Graph GET /api/exposureScore.
+- **Schema sources:** [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditLicenseAssignments
@@ -439,7 +535,7 @@ The following describes normal application access plus important operator paths.
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
-- **Lifecycle / cautions:** Snapshot; Scores. Graph GET /v1.0/security/secureScores.
+- **Lifecycle / cautions:** Snapshot; Scores. Graph GET /v1.0/security/secureScores?$top=1.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
@@ -467,12 +563,12 @@ The following describes normal application access plus important operator paths.
 
 #### app.AuditRoleAssignments
 
-- **Stores:** Entra directory role assignments captured per audit, including expanded role definition and principal in SourceJson for new audits; DisplayName is the role name. Does not expand group membership or collect PIM eligibility.
+- **Stores:** Entra directory role assignments with expanded principal. The roleDefinitionId links to the separately captured role catalog in the same audit. Earlier snapshots may include inline role definitions.
 - **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=roleAssignments)
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
-- **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/roleManagement/directory/roleAssignments?$expand=roleDefinition,principal.
+- **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/roleManagement/directory/roleAssignments?$expand=principal.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
@@ -483,7 +579,7 @@ The following describes normal application access plus important operator paths.
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
-- **Lifecycle / cautions:** Snapshot; Scores. Graph GET /v1.0/security/secureScoreControlProfiles.
+- **Lifecycle / cautions:** Snapshot; Scores. Graph GET /v1.0/security/secureScoreControlProfiles?$top=200.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
@@ -494,7 +590,7 @@ The following describes normal application access plus important operator paths.
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditSettingsCatalogPolicies (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
-- **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /beta/deviceManagement/configurationPolicies/{policyId}/assignments. Parent dataset: settingsCatalogPolicies. Child IDs are local to a policy; ParentSourceId links within the same organization, tenant and ScanId.
+- **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /beta/deviceManagement/configurationPolicies/{policyId}/assignments. Parent dataset: settingsCatalogPolicies. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
@@ -506,7 +602,7 @@ The following describes normal application access plus important operator paths.
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /beta/deviceManagement/configurationPolicies.
-- **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
+- **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditSettingsCatalogSettings
@@ -516,7 +612,7 @@ The following describes normal application access plus important operator paths.
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditSettingsCatalogPolicies (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
-- **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /beta/deviceManagement/configurationPolicies/{policyId}/settings?$expand=settingDefinitions. Parent dataset: settingsCatalogPolicies. Child IDs are local to a policy; ParentSourceId links within the same organization, tenant and ScanId.
+- **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /beta/deviceManagement/configurationPolicies/{policyId}/settings?$expand=settingDefinitions. Parent dataset: settingsCatalogPolicies. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
@@ -872,14 +968,3 @@ The following describes normal application access plus important operator paths.
 - Before November/December comparisons, use ScanId + dataset completeness + original source IDs. Compare source configuration, not collection dates or job metadata. Historical scans can have different supported datasets.
 
 No live table contents, credentials or customer examples are included. No database schema, data, permissions, firewall or deployment changes were made to produce this dictionary.
-
-## Endpoint score extension (migration 020)
-
-The November 10 inventory above predates this extension. Migration 020 adds
-`app.AuditExposureScores`, `app.AuditDeviceSecureScores` and `app.AuditEndpointRecommendations`.
-Each uses the standard snapshot columns: OrganizationId, TenantId, ScanId, SourceId, DisplayName,
-State, SourceCreatedAtUtc, SourceUpdatedAtUtc, SourceJson, CollectedAtUtc and StoredAtUtc.
-The composite audit foreign key and organization filter/block predicates match existing snapshot
-tables. Score singleton IDs are the dataset name; recommendation IDs come from Defender.
-SourceJson retains the response with the existing evidence sanitization.
-This addition is source-based; live schema reconciliation remains a separate validation step.

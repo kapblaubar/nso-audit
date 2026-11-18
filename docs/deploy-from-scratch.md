@@ -6,6 +6,8 @@ for the target environment; credentials and deployment tokens must never be comm
 
 ## Current automation status
 
+Directory access snapshots require migrations 021–022 before API/web deployment. Configure tenant consent and verify a fresh audit using [the directory access runbook](directory-role-evidence.md).
+
 Defender Exposure Score and Secure Score for Devices require migration 020 before API/web
 deployment. Follow [Endpoint score deployment and recovery](../database/endpoint-scores.md).
 This implementation requires separate SQL migration and live collection validation.

@@ -67,14 +67,16 @@ cat=(ROOT/'apps/api/src/audits/catalog.ts').read_text()
 for m in re.finditer(r"(\w+):\{table:'(\w+)',label:'([^']+)',category:'([^']+)',path:'([^']+)'([^\n]*)",cat):
  key,table,label,category,path,tail=m.groups();parent=re.search(r"parent:'([^']+)'",tail);relationship=re.search(r"relationship:'([^']*)'",tail)
  endpoint=('ARM GET /subscriptions/{subscriptionId}' if 'arm:true' in tail else 'Graph GET ')+path
- if parent: endpoint+='/{policyId}'+('/'+relationship.group(1) if relationship and relationship.group(1) else '')+('?$expand=settingDefinitions' if 'expandDefinitions:true' in tail else '')
+ if parent:
+  select=re.search(r"select:'([^']+)'",tail)
+  endpoint+=('/{groupId}' if key=='directoryGroupMembers' else '/{policyId}')+('/'+relationship.group(1) if relationship and relationship.group(1) else '')+('?$expand=settingDefinitions' if 'expandDefinitions:true' in tail else '?$select='+select.group(1) if select else '')
  purpose=label+'. Saved source evidence, not an automatically evaluated compliance finding.'
  if key=='authenticationMethods':purpose='Authentication-method root policy and returned method configurations; not user authentication secrets.'
- if key=='roleAssignments':purpose='Entra directory role assignments captured per audit, including expanded role definition and principal in SourceJson for new audits; DisplayName is the role name. Does not expand group membership or collect PIM eligibility.'
+ if key=='roleAssignments':purpose='Entra directory role assignments with expanded principal. The roleDefinitionId links to the separately captured role catalog in the same audit. Earlier snapshots may include inline role definitions.'
  if key=='secureScores':purpose='Microsoft Secure Score source history returned during an audit; several historical source scores may belong to one NSO audit.'
  if key in ('secureScoreProfiles','defenderMetadata'):purpose=label+'. Reference/control definitions captured with the audit; not evidence that each control is implemented.'
  notes='Snapshot; '+category+'. '+endpoint+'.'
- if parent: notes+=' Parent dataset: '+parent.group(1)+'. Child IDs are local to a policy; ParentSourceId links within the same organization, tenant and ScanId.'
+ if parent: notes+=' Parent dataset: '+parent.group(1)+'. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.'
  add('app.'+table,purpose,'Collected evidence',R+' (dataType='+key+')',W+(' via nextIntuneParent/fetchIntuneChildPage' if parent else ' via collectSnapshot/fetchSnapshotPage'),notes)
 
 migrations={p.name:p.read_text(encoding='utf-8') for p in sorted((ROOT/'database/migrations').glob('*.sql'))}

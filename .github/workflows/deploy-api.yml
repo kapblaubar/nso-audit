@@ -5,7 +5,8 @@ name: Deploy API
 # Apply migration 019 before deploying Intune child collectors; see database/intune-policy-details.md.
 # Dev activation is explicit; never apply SQL migrations to live implicitly in this workflow.
 # Endpoint scores require migration 020; see database/endpoint-scores.md.
-# Unified tenant datasets: apply through 020 before API deployment; explicit activation is versioned in
+# Apply migrations 021–022 before deploying the directory access collectors.
+# Unified tenant datasets: apply through 022 before API deployment; explicit activation is versioned in
 # the SQL runtime script/Dev Bicep parameters. SQL is the only audit backend. See database/tenant-audit-data.md.
 
 on:

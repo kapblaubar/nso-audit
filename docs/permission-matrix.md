@@ -9,6 +9,8 @@ the target catalog, not permission to enable every entry immediately.
 | Assessment capability | API | Application permission | Stage | Notes |
 |---|---|---|---|---|
 | Entra directory roles and assignments | Microsoft Graph | `RoleManagement.Read.Directory` | Core | No write access; avoid `Directory.Read.All` unless a future implemented check proves it necessary |
+| Entra users and account status | Microsoft Graph | `User.Read.All` | Directory inventory | Captures selected identity and account status fields |
+| Entra groups and direct membership | Microsoft Graph | `GroupMember.Read.All` | Directory inventory | Read-only application permission. Hidden membership requires separate consent for `Member.Read.Hidden` |
 | Privileged assignee names and email addresses | Microsoft Graph | `User.ReadBasic.All` | Core | Resolves the basic profile of user principals returned by role assignments without full-directory profile access |
 | Tenant license inventory | Microsoft Graph | `LicenseAssignment.Read.All` | License audit, opt-in | Read-only subscribed SKU inventory |
 | User license assignment inventory and assignment paths | Microsoft Graph | `User.Read.All` | License audit, opt-in | List users with selected identity/licensing properties; includes direct/group assignment states; requires separate customer consent review |
@@ -27,7 +29,7 @@ Explicitly excluded unless a later implemented check is approved:
 
 - All `ReadWrite` permissions
 - `Mail.Read`, `MailboxSettings.Read`, and Exchange mailbox permissions
-- `Group.Read.All`, `GroupMember.Read.All`, and broad directory permissions
+- `Group.Read.All` and broad directory permissions
 - Defender machine, software inventory, and vulnerability permissions beyond approved modules
 - Intune managed-device inventory permission when only policy configuration is assessed
 

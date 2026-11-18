@@ -36,7 +36,7 @@ ZIP at an explicit output path. It does not require an Azure PowerShell login.
 8. `Set-NsoAuditPhase1GraphPermissions.ps1` — replaces the dedicated App Registration's API
    permissions with the reviewed Phase 1 Microsoft Graph allowlist. It does not grant consent.
 9. `Set-NsoAuditApiPermissions.ps1` — replaces the dedicated App Registration's requested API
-   permissions with the core allowlist plus explicitly selected licensing (`-IncludeLicenseInventory`), Intune and Defender scorecard
+   permissions with the core allowlist plus explicitly selected licensing (`-IncludeLicenseInventory`), directory inventory (`-IncludeDirectoryInventory`), Intune and Defender scorecard
    modules. It does not grant consent or Azure RBAC. This supersedes the Phase 1-only script for
    future configuration changes.
    Licensing collection and explicit SQL runtime activation are described in `../database/audit-licensing.md`.

@@ -43,7 +43,25 @@ try{
       {scanId:'00000000-0000-4000-8000-000000000099',status:'complete',createdAt:at}]});
     if(url.pathname==='/api/me/scans/00000000-0000-4000-8000-000000000099')return respond({scanId:'00000000-0000-4000-8000-000000000099',subscriptionId:tenant,findings:[],...(fullStarted?{auditScope:'tenant'}:{})});
     if(url.pathname==='/api/me/audits/00000000-0000-4000-8000-000000000099')return respond({audit:{ScanId:'00000000-0000-4000-8000-000000000099',Scope:'tenant',Status:'complete',CreatedAtUtc:at,StartedAtUtc:at,CompletedAtUtc:at},
-      collections:['secureScores','secureScoreProfiles','defenderRecommendations','defenderMetadata','exposureScores','deviceSecureScores','endpointRecommendations'].map(DataType=>({DataType,Status:'complete',RecordCount:1,CompletedAtUtc:at})).concat([{DataType:'roleAssignments',Label:'Directory role assignments',Status:'complete',RecordCount:3,ErrorCode:null},{DataType:'settingsCatalogPolicies',Label:'Settings catalog policies',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'settingsCatalogSettings',Label:'Settings',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'settingsCatalogAssignments',Label:'Assignments',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'conditionalAccess',Label:'Conditional Access policies',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'namedLocations',Label:'Named locations',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'licenses',Label:'Licenses',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'licenseAssignments',Label:'License assignments',Status:'complete',RecordCount:1,ErrorCode:null}])});
+      collections:['secureScores','secureScoreProfiles','defenderRecommendations','defenderMetadata','exposureScores','deviceSecureScores','endpointRecommendations'].map(DataType=>({DataType,Status:'complete',RecordCount:1,CompletedAtUtc:at})).concat([
+        {DataType:'directoryUsers',Status:'complete',RecordCount:1},
+        {DataType:'directoryGroups',Status:'complete',RecordCount:1},
+        {DataType:'directoryGroupMembers',Status:'complete',RecordCount:1},
+        {DataType:'directoryRoleDefinitions',Status:'complete',RecordCount:2},
+        {DataType:'directoryRoleEligibility',Status:'missingAccess',RecordCount:0},
+        {DataType:'roleAssignments',Label:'Directory role assignments',Status:'complete',RecordCount:3,ErrorCode:null},{DataType:'settingsCatalogPolicies',Label:'Settings catalog policies',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'settingsCatalogSettings',Label:'Settings',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'settingsCatalogAssignments',Label:'Assignments',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'conditionalAccess',Label:'Conditional Access policies',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'namedLocations',Label:'Named locations',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'licenses',Label:'Licenses',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'licenseAssignments',Label:'License assignments',Status:'complete',RecordCount:1,ErrorCode:null}])});
+    const directoryFixtures={
+      directoryUsers:[{id:'user-a',displayName:'Fixture Admin',mail:'admin@example.invalid',accountEnabled:true}],
+      directoryGroups:[{id:'group-a',displayName:'Admin Group',securityEnabled:true,groupTypes:[]}],
+      directoryGroupMembers:[{id:'user-a','@odata.type':'#microsoft.graph.user'}],
+      directoryRoleDefinitions:[
+        {id:'role-ga',displayName:'Global Administrator',isBuiltIn:true,isPrivileged:true,templateId:'62e90394-69f5-4237-9190-012177145e10'},
+        {id:'role-unused',displayName:'Unused Fixture Role',isBuiltIn:false,isPrivileged:false},
+      ],
+    };
+    const dataset=url.pathname.split('/').pop(),directory=directoryFixtures[dataset];
+    if(directory)return respond({rows:directory.map(source=>({SourceId:source.id,SourceJson:JSON.stringify(source),
+      ...(dataset==='directoryGroupMembers'?{ParentSourceId:'group-a'}:{})})),total:directory.length,pageSize:50});
     const recommendationFixtures={exposureScores:{id:'exposureScores',score:42,time:at},deviceSecureScores:{id:'deviceSecureScores',score:75,time:at},endpointRecommendations:{id:'endpoint-rec',recommendationName:'Update fixture browser',status:'Active',exposureImpact:2,configScoreImpact:3,exposedMachinesCount:4,remediationType:'Update'},secureScores:{createdDateTime:at,controlScores:[{controlName:'fixture-control',scoreInPercentage:25}]},secureScoreProfiles:{id:'fixture-control',title:'Protect fixture accounts',maxScore:8,remediation:'Enable protection'},defenderRecommendations:{name:'fixture-assessment',properties:{displayName:'Protect fixture resources',status:{code:'Unhealthy'},resourceDetails:{Id:'/fixture/resource'}}},defenderMetadata:{name:'fixture-assessment',properties:{severity:'High',remediationDescription:'<p>Open <strong>Environment settings</strong> and select <strong>Defender plans</strong>.</p>'}}};
     const fixture=recommendationFixtures[url.pathname.split('/').pop()];
     if(fixture)return respond({rows:[{SourceId:fixture.id??fixture.name??'score',SourceJson:JSON.stringify(fixture),CollectedAtUtc:at}],total:1,page:1,pageSize:50});
@@ -159,6 +177,14 @@ try{
   assert.equal(await page.getByRole('navigation',{name:'Workspace menu'}).evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(255, 255, 255)');
   await page.setViewportSize({width:1280,height:900});
   const menu=page.getByRole('navigation',{name:'Workspace menu'});
+  await menu.getByRole('link',{name:'Users, Groups & Roles',exact:true}).click();
+  await page.getByText(/Fixture Admin.*Enabled/).first().click();
+  await page.getByText('Global Administrator \u00b7 Tenant-wide \u00b7 via Admin Group',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Groups',exact:true}).click();
+  await page.getByText('Admin Group \u00b7 1 enabled direct users',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Roles',exact:true}).click();
+  await page.getByText('Unused Fixture Role \u00b7 Custom \u00b7 Standard \u00b7 0 assignments',{exact:true}).waitFor();
+  await page.getByText('PIM role eligibility \u00b7 Access denied',{exact:true}).waitFor();
   await menu.getByRole('link',{name:'Licenses',exact:true}).click();
   await page.getByRole('heading',{name:'Licenses',level:1,exact:true}).waitFor();
   await page.getByRole('button',{name:'View users',exact:true}).click();

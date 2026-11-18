@@ -688,6 +688,10 @@ html[data-theme="light"] .questionnaire-page { --mg-panel:#fff; --mg-field:#f7fa
 .audit-workspace-menu a:hover,.audit-provider-tabs a:hover { outline:1px solid currentColor; }
 html[data-theme="light"] .audit-workspace-menu { background:#fff; }
 .audit-provider-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:24px 0; padding-bottom:12px; border-bottom:1px solid var(--mg-border,#64748b); }
+.audit-provider-tabs button[aria-pressed=true] { background:#087aab; color:#fff; }
+.directory-records { display:grid; gap:8px; margin-top:16px; }
+.directory-records > details { border:1px solid var(--mg-border,#64748b); border-radius:8px; padding:12px 16px; overflow-wrap:anywhere; }
+.directory-records summary { cursor:pointer; font-weight:650; }
 .audit-provider-empty { padding:24px; border:1px solid var(--mg-border,#64748b); border-radius:12px; }
 .audit-policy-list { display:grid; gap:24px; }
 .audit-policy-card { padding:24px; border:1px solid var(--mg-border,#64748b); border-radius:12px; }

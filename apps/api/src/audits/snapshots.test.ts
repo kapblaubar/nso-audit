@@ -5,7 +5,7 @@ import {CollectionError} from './licensing.js';
 import {sourceScope,sourceJson,fetchSnapshotPage,normalizeSnapshots,sanitizeEvidence,sourceUrl,validateSnapshotUrl} from './snapshots.js';
 const sub='00000000-0000-4000-8000-000000000001';
 test('unified scope includes dedicated configuration, security and license datasets',()=>{
-  assert.equal(allDataTypes.length,27);assert.equal(new Set(Object.values(datasetCatalog).map(d=>d.table)).size,25);
+  assert.equal(allDataTypes.length,32);assert.equal(new Set(Object.values(datasetCatalog).map(d=>d.table)).size,30);
   for(const type of ['conditionalAccess','namedLocations','compliancePolicies','licenses','licenseAssignments'])assert.equal(isDataType(type),true);
   assert.equal(isDataType('__proto__'),false);assert.equal(isDataType('DROP TABLE'),false);
 });
@@ -40,16 +40,30 @@ test('Graph and ARM page links are retained and singleton policies are saved as 
   await assert.rejects(()=>fetchSnapshotPage('conditionalAccess',null,null,'fixture',async()=>Response.json({})),/invalidResponse/);
 });
 
-test('role collection expands role and principal and retains snapshot identity',async()=>{
-  const value={id:'assignment-1',roleDefinitionId:'role-1',principalId:'user-1',roleDefinition:{id:'role-1',displayName:'Global Administrator',templateId:'62e90394-69f5-4237-9190-012177145e10'},principal:{id:'user-1','@odata.type':'#microsoft.graph.user',displayName:'Test Admin',userPrincipalName:'admin@example.test'}};
+test('role assignments expand only the principal and role definitions are collected separately',async()=>{
+  const value={id:'assignment-1',roleDefinitionId:'role-1',principalId:'user-1',principal:{id:'user-1','@odata.type':'#microsoft.graph.user',displayName:'Test Admin',userPrincipalName:'admin@example.test'}};
   const page=await fetchSnapshotPage('roleAssignments',null,null,'fixture',async url=>{
-    assert.equal(new URL(String(url)).searchParams.get('$expand'),'roleDefinition,principal');
+    assert.equal(new URL(String(url)).searchParams.get('$expand'),'principal');
     return Response.json({value:[value]});
   });
-  assert.equal(page.records[0]?.displayName,'Global Administrator');
   assert.equal(page.records[0]?.sourceId,'assignment-1');
   assert.deepEqual(JSON.parse(page.records[0]!.sourceJson),value);
+  const definition={id:'role-1',displayName:'Global Administrator',isBuiltIn:true,isPrivileged:true};
+  const catalog=await fetchSnapshotPage('directoryRoleDefinitions',null,null,'fixture',async url=>{
+    assert.match(String(url),/roleDefinitions\?/);
+    return Response.json({value:[definition]});
+  });
+  assert.equal(catalog.records[0]?.displayName,definition.displayName);
   assert.equal(normalizeSnapshots([{id:'older',roleDefinitionId:'role-1',principalId:'user-1'}],'2026-11-10T00:00:00Z')[0]?.displayName,null);
+});
+test('PIM eligibility requests send an explicit locale',async()=>{
+  const source={id:'eligible-1',roleDefinitionId:'role-1',principalId:'user-1'};
+  const result=await fetchSnapshotPage('directoryRoleEligibility',null,null,'fixture',async (url,init)=>{
+    assert.match(String(url),/roleEligibilityScheduleInstances$/);
+    assert.equal(new Headers(init?.headers).get('Accept-Language'),'en-US');
+    return Response.json({value:[source]});
+  });
+  assert.deepEqual(JSON.parse(result.records[0]!.sourceJson),source);
 });
 test('Defender score snapshots preserve zero scores and validate singleton responses',async()=>{
   for(const type of ['exposureScores','deviceSecureScores'] as const){
@@ -72,4 +86,24 @@ test('Endpoint token audience retains the granted WindowsDefenderATP roles',()=>
 });
 test('source timeouts remain distinguishable from permission denials',async()=>{
   await assert.rejects(()=>sourceJson('https://graph.microsoft.com/v1.0/security/secureScores','fixture',async()=>{throw new DOMException('Timed out','TimeoutError');}),/sourceTimeout/);
+});
+
+test('Secure Score retains the latest snapshot while profiles retain all pages',async()=>{
+  assert.ok(sourceUrl('secureScores',null).endsWith('?$top=1'));
+  const score=await fetchSnapshotPage('secureScores',null,null,'fixture',async()=>Response.json({value:[{id:'latest-score'}],'@odata.nextLink':sourceUrl('secureScores',null)+'&$skiptoken=older'}));
+  assert.equal(score.records.length,1);assert.equal(score.nextLink,null);
+  const next=sourceUrl('secureScoreProfiles',null)+'&$skiptoken=more';
+  const profiles=await fetchSnapshotPage('secureScoreProfiles',null,null,'fixture',async()=>Response.json({value:[{id:'control'}],'@odata.nextLink':next}));
+  assert.equal(profiles.nextLink,next);
+});
+test('Secure Score retries a transient request timeout without retrying access denial',async()=>{
+  let calls=0;
+  const result=await fetchSnapshotPage('secureScores',null,null,'fixture',async()=>{
+    if(++calls===1)throw new DOMException('Timed out','TimeoutError');
+    return Response.json({value:[{id:'score'}]});
+  });
+  assert.equal(calls,2);assert.equal(result.records.length,1);
+  calls=0;
+  await assert.rejects(()=>fetchSnapshotPage('secureScoreProfiles',null,null,'fixture',async()=>{calls++;return new Response(null,{status:403});}),/missingAccess/);
+  assert.equal(calls,1);
 });

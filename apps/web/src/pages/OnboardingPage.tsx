@@ -16,12 +16,13 @@ const graphPermissions = [
   ["Policy.Read.All", "Conditional Access policies"],
   ["AuditLog.Read.All", "Authentication registration reporting"],
   ["RoleManagement.Read.Directory", "Entra roles and assignments"],
+  ["GroupMember.Read.All", "Entra group inventory and direct group membership"],
   ["User.ReadBasic.All", "Names and email addresses for privileged role assignees"],
   ["SecurityEvents.Read.All", "Microsoft 365 Secure Score and recommendations"],
   ["DeviceManagementConfiguration.Read.All", "Intune policies and configuration"],
   ["DeviceManagementApps.Read.All", "Intune app protection policies"],
   ["LicenseAssignment.Read.All", "Optional license audit: tenant license inventory"],
-  ["User.Read.All", "Optional license audit: user license assignments and assignment states"],
+  ["User.Read.All", "Entra user inventory, account status and optional license assignments"],
 ];
 
 export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }: OnboardingPageProps) {

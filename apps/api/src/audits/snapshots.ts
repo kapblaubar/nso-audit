@@ -34,11 +34,17 @@ export function validateSnapshotUrl(value:string,initial:string):string{
     throw new CollectionError('invalidPagingLink');
   return url.href;
 }
-export async function sourceJson(url:string,token:string,fetcher:typeof fetch=fetch):Promise<Record<string,unknown>>{
+export async function sourceJson(url:string,token:string,fetcher:typeof fetch=fetch,options:{timeoutMs?:number;retryTimeouts?:boolean;language?:string}={}):Promise<Record<string,unknown>>{
   for(let attempt=0;attempt<3;attempt++){
     let response:Response;
-    try{response=await fetcher(url,{headers:{Authorization:`Bearer ${token}`,Accept:'application/json'},redirect:'error',signal:AbortSignal.timeout(30000)});}
-    catch(error){throw new CollectionError(error instanceof Error&&error.name==='TimeoutError'?'sourceTimeout':'sourceUnavailable');}
+    const headers:Record<string,string>={Authorization:`Bearer ${token}`,Accept:'application/json'};
+    if(options.language)headers['Accept-Language']=options.language;
+    try{response=await fetcher(url,{headers,redirect:'error',signal:AbortSignal.timeout(options.timeoutMs??30000)});}
+    catch(error){
+      const timeout=error instanceof Error&&error.name==='TimeoutError';
+      if(timeout&&options.retryTimeouts&&attempt<2){await new Promise(resolve=>setTimeout(resolve,1000*(attempt+1)));continue;}
+      throw new CollectionError(timeout?'sourceTimeout':'sourceUnavailable');
+    }
     if(response.ok){
       let body:unknown;try{body=await response.json();}catch{throw new CollectionError('invalidResponse');}
       if(!body||typeof body!=='object'||Array.isArray(body))throw new CollectionError('invalidResponse');
@@ -76,7 +82,10 @@ export function normalizeSnapshots(values:unknown[],collectedAtUtc:string):Snaps
 export async function fetchSnapshotPage(dataType:SnapshotDataType,subscriptionId:string|null,nextLink:string|null,token:string,
   fetcher:typeof fetch=fetch){
   const initial=sourceUrl(dataType,subscriptionId),url=validateSnapshotUrl(nextLink??initial,initial);
-  const body=await sourceJson(url,token,fetcher);
+  // The PIM service rejects the wildcard language sent by Node fetch.
+  const options=dataType==='directoryRoleEligibility'?{language:'en-US'}
+    :dataType==='secureScores'||dataType==='secureScoreProfiles'?{timeoutMs:45000,retryTimeouts:true}:{};
+  const body=await sourceJson(url,token,fetcher,options);
   const next=body['@odata.nextLink']??body.nextLink;
   if(next!==undefined&&next!==null&&typeof next!=='string')throw new CollectionError('invalidPagingLink');
   const nextUrl=typeof next==='string'&&next?validateSnapshotUrl(next,initial):null;
@@ -87,5 +96,5 @@ export async function fetchSnapshotPage(dataType:SnapshotDataType,subscriptionId
   }
   const values='singleton' in source?[('endpoint' in source?{...body,id:dataType,lastModifiedDateTime:body.time}:body)]:body.value;
   if(!Array.isArray(values))throw new CollectionError('invalidResponse');
-  return {records:normalizeSnapshots(values,new Date().toISOString()),nextLink:nextUrl};
+  return {records:normalizeSnapshots(values,new Date().toISOString()),nextLink:'latestOnly' in source?null:nextUrl};
 }

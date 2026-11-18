@@ -17,6 +17,9 @@ param(
     [switch] $IncludeLicenseInventory,
 
     [Parameter()]
+    [switch] $IncludeDirectoryInventory,
+
+    [Parameter()]
     [switch] $IncludeDefenderVulnerabilityManagement
 )
 
@@ -115,6 +118,10 @@ if ($IncludeIntuneAppPolicies) {
 if ($IncludeLicenseInventory) {
     $graphApplicationPermissions += "LicenseAssignment.Read.All", "User.Read.All"
 }
+if ($IncludeDirectoryInventory) {
+    $graphApplicationPermissions += "User.Read.All", "GroupMember.Read.All"
+}
+$graphApplicationPermissions = @($graphApplicationPermissions | Select-Object -Unique)
 
 $graph = Get-ApiServicePrincipal `
     -ApiApplicationId $microsoftGraphApplicationId `

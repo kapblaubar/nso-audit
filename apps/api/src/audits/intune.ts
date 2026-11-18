@@ -17,7 +17,7 @@ export function parseIntuneCursor(value:string|null):IntuneCursor{
 export function intuneChildUrl(dataType:SnapshotDataType,parentId:string):string{
   const source=datasetCatalog[dataType];
   if(!('parent' in source)||!parentId||parentId.length>450||parentId==='.'||parentId==='..')throw new CollectionError('invalidSourceIdentifier');
-  return `https://graph.microsoft.com${source.path}/${encodeURIComponent(parentId)}${source.relationship?`/${source.relationship}`:''}${'expandDefinitions' in source?'?$expand=settingDefinitions':''}`;
+  return `https://graph.microsoft.com${source.path}/${encodeURIComponent(parentId)}${source.relationship?`/${source.relationship}`:''}${'expandDefinitions' in source?'?$expand=settingDefinitions':'select' in source?`?$select=${source.select}`:''}`;
 }
 const object=(value:unknown):Record<string,unknown>=>value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};
 const string=(value:unknown,max=512)=>typeof value==='string'?value.slice(0,max):null;

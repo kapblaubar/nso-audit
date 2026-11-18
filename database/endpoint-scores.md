@@ -43,6 +43,16 @@ distinguishes request timeouts/HTTP 504 as `sourceTimeout` from other source fai
 
 ## Recovery
 
+Secure Score request reliability: collect the latest daily score only (`secureScores?$top=1`)
+and stop following history pages for that dataset. Existing historical audit evidence is retained.
+Control profiles use explicit 200-record pages and follow every continuation link. Both Graph
+Secure Score datasets allow 45 seconds per request and up to three attempts, including client
+timeouts; other datasets retain their existing request policy. This keeps worst-case request
+retries below the existing five-minute collection lease. No schema, identity, permission or
+network change is needed. Deploy the API package with the versioned publish script or workflow;
+rollback is the previous API package. Validate a fresh audit and its saved source records, since
+compilation alone cannot establish whether Microsoft's upstream timeouts have recovered.
+
 Roll back API and web together. Retain additive tables and the expanded collection constraint;
 do not delete evidence or alter migration history. The runner wraps migrations in transactions.
 After correcting permissions or licensing, start a new audit; do not rewrite historical snapshots.
@@ -70,6 +80,20 @@ saved snapshot, and endpointRecommendations completed with 84 records. Secure Sc
 with `sourceTimeout`; Secure Score profiles were still running at the last inspection. The
 overall audit was not yet finished. These results do not establish a successful Secure Score
 collection or a clean environment rebuild. Historical failed audits remain unchanged.
+
+Secure Score reliability follow-up, November 13: reduced test requests to both v1.0 and beta
+feeds returned 200 after approximately 23 seconds, but a subsequent live test using the revised
+collector exhausted its bounded retries with `sourceTimeout`. This supports intermittent upstream
+availability; it does not prove the service has recovered. All 61 API tests passed, including
+client-timeout retry, no retry on access denial, latest-score-only collection and complete profile
+pagination. Deployment `335fb462-274e-42b4-ae84-02b943598a4f` succeeded on the existing Dev
+Function using the versioned publish script. Fresh audit
+`79d0c319-6bed-4d1e-b137-32a42ddfb8c2` was queued at 22:55 UTC for deployed-worker validation.
+That run completed `secureScoreProfiles` with all 460 records but `secureScores` exhausted
+retries and failed with `sourceTimeout`. The Secure Score tab therefore still lacks score
+evidence needed to identify outstanding controls. The code change is deployed and tested,
+but recovery of the complete Secure Score feature is not established. This run also recorded
+an unrelated `roleAssignments` HTTP 400; it must not be described as a clean full audit.
 
 - [Exposure Score](https://learn.microsoft.com/en-us/defender-endpoint/api/get-exposure-score)
 - [Secure Score for Devices](https://learn.microsoft.com/en-us/defender-endpoint/api/get-device-secure-score)

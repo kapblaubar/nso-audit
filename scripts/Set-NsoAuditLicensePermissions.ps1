@@ -2,6 +2,7 @@
 param(
   [Parameter(Mandatory)][Guid]$TenantId,
   [Parameter(Mandatory)][Guid]$ApplicationClientId,
+  [switch]$DirectoryInventory,
   [switch]$GrantConsent
 )
 $ErrorActionPreference='Stop'
@@ -13,7 +14,8 @@ $graph=& az ad sp show --id '00000003-0000-0000-c000-000000000000' --query '{id:
 if($LASTEXITCODE -ne 0){throw 'Could not resolve Microsoft Graph roles.'}
 $servicePrincipal=& az ad sp show --id $ApplicationClientId --query id -o tsv
 if($LASTEXITCODE -ne 0){throw 'Customer service principal is missing.'}
-$names=@('LicenseAssignment.Read.All','User.Read.All')
+$names=if($DirectoryInventory){@('GroupMember.Read.All','User.Read.All')}else{@('LicenseAssignment.Read.All','User.Read.All')}
+$purpose=if($DirectoryInventory){'directory inventory'}else{'licensing'}
 $roles=@($graph.appRoles | Where-Object { $_.value -in $names -and $_.allowedMemberTypes -contains 'Application' })
 if($roles.Count -ne 2){throw 'Required read-only Graph roles could not be resolved.'}
 $resources=@($application.requiredResourceAccess)
@@ -25,10 +27,10 @@ if(-not $graphResource){
 foreach($role in $roles){
   if($graphResource.resourceAccess.id -notcontains $role.id){$graphResource.resourceAccess+= [PSCustomObject]@{id=$role.id;type='Role'}}
 }
-Write-Host 'Additive license collector permissions (existing requested permissions are preserved):'
+Write-Host "Additive $purpose permissions (existing requested permissions are preserved):"
 $names | ForEach-Object {Write-Host "  $_ (Application, read-only)"}
 if($GrantConsent){Write-Host "Tenant-wide consent target: $TenantId; Enterprise Application: $ApplicationClientId"}
-if(-not $PSCmdlet.ShouldProcess("$ApplicationClientId in $TenantId",'Add licensing read permissions'+$(if($GrantConsent){' and grant the two application roles'}else{''}))){return}
+if(-not $PSCmdlet.ShouldProcess("$ApplicationClientId in $TenantId","Add $purpose read permissions"+$(if($GrantConsent){' and grant any missing application roles'}else{''}))){return}
 function Invoke-PermissionWrite([string]$Url,[string]$Method,[object]$Body){
   $bodyPath=Join-Path ([IO.Path]::GetTempPath()) ('nso-license-permissions-'+[Guid]::NewGuid().ToString('N')+'.json')
   try{
@@ -47,4 +49,4 @@ if($GrantConsent){
     }
   }
 }
-Write-Host 'Licensing permission configuration complete.'
+Write-Host "$purpose permission configuration complete."
