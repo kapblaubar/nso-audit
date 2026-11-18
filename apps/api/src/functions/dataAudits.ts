@@ -76,7 +76,7 @@ async function collectSnapshot(job:CollectionJob):Promise<void>{
         if(cursor.page)throw new CollectionError('invalidPagingLink');
         if(status!=='complete')throw new CollectionError('parentCollectionIncomplete',status==='missingAccess');
         page={records:[],nextLink:null};
-      }else page=await fetchIntuneChildPage(job.DataType,parent,cursor,token);
+      }else page=await fetchIntuneChildPage(job.DataType,parent,cursor,token,fetch,subscriptionId??undefined);
     }else page=await fetchSnapshotPage(job.DataType,subscriptionId,job.NextLink,token);
   }catch(error){
     const safe=error instanceof CollectionError?error:new CollectionError('sourceUnavailable');

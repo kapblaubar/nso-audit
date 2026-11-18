@@ -67,7 +67,13 @@ cat=(ROOT/'apps/api/src/audits/catalog.ts').read_text()
 for m in re.finditer(r"(\w+):\{table:'(\w+)',label:'([^']+)',category:'([^']+)',path:'([^']+)'([^\n]*)",cat):
  key,table,label,category,path,tail=m.groups();parent=re.search(r"parent:'([^']+)'",tail);relationship=re.search(r"relationship:'([^']*)'",tail)
  endpoint=('ARM GET /subscriptions/{subscriptionId}' if 'arm:true' in tail else 'Graph GET ')+path
- if parent:
+ if parent and 'arm:true' in tail:
+  version=re.search(r"apiVersion:'([^']+)'",tail)
+  endpoint='ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}'+path+'/{vaultName}'
+  if key=='recoveryPolicyDetails': endpoint+='/backupPolicies/{policyName}'
+  elif relationship.group(1): endpoint+='/'+relationship.group(1)
+  if version: endpoint+='?api-version='+version.group(1)
+ elif parent:
   select=re.search(r"select:'([^']+)'",tail)
   endpoint+=('/{groupId}' if key=='directoryGroupMembers' else '/{policyId}')+('/'+relationship.group(1) if relationship and relationship.group(1) else '')+('?$expand=settingDefinitions' if 'expandDefinitions:true' in tail else '?$select='+select.group(1) if select else '')
  purpose=label+'. Saved source evidence, not an automatically evaluated compliance finding.'

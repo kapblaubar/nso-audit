@@ -115,13 +115,13 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
     <p className="eyebrow">Tenant audit data</p><h1>{directoryPage?'Users, Groups & Roles':recommendationsPage?'Recommendations':licensePage?'Licenses':scanId?'Audit snapshot':'Audit collection'}</h1>
     <p>Tenant ID: {account.tenantId}</p>
     {!scanId?<section aria-labelledby="run-audit-title"><h2 id="run-audit-title">Run tenant audit</h2>
-      <p>Collect the currently supported identity, Conditional Access, MFA, Intune, Microsoft Secure Score, Azure inventory, Defender for Cloud score and recommendation evidence. Save the results and open the audit report.</p>
+      <p>Collect the currently supported identity, Conditional Access, MFA, Intune, Microsoft Secure Score, Azure inventory, Defender for Cloud evidence, and Recovery Services backup settings. Save the results and open the audit report.</p>
       <label className="management-field">Azure subscription ID<input value={subscriptionId} onChange={event=>setSubscriptionId(event.target.value)} autoComplete="off" placeholder="Subscription used for Azure audit collection"/></label>
       <div className="report-actions"><button className="step-action" disabled={viewer||auditRunning||!(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(subscriptionId.trim()))} onClick={()=>void startAudit()}>{auditRunning?'Running audit…':'Run audit'}</button>
         <button className="detail-button" onClick={()=>setRefresh(n=>n+1)}>Refresh</button><a className="detail-button" href="/onboarding">Connection settings</a></div>
       {auditError?<p role="alert" className="auth-error">{auditError}</p>:null}
       <h2>Audit data</h2><p>Each run collects timestamped configuration, scores, recommendations, licenses and user assignments into the audit database. Collection progress and missing access are reported separately for each dataset.</p>
-      <p>DLP, labels, retention, insider risk, threat and alert policies, Sentinel connectors, backup policies are not collected yet.</p>
+      <p>DLP, labels, retention, insider risk, threat and alert policies, and Sentinel connectors are not collected yet.</p>
     </section>:<><p>Saved tenant audit evidence. Every dataset below belongs to this audit and retains its collection timestamp.</p>
       <div className="report-actions">{licensePage?<a className="detail-button" href={auditHref}>Back to audit</a>:null}<a className="step-action" href="/audit-data">Run tenant audit</a>
         <button className="detail-button" onClick={()=>setRefresh(n=>n+1)}>Refresh</button></div></>}

@@ -32,7 +32,7 @@ export async function createDataAudit(tenantId:string, initiatedBy:string,subscr
       .input('SubscriptionId',sql.UniqueIdentifier,subscriptionId??null).query(`
       INSERT app.ScanRuns(OrganizationId,TenantId,ScanId,EntityJson) VALUES(@OrganizationId,@TenantId,@ScanId,@json);
       INSERT app.DataAudits(OrganizationId,TenantId,ScanId,Scope,Status,InitiatedBy,CollectorVersion,SubscriptionId)
-      VALUES(@OrganizationId,@TenantId,@ScanId,@Scope,'queued',@InitiatedBy,'tenant-data-v5-directory',@SubscriptionId);
+      VALUES(@OrganizationId,@TenantId,@ScanId,@Scope,'queued',@InitiatedBy,'tenant-data-v7-backup-details',@SubscriptionId);
       UPDATE app.TenantRegistrations SET EntityJson=JSON_MODIFY(EntityJson,'$.lastScanId',CONVERT(varchar(36),@ScanId))
       WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId;
       IF @@ROWCOUNT=0 INSERT app.TenantRegistrations(OrganizationId,TenantId,EntityJson)
@@ -216,10 +216,10 @@ export async function nextIntuneParent(job:CollectionJob,cursor:IntuneCursor):Pr
     const result=await jobRequest(transaction,job).input('ParentType',sql.VarChar(32),source.parent)
       .input('After',sql.NVarChar(450),cursor.after).query(`
       SELECT Status FROM app.AuditCollections WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND DataType=@ParentType;
-      SELECT TOP(1) SourceId,DisplayName FROM ${evidenceTable(source.parent)}
+      SELECT TOP(1) SourceId,DisplayName${source.parent==='recoveryBackupPolicies'?',ChildSourceId':''} FROM ${evidenceTable(source.parent)}
       WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND SourceId${cursor.page?'=':'>'}@After ORDER BY SourceId;`);
     const sets=result.recordsets as sql.IRecordSet<any>[];
     const status=sets[0]?.[0]?.Status??'failed',row=sets[1]?.[0];
-    return {status,parent:row?{sourceId:row.SourceId,displayName:row.DisplayName,status}:null};
+    return {status,parent:row?{sourceId:row.SourceId,displayName:row.DisplayName,status,...(row.ChildSourceId?{resourceId:row.ChildSourceId}:{})}:null};
   });
 }

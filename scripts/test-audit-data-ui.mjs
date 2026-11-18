@@ -45,11 +45,26 @@ try{
     if(url.pathname==='/api/me/audits/00000000-0000-4000-8000-000000000099')return respond({audit:{ScanId:'00000000-0000-4000-8000-000000000099',Scope:'tenant',Status:'complete',CreatedAtUtc:at,StartedAtUtc:at,CompletedAtUtc:at},
       collections:['secureScores','secureScoreProfiles','defenderRecommendations','defenderMetadata','exposureScores','deviceSecureScores','endpointRecommendations'].map(DataType=>({DataType,Status:'complete',RecordCount:1,CompletedAtUtc:at})).concat([
         {DataType:'directoryUsers',Status:'complete',RecordCount:1},
+        ...[['recoveryVaults','Recovery Services vaults'],['recoveryVaultDetails','Recovery Services vault settings'],['recoveryBackupPolicies','Backup policies'],['recoveryPolicyDetails','Backup policy settings'],['recoveryVaultConfig','Vault backup configuration'],['recoveryVaultStorage','Vault backup storage']].map(([DataType,Label])=>({DataType,Label,Status:'complete',RecordCount:1})),
         {DataType:'directoryGroups',Status:'complete',RecordCount:1},
         {DataType:'directoryGroupMembers',Status:'complete',RecordCount:1},
         {DataType:'directoryRoleDefinitions',Status:'complete',RecordCount:2},
         {DataType:'directoryRoleEligibility',Status:'missingAccess',RecordCount:0},
         {DataType:'roleAssignments',Label:'Directory role assignments',Status:'complete',RecordCount:3,ErrorCode:null},{DataType:'settingsCatalogPolicies',Label:'Settings catalog policies',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'settingsCatalogSettings',Label:'Settings',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'settingsCatalogAssignments',Label:'Assignments',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'conditionalAccess',Label:'Conditional Access policies',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'namedLocations',Label:'Named locations',Status:'complete',RecordCount:2,ErrorCode:null},{DataType:'licenses',Label:'Licenses',Status:'complete',RecordCount:1,ErrorCode:null},{DataType:'licenseAssignments',Label:'License assignments',Status:'complete',RecordCount:1,ErrorCode:null}])});
+    const vaultId='/subscriptions/'+tenant+'/resourceGroups/Recovery/providers/Microsoft.RecoveryServices/vaults/FixtureVault';
+    const backupFixtures={
+      recoveryVaults:{id:vaultId,name:'FixtureVault',location:'westus2',properties:{publicNetworkAccess:'Disabled'}},
+      recoveryBackupPolicies:{name:'Fixture SQL policy',properties:{backupManagementType:'AzureWorkload',workLoadType:'SQLDataBase',protectedItemsCount:0,subProtectionPolicy:[
+        {policyType:'Full',retentionPolicy:{retentionPolicyType:'LongTermRetentionPolicy'}},
+        {policyType:'Log',schedulePolicy:{schedulePolicyType:'LogSchedulePolicy',scheduleFrequencyInMins:60}},
+      ]}},
+      recoveryVaultDetails:{name:'FixtureVault',properties:{redundancySettings:{standardTierStorageRedundancy:'GeoRedundant'},securitySettings:{immutabilitySettings:{state:'Locked'}}}},
+      recoveryVaultConfig:{name:'vaultconfig',properties:{softDeleteFeatureState:'Enabled'}},
+      recoveryVaultStorage:{name:'vaultstorageconfig',properties:{storageType:'GeoRedundant'}},
+    };
+    backupFixtures.recoveryPolicyDetails={...backupFixtures.recoveryBackupPolicies,properties:{...backupFixtures.recoveryBackupPolicies.properties,protectedItemsCount:2}};
+    const backupType=url.pathname.split('/').pop(),backup=backupFixtures[backupType];
+    if(backup)return respond({rows:[{SourceId:backup.id??backupType,DisplayName:backup.name,SourceJson:JSON.stringify(backup),ParentSourceId:backupType==='recoveryPolicyDetails'?'recoveryBackupPolicies':vaultId,ChildSourceId:vaultId+'/backupPolicies/fixture'}],total:1,pageSize:50});
     const directoryFixtures={
       directoryUsers:[{id:'user-a',displayName:'Fixture Admin',mail:'admin@example.invalid',accountEnabled:true}],
       directoryGroups:[{id:'group-a',displayName:'Admin Group',securityEnabled:true,groupTypes:[]}],
@@ -159,7 +174,13 @@ try{
   await page.getByRole('tab',{name:'Source evidence',exact:true}).click();
   assert.equal(await page.locator('.audit-raw-evidence[open]').count(),0);
   await page.getByRole('navigation',{name:'Audit categories'}).getByRole('button',{name:/^Backups/}).click();
-  await page.getByText('Not collected in this audit.',{exact:true}).waitFor();
+  await page.getByRole('heading',{name:'FixtureVault',exact:true}).waitFor();
+  await page.getByText('Locked',{exact:true}).waitFor();
+  await page.locator('summary').filter({hasText:'Fixture SQL policy'}).click();
+  await page.getByRole('heading',{name:'Full',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Log',exact:true}).waitFor();
+  await page.getByText('Protected Items Count',{exact:true}).filter({visible:true}).locator('..').getByText('2',{exact:true}).waitFor();
+  await page.getByText('LogSchedulePolicy',{exact:true}).filter({visible:true}).waitFor();
   await page.getByRole('navigation',{name:'Audit categories'}).getByRole('button',{name:/^Identity/}).click();
   await page.getByRole('navigation',{name:'Audit categories'}).getByRole('button',{name:/Named locations/}).click();
   await page.getByRole('cell',{name:'Trusted',exact:true}).waitFor();

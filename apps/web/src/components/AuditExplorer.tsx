@@ -1,3 +1,4 @@
+import {backupPolicyGroup,RecoveryBackupPolicy} from './RecoveryBackupDetails';
 import {DirectoryRoleDetails,DirectoryRoleSummary,roleName,assigneeName,type RoleDefinitions} from './DirectoryRoleDetails';
 import {useEffect,useState} from 'react';
 import type {AuditAccount} from '../auth';
@@ -11,7 +12,7 @@ const groups=[
   {name:'Data protection',types:[]},
   {name:'Threat protection',types:['defenderRecommendations','defenderMetadata','endpointRecommendations','resourceGroups']},
   {name:'Scores',types:['secureScores','secureScoreProfiles','defenderScores','exposureScores','deviceSecureScores']},
-  {name:'Backups',types:[]},
+  {name:'Backups',types:['recoveryVaults','recoveryBackupPolicies']},
   {name:'Licensing',types:['licenses','licenseAssignments']}
 ];
 const children:Record<string,{settings:string;assignments:string}>={
@@ -19,6 +20,7 @@ const children:Record<string,{settings:string;assignments:string}>={
   deviceConfigurations:{settings:'deviceConfigurationDetails',assignments:'deviceConfigurationAssignments'},
   compliancePolicies:{settings:'compliancePolicyDetails',assignments:'compliancePolicyAssignments'}
 };
+const vaultDatasets=['recoveryVaultDetails','recoveryVaultConfig','recoveryVaultStorage','recoveryBackupPolicies','recoveryPolicyDetails'];
 const labels:Record<string,string>={settingsCatalogPolicies:'Settings catalog',deviceConfigurations:'Configuration profiles',compliancePolicies:'Compliance policies',authenticationMethods:'Authentication methods',licenses:'Licenses',licenseAssignments:'License assignments'};
 const object=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{};
 const when=(v:string|null|undefined)=>v?new Date(v).toLocaleString():'Not provided';
@@ -67,7 +69,8 @@ function PolicyDetail({account,report,type,row,refresh,definitions}:{account:Aud
   const relations=children[type],progress=JSON.stringify(report.collections);
   useEffect(()=>{
     let cancelled=false;setRelated({});setFailures({});setLocations(new Map());setBusy(true);
-    const types=relations?Object.values(relations):type==='conditionalAccess'?['namedLocations']:[];
+    const types=relations?Object.values(relations):type==='conditionalAccess'?['namedLocations']
+      :type==='recoveryVaults'?vaultDatasets:type==='recoveryBackupPolicies'?['recoveryVaults','recoveryPolicyDetails']:[];
     void Promise.all(types.map(async child=>{
       if(!report.collections.some(c=>c.DataType===child))return;
       try{
@@ -78,7 +81,9 @@ function PolicyDetail({account,report,type,row,refresh,definitions}:{account:Aud
         }
         if(cancelled)return;
         if(child==='namedLocations')setLocations(new Map(rows.filter(r=>r.SourceId).map(r=>[r.SourceId!.toLowerCase(),name(r)])));
-        else setRelated(current=>({...current,[child]:rows.filter(r=>r.ParentSourceId===row.SourceId)}));
+        else setRelated(current=>({...current,[child]:rows.filter(r=>child==='recoveryVaults'?r.SourceId===row.ParentSourceId
+          :child==='recoveryPolicyDetails'&&type==='recoveryVaults'?String(r.ChildSourceId??'').toLowerCase().startsWith(String(row.SourceId).toLowerCase()+'/backuppolicies/')
+          :r.ParentSourceId===row.SourceId)}));
       }catch{if(!cancelled)setFailures(current=>({...current,[child]:'Saved evidence could not be loaded. Use Refresh to try again.'}));}
     })).finally(()=>{if(!cancelled)setBusy(false);});
     return()=>{cancelled=true;};
@@ -86,14 +91,47 @@ function PolicyDetail({account,report,type,row,refresh,definitions}:{account:Aud
   const source=sourceRecord(row),tabs=relations?['Overview','Settings','Assignments','Source evidence']:['Overview','Source evidence'];
   const child=relations?(tab==='Settings'?relations.settings:relations.assignments):'';
   const collection=report.collections.find(c=>c.DataType===child),rows=related[child]??[];
+  const backupSections = type==='recoveryVaults' ? vaultDatasets.filter(dataset=>dataset!=='recoveryPolicyDetails').map(dataset=>{
+    const status=report.collections.find(c=>c.DataType===dataset);
+    const evidence=related[dataset]??[];
+    return <section key={dataset}><h3>{status?.Label??({recoveryVaultDetails:'Vault settings',recoveryVaultConfig:'Vault backup configuration',recoveryVaultStorage:'Vault backup storage',recoveryBackupPolicies:'Backup policies'})[dataset]}</h3>
+      <Notice collection={status}/>
+      {failures[dataset]?<p role="alert">{failures[dataset]}</p>:busy?<p role="status">Loading saved vault evidence?</p>
+        :dataset==='recoveryBackupPolicies'&&evidence.length?<><Notice collection={report.collections.find(c=>c.DataType==='recoveryPolicyDetails')}/>
+          {failures.recoveryPolicyDetails?<p role="alert">{failures.recoveryPolicyDetails}</p>:null}
+          <BackupPolicyList rows={evidence} details={related.recoveryPolicyDetails??[]} vault={row}/></>
+        :evidence.length?evidence.map(item=><Fields key={item.SourceId} value={sourceRecord(item).properties}/>)
+        :status?.Status==='complete'?<p>No records returned for this vault.</p>:null}
+    </section>;
+  }) : null;
   return <section className="explorer-detail" aria-label="Item details"><header><p className="eyebrow">Selected item</p><h2>{name(row,definitions)}</h2>
     <p className="audit-evidence-date">Collected {when(row.CollectedAtUtc)}</p></header>
     <div className="explorer-tabs" role="tablist" aria-label="Detail sections">{tabs.map(t=><button key={t} type="button" role="tab" id={`detail-${t.replaceAll(' ','-')}`} aria-selected={tab===t} aria-controls="explorer-tab-panel" tabIndex={tab===t?0:-1} onKeyDown={event=>{const i=tabs.indexOf(t);const next=event.key==='ArrowRight'?tabs[(i+1)%tabs.length]:event.key==='ArrowLeft'?tabs[(i+tabs.length-1)%tabs.length]:event.key==='Home'?tabs[0]:event.key==='End'?tabs[tabs.length-1]:undefined;if(next){event.preventDefault();setTab(next);document.getElementById(`detail-${next.replaceAll(' ','-')}`)?.focus();}}} onClick={()=>setTab(t)}>{t}</button>)}</div>
     <div id="explorer-tab-panel" role="tabpanel" aria-labelledby={`detail-${tab.replaceAll(' ','-')}`}>
-    {tab==='Overview'?<>{type==='conditionalAccess'?<>{failures.namedLocations?<p role="alert">Location names could not be loaded. Saved IDs are shown.</p>:null}<ConditionalAccessDetails rows={[row]} locations={locations}/></>:type==='namedLocations'?<NamedLocationDetails rows={[row]}/>:type==='roleAssignments'?<DirectoryRoleDetails row={row} definitions={definitions}/>:relations?<><p>{String(source.description??'No description provided.')}</p><Fields value={{Platform:source.platforms??source['@odata.type'],Technology:source.technologies,State:source.state??row.State,'Source updated':source.lastModifiedDateTime,'Policy ID':row.SourceId}}/><p>Select Settings or Assignments above to explore this policy.</p></>:<Fields value={source}/>}</>:null}
+    {tab==='Overview'?<>{type==='conditionalAccess'?<>{failures.namedLocations?<p role="alert">Location names could not be loaded. Saved IDs are shown.</p>:null}<ConditionalAccessDetails rows={[row]} locations={locations}/></>:type==='namedLocations'?<NamedLocationDetails rows={[row]}/>:type==='recoveryVaults'?<><Fields value={{Location:source.location,SKU:source.sku,Identity:source.identity,Tags:source.tags}}/>{backupSections}</>
+      :type==='recoveryBackupPolicies'?<><Notice collection={report.collections.find(c=>c.DataType==='recoveryPolicyDetails')}/>
+        {failures.recoveryPolicyDetails?<p role="alert">{failures.recoveryPolicyDetails}</p>:null}
+        <RecoveryBackupPolicy row={row} vault={related.recoveryVaults?.[0]} detail={related.recoveryPolicyDetails?.[0]}/></>
+      :type==='roleAssignments'?<DirectoryRoleDetails row={row} definitions={definitions}/>:relations?<><p>{String(source.description??'No description provided.')}</p><Fields value={{Platform:source.platforms??source['@odata.type'],Technology:source.technologies,State:source.state??row.State,'Source updated':source.lastModifiedDateTime,'Policy ID':row.SourceId}}/><p>Select Settings or Assignments above to explore this policy.</p></>:<Fields value={source}/>}</>:null}
     {relations&&(tab==='Settings'||tab==='Assignments')?<><Notice collection={collection}/>{failures[child]?<p role="alert">{failures[child]}</p>:busy?<p role="status">Loading linked evidence…</p>:collection?<>{rows.length?(tab==='Settings'?<Settings rows={rows} catalog={type==='settingsCatalogPolicies'}/>:<Assignments rows={rows}/>):<p>{collection.Status==='complete'?`No ${tab.toLowerCase()} returned for this policy.`:'No evidence saved for this policy yet.'}</p>}</>:null}</>:null}
-    {tab==='Source evidence'?<><p>Original saved responses for this item. IDs and timestamps are retained for verification.</p><Source rows={[row]}/>{relations?Object.entries(relations).map(([kind,child])=><section key={child}><h3>{kind==='settings'?'Settings':'Assignments'}</h3><Notice collection={report.collections.find(c=>c.DataType===child)}/>{failures[child]?<p role="alert">{failures[child]}</p>:busy?<p>Loading…</p>:<Source rows={related[child]??[]}/>}</section>):null}</>:null}
+    {tab==='Source evidence'?<><p>Original saved responses for this item. IDs and timestamps are retained for verification.</p><Source rows={[row]}/>{type==='recoveryBackupPolicies'?<Source rows={related.recoveryPolicyDetails??[]}/>:null}{type==='recoveryVaults'?vaultDatasets.map(dataset=><Source key={dataset} rows={related[dataset]??[]}/>):null}{relations?Object.entries(relations).map(([kind,child])=><section key={child}><h3>{kind==='settings'?'Settings':'Assignments'}</h3><Notice collection={report.collections.find(c=>c.DataType===child)}/>{failures[child]?<p role="alert">{failures[child]}</p>:busy?<p>Loading…</p>:<Source rows={related[child]??[]}/>}</section>):null}</>:null}
     </div></section>;
+}
+
+function BackupPolicyList({rows,details,vault}:{rows:Row[];details:Row[];vault:Row}){
+  const detailsByPolicy=new Map(details.map(detail=>[detail.ParentSourceId,detail]));
+  const groups=new Map<string,Row[]>();
+  for(const row of rows){
+    const group=backupPolicyGroup(row),entries=groups.get(group);
+    if(entries)entries.push(row);
+    else groups.set(group,[row]);
+  }
+  return <div className="directory-records">{[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([group,policies])=>
+    <section key={group}><h4>{group}</h4>{policies.map(policy=><details key={policy.SourceId}>
+      <summary>{String(sourceRecord(policy).name??name(policy))}</summary>
+      <RecoveryBackupPolicy row={policy} vault={vault} detail={detailsByPolicy.get(policy.SourceId)}/>
+    </details>)}</section>
+  )}</div>;
 }
 
 export function AuditExplorer({account,report,refresh}:{account:AuditAccount;report:DataAudit;refresh:number}){
@@ -142,7 +180,7 @@ export function AuditExplorer({account,report,refresh}:{account:AuditAccount;rep
       {type==='roleAssignments'&&collection?<DirectoryRoleSummary account={account} report={report} refresh={refresh} definitions={definitions}/>:null}
       {collection?<><label>Search inventory<input type="search" value={search} maxLength={200} onChange={e=>{setSearch(e.target.value);setPage(1);setSelected(null);}}/></label>
       {busy?<p role="status">Loading inventory…</p>:null}{error?<p role="alert">{error}</p>:null}
-      {data?<><p className="explorer-count">{data.total} matching records</p><div className="explorer-items">{data.rows.map(r=><button key={r.SourceId} type="button" aria-pressed={selected===r.SourceId} onClick={()=>{setSelected(r.SourceId??null);const p=new URLSearchParams({dataset:type,item:r.SourceId??''});window.history.replaceState({},'',`${window.location.pathname}?${p}`);}}><strong>{name(r,definitions)}</strong><small>{type==='roleAssignments'?assigneeName(r):readable(r.State??sourceRecord(r).platforms??sourceRecord(r)['@odata.type']??'Saved evidence')}</small><span>View details →</span></button>)}</div>
+      {data?<><p className="explorer-count">{data.total} matching records</p><div className="explorer-items">{data.rows.map(r=><button key={r.SourceId} type="button" aria-pressed={selected===r.SourceId} onClick={()=>{setSelected(r.SourceId??null);const p=new URLSearchParams({dataset:type,item:r.SourceId??''});window.history.replaceState({},'',`${window.location.pathname}?${p}`);}}><strong>{name(r,definitions)}</strong><small>{type==='roleAssignments'?assigneeName(r):type==='recoveryBackupPolicies'?backupPolicyGroup(r):readable(r.State??sourceRecord(r).platforms??sourceRecord(r)['@odata.type']??'Saved evidence')}</small><span>View details →</span></button>)}</div>
       {!data.rows.length?<p>{collection.Status==='complete'?(search?'No records match your search.':'No records returned for this dataset.'):'No records saved yet.'}</p>:null}
       <div className="explorer-pagination"><button type="button" disabled={page===1} onClick={()=>setPage(p=>p-1)}>Previous</button><span>Page {page}</span><button type="button" disabled={page*data.pageSize>=data.total} onClick={()=>setPage(p=>p+1)}>Next</button></div></>:null}</>:<p>This category has no collected evidence in this snapshot. It is not a clean audit result.</p>}</section>
     {item?<PolicyDetail key={`${type}:${item.SourceId}`} account={account} report={report} type={type} row={item} refresh={refresh} definitions={definitions}/>:<section className="explorer-detail explorer-empty"><h2>Select an item</h2><p>Choose a category and an inventory item to explore its saved configuration.</p></section>}</div></section>;

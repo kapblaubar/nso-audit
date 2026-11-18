@@ -120,6 +120,12 @@ The following describes normal application access plus important operator paths.
 | [app.AuditLicenses](#appauditlicenses) | Collected evidence | Tenant subscribed license SKU inventory: purchased/enabled/suspended/warning units and consumed counts. |
 | [app.AuditMicrosoftSecureScores](#appauditmicrosoftsecurescores) | Collected evidence | Microsoft Secure Score source history returned during an audit; several historical source scores may belong to one NSO audit. |
 | [app.AuditNamedLocations](#appauditnamedlocations) | Collected evidence | Named locations. Saved source evidence, not an automatically evaluated compliance finding. |
+| [app.AuditRecoveryBackupPolicies](#appauditrecoverybackuppolicies) | Collected evidence | Backup policies. Saved source evidence, not an automatically evaluated compliance finding. |
+| [app.AuditRecoveryPolicyDetails](#appauditrecoverypolicydetails) | Collected evidence | Backup policy settings. Saved source evidence, not an automatically evaluated compliance finding. |
+| [app.AuditRecoveryVaultConfig](#appauditrecoveryvaultconfig) | Collected evidence | Vault backup configuration. Saved source evidence, not an automatically evaluated compliance finding. |
+| [app.AuditRecoveryVaultDetails](#appauditrecoveryvaultdetails) | Collected evidence | Recovery Services vault settings. Saved source evidence, not an automatically evaluated compliance finding. |
+| [app.AuditRecoveryVaultStorage](#appauditrecoveryvaultstorage) | Collected evidence | Vault backup storage. Saved source evidence, not an automatically evaluated compliance finding. |
+| [app.AuditRecoveryVaults](#appauditrecoveryvaults) | Collected evidence | Recovery Services vaults. Saved source evidence, not an automatically evaluated compliance finding. |
 | [app.AuditResourceGroups](#appauditresourcegroups) | Collected evidence | Azure resource groups. Saved source evidence, not an automatically evaluated compliance finding. |
 | [app.AuditRoleAssignments](#appauditroleassignments) | Collected evidence | Entra directory role assignments with expanded principal. The roleDefinitionId links to the separately captured role catalog in the same audit. Earlier snapshots may include inline role definitions. |
 | [app.AuditSecureScoreProfiles](#appauditsecurescoreprofiles) | Collected evidence | Secure Score control profiles. Reference/control definitions captured with the audit; not evidence that each control is implemented. |
@@ -171,7 +177,7 @@ The following describes normal application access plus important operator paths.
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,DataType`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Distinguish empty complete, missingAccess, failed and partial. This is dataset status, not individual evidence.
-- **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
+- **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql)
 - **Application implementation:** [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 - **SQL procedures referencing this table:** `security.EnqueueAuditCollection (017_audit_licensing.sql)`
 
@@ -183,7 +189,7 @@ The following describes normal application access plus important operator paths.
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId`
 - **Parent relationships (creation DDL):** app.ScanRuns (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** One typed run; completed evidence retained as a snapshot. A complete run covers its requested datasets only.
-- **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
+- **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql)
 - **Application implementation:** [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts), [apps/api/src/functions/scans.ts](../apps/api/src/functions/scans.ts)
 
 #### app.ScanFindings
@@ -238,7 +244,7 @@ The following describes normal application access plus important operator paths.
 - **Primary key (creation DDL):** `DataType`
 - **Parent relationships (creation DDL):** No table foreign key in original CREATE TABLE; see later migrations/live metadata.
 - **Lifecycle / cautions:** Reference configuration, not tenant evidence. Children wait for parent inventory to become terminal.
-- **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
+- **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql)
 - **SQL procedures referencing this table:** `security.ClaimAuditCollection (019_intune_policy_details.sql)`
 
 #### dbo.ScanStorageCutover
@@ -437,7 +443,7 @@ The following describes normal application access plus important operator paths.
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditSettingsCatalogPolicies (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/groups/{groupId}/members?$select=id. Parent dataset: directoryGroups. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
-- **Schema sources:** [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
+- **Schema sources:** [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/022_directory_membership_parent.sql](../database/migrations/022_directory_membership_parent.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditDirectoryGroups
@@ -448,7 +454,7 @@ The following describes normal application access plus important operator paths.
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/groups?$select=id,displayName,mail,groupTypes,securityEnabled,onPremisesSyncEnabled.
-- **Schema sources:** [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
+- **Schema sources:** [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/022_directory_membership_parent.sql](../database/migrations/022_directory_membership_parent.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditDirectoryRoleDefinitions
@@ -548,6 +554,72 @@ The following describes normal application access plus important operator paths.
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/identity/conditionalAccess/namedLocations.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditRecoveryBackupPolicies
+
+- **Stores:** Backup policies. Saved source evidence, not an automatically evaluated compliance finding.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryBackupPolicies)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.AuditRecoveryVaults (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Backups. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.RecoveryServices/vaults/{vaultName}/backupPolicies?api-version=2025-08-01. Parent dataset: recoveryVaults. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
+- **Schema sources:** [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditRecoveryPolicyDetails
+
+- **Stores:** Backup policy settings. Saved source evidence, not an automatically evaluated compliance finding.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryPolicyDetails)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.AuditRecoveryBackupPolicies (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Backups. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.RecoveryServices/vaults/{vaultName}/backupPolicies/{policyName}?api-version=2025-08-01. Parent dataset: recoveryBackupPolicies. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
+- **Schema sources:** [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditRecoveryVaultConfig
+
+- **Stores:** Vault backup configuration. Saved source evidence, not an automatically evaluated compliance finding.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryVaultConfig)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.AuditRecoveryVaults (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Backups. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.RecoveryServices/vaults/{vaultName}/backupconfig/vaultconfig?api-version=2025-08-01. Parent dataset: recoveryVaults. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
+- **Schema sources:** [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditRecoveryVaultDetails
+
+- **Stores:** Recovery Services vault settings. Saved source evidence, not an automatically evaluated compliance finding.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryVaultDetails)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.AuditRecoveryVaults (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Backups. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.RecoveryServices/vaults/{vaultName}?api-version=2025-08-01. Parent dataset: recoveryVaults. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
+- **Schema sources:** [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditRecoveryVaultStorage
+
+- **Stores:** Vault backup storage. Saved source evidence, not an automatically evaluated compliance finding.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryVaultStorage)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.AuditRecoveryVaults (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Backups. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.RecoveryServices/vaults/{vaultName}/backupstorageconfig/vaultstorageconfig?api-version=2025-08-01. Parent dataset: recoveryVaults. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
+- **Schema sources:** [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditRecoveryVaults
+
+- **Stores:** Recovery Services vaults. Saved source evidence, not an automatically evaluated compliance finding.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryVaults)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Backups. ARM GET /subscriptions/{subscriptionId}/providers/Microsoft.RecoveryServices/vaults?api-version=2025-08-01.
+- **Schema sources:** [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditResourceGroups

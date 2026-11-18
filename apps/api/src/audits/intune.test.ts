@@ -46,3 +46,32 @@ test('encrypted custom and secret setting values are redacted without losing pol
     setting:{'@odata.type':'#microsoft.graph.deviceManagementConfigurationSecretSettingValue',value:'secret'}}),
     {passwordRequired:true,omaSettings:[{id:'a',isEncrypted:true,value:'[redacted]'}],setting:{'@odata.type':'#microsoft.graph.deviceManagementConfigurationSecretSettingValue',value:'[redacted]'}});
 });
+test('Recovery Services child snapshots preserve nested policy settings and ARM paging',async()=>{
+  const subscriptionId='257f10d8-cb7f-400c-8e29-7f1fc5318247';
+  const vault={sourceId:`/subscriptions/${subscriptionId}/resourceGroups/Backup RG/providers/Microsoft.RecoveryServices/vaults/vault-a`,displayName:'vault-a',status:'complete'};
+  const url=intuneChildUrl('recoveryBackupPolicies',vault.sourceId,subscriptionId);
+  assert.match(url,/^https:\/\/management\.azure\.com\/subscriptions\/[^/]+\/resourceGroups\/Backup%20RG\/providers\/Microsoft\.RecoveryServices\/vaults\/vault-a\/backupPolicies\?api-version=/);
+  const policy={id:`${vault.sourceId}/backupPolicies/sql-with-log`,name:'sql-with-log',properties:{
+    backupManagementType:'AzureWorkload',workLoadType:'SQLDataBase',protectedItemsCount:0,subProtectionPolicy:[
+      {policyType:'Full',retentionPolicy:{retentionPolicyType:'LongTermRetentionPolicy',dailySchedule:{retentionDuration:{count:30}}}},
+      {policyType:'Log',schedulePolicy:{schedulePolicyType:'LogSchedulePolicy',scheduleFrequencyInMins:60}},
+    ],
+  }};
+  const next=url+'&skipToken=page-2';
+  const first=await fetchIntuneChildPage('recoveryBackupPolicies',vault,parseIntuneCursor(null),'fixture',async()=>Response.json({value:[policy],nextLink:next}),subscriptionId);
+  assert.deepEqual(JSON.parse(first.records[0]!.sourceJson),policy);
+  assert.equal(first.records[0]?.parentSourceId,vault.sourceId);
+  assert.equal(parseIntuneCursor(first.nextLink).page,next);
+  await assert.rejects(()=>fetchIntuneChildPage('recoveryBackupPolicies',vault,{after:vault.sourceId,page:next.replace('vault-a','vault-b')},'fixture',async()=>{throw new Error('Unexpected fetch');},subscriptionId),/invalidPagingLink/);
+  assert.throws(()=>intuneChildUrl('recoveryBackupPolicies',vault.sourceId,'00000000-0000-0000-0000-000000000000'),/invalidSourceIdentifier/);
+  const config={id:`${vault.sourceId}/backupconfig/vaultconfig`,properties:{softDeleteFeatureState:'Enabled'}};
+  const settings=await fetchIntuneChildPage('recoveryVaultConfig',vault,parseIntuneCursor(null),'fixture',async()=>Response.json(config),subscriptionId);
+  assert.deepEqual(JSON.parse(settings.records[0]!.sourceJson),config);
+  const detailParent={sourceId:first.records[0]!.sourceId,resourceId:policy.id,displayName:policy.name,status:'complete'};
+  const detail=await fetchIntuneChildPage('recoveryPolicyDetails',detailParent,parseIntuneCursor(null),'fixture',async resource=>{
+    assert.equal(new URL(String(resource)).pathname,new URL(url).pathname+'/sql-with-log');
+    return Response.json({...policy,properties:{...policy.properties,protectedItemsCount:2}});
+  },subscriptionId);
+  assert.equal(detail.records[0]?.parentSourceId,detailParent.sourceId);
+  assert.equal(JSON.parse(detail.records[0]!.sourceJson).properties.protectedItemsCount,2);
+});
