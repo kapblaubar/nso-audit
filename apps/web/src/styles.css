@@ -752,22 +752,43 @@ html[data-theme=light] .explorer-tabs button[aria-selected=true] { color:white; 
 .explorer-vault-layout .explorer-detail { padding:16px; }
 .explorer-vault-layout .explorer-detail>header h2 { margin:0 0 4px; }
 .explorer-vault-layout .explorer-tabs { margin:12px 0; padding-bottom:8px; }
-.vault-overview>section { border-top:1px solid var(--ex-line); padding-top:12px; margin-top:12px; }
+.vault-overview>section+section,.vault-overview>div+section { border-top:1px solid var(--ex-line); padding-top:12px; margin-top:12px; }
 .vault-overview h3 { margin:0 0 8px; font-size:1rem; }
-.explorer-detail .vault-fields>.audit-policy-fields {
-  grid-template-columns:repeat(auto-fit,minmax(min(100%, 220px),1fr));
+.explorer-detail .vault-overview .audit-policy-fields {
+  grid-template-columns:repeat(auto-fit,minmax(min(100%, 210px),1fr));
   gap:8px 16px;
-  margin:0;
+  margin:0 0 8px;
 }
-.vault-fields .audit-policy-fields dt { margin-bottom:2px; }
-.vault-fields .audit-policy-fields .audit-policy-fields {
-  border-left:1px solid var(--ex-line);
-  gap:6px;
-  margin:4px 0 0;
-  padding-left:8px;
+.vault-overview .audit-policy-fields>div {
+  display:block;
+  padding:0;
+  border:0;
 }
-.vault-policy-list>.directory-records { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%, 240px),1fr)); gap:8px 12px; }
-.vault-policy-list>.directory-records>section:has(>details[open]) { grid-column:1 / -1; }
+.vault-overview .audit-policy-fields dt { margin-bottom:2px; }
+.vault-overview .audit-policy-fields dd { font-weight:600; }
+.vault-overview .audit-policy-fields>div:has(>dd>dl,>dd>ul) {
+  grid-column:1 / -1;
+  border-top:1px solid var(--ex-line);
+  padding-top:6px;
+}
+.vault-overview .audit-policy-fields>div:has(>dd>dl,>dd>ul)>dt {
+  font-weight:700;
+  opacity:1;
+  margin-bottom:6px;
+}
+.vault-overview>.vault-fields>dl>div:has(>dd>dl,>dd>ul) {
+  grid-column:auto;
+  border:0;
+  padding:0;
+}
+.vault-workloads { display:grid; gap:6px; }
+.vault-workload { border:1px solid var(--ex-line); border-radius:8px; }
+.vault-workload>summary,.vault-policy>summary { cursor:pointer; padding:8px 12px; font-size:.9rem; font-weight:650; }
+.vault-policy-count { margin-left:4px; color:var(--ex-muted); font-size:.8rem; }
+.vault-policy { margin:0 12px; border-top:1px solid var(--ex-line); }
+.vault-policy>summary { padding-inline:0; }
+.vault-policy>section { margin-top:12px; }
+.vault-policy[open] { padding-bottom:10px; }
 @media(min-width:701px) {
   .explorer-vault-layout {
     grid-template-columns:minmax(180px, 220px) minmax(0,1fr);

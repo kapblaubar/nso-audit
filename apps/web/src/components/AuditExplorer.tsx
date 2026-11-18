@@ -88,13 +88,15 @@ function PolicyDetail({account,report,type,row,refresh,definitions}:{account:Aud
     })).finally(()=>{if(!cancelled)setBusy(false);});
     return()=>{cancelled=true;};
   },[account,report.audit.ScanId,type,row.SourceId,progress,refresh]);
-  const source=sourceRecord(row),tabs=relations?['Overview','Settings','Assignments','Source evidence']:['Overview','Source evidence'];
+  const source=sourceRecord(row),tabs=relations?['Overview','Settings','Assignments','Source evidence']
+    :type==='recoveryVaults'?['Overview','Vault settings','Source evidence']:['Overview','Source evidence'];
   const child=relations?(tab==='Settings'?relations.settings:relations.assignments):'';
   const collection=report.collections.find(c=>c.DataType===child),rows=related[child]??[];
-  const backupSections = type==='recoveryVaults' ? vaultDatasets.filter(dataset=>dataset!=='recoveryPolicyDetails').map(dataset=>{
+  const backupSections = type==='recoveryVaults' ? vaultDatasets.filter(dataset=>
+    tab==='Overview'?dataset==='recoveryBackupPolicies':tab==='Vault settings'&&dataset!=='recoveryBackupPolicies'&&dataset!=='recoveryPolicyDetails').map(dataset=>{
     const status=report.collections.find(c=>c.DataType===dataset);
     const evidence=related[dataset]??[];
-    return <section key={dataset} className={dataset==='recoveryBackupPolicies'?'vault-policy-list':'vault-fields'}><h3>{status?.Label??({recoveryVaultDetails:'Vault settings',recoveryVaultConfig:'Vault backup configuration',recoveryVaultStorage:'Vault backup storage',recoveryBackupPolicies:'Backup policies'})[dataset]}</h3>
+    return <section key={dataset}><h3>{status?.Label??({recoveryVaultDetails:'Vault settings',recoveryVaultConfig:'Vault backup configuration',recoveryVaultStorage:'Vault backup storage',recoveryBackupPolicies:'Backup policies'})[dataset]}</h3>
       <Notice collection={status}/>
       {failures[dataset]?<p role="alert">{failures[dataset]}</p>:busy?<p role="status">Loading saved vault evidence…</p>
         :dataset==='recoveryBackupPolicies'&&evidence.length?<><Notice collection={report.collections.find(c=>c.DataType==='recoveryPolicyDetails')}/>
@@ -113,6 +115,7 @@ function PolicyDetail({account,report,type,row,refresh,definitions}:{account:Aud
         {failures.recoveryPolicyDetails?<p role="alert">{failures.recoveryPolicyDetails}</p>:null}
         <RecoveryBackupPolicy row={row} vault={related.recoveryVaults?.[0]} detail={related.recoveryPolicyDetails?.[0]}/></>
       :type==='roleAssignments'?<DirectoryRoleDetails row={row} definitions={definitions}/>:relations?<><p>{String(source.description??'No description provided.')}</p><Fields value={{Platform:source.platforms??source['@odata.type'],Technology:source.technologies,State:source.state??row.State,'Source updated':source.lastModifiedDateTime,'Policy ID':row.SourceId}}/><p>Select Settings or Assignments above to explore this policy.</p></>:<Fields value={source}/>}</>:null}
+    {tab==='Vault settings'?<div className="vault-overview">{backupSections}</div>:null}
     {relations&&(tab==='Settings'||tab==='Assignments')?<><Notice collection={collection}/>{failures[child]?<p role="alert">{failures[child]}</p>:busy?<p role="status">Loading linked evidence…</p>:collection?<>{rows.length?(tab==='Settings'?<Settings rows={rows} catalog={type==='settingsCatalogPolicies'}/>:<Assignments rows={rows}/>):<p>{collection.Status==='complete'?`No ${tab.toLowerCase()} returned for this policy.`:'No evidence saved for this policy yet.'}</p>}</>:null}</>:null}
     {tab==='Source evidence'?<><p>Original saved responses for this item. IDs and timestamps are retained for verification.</p><Source rows={[row]}/>{type==='recoveryBackupPolicies'?<Source rows={related.recoveryPolicyDetails??[]}/>:null}{type==='recoveryVaults'?vaultDatasets.map(dataset=><Source key={dataset} rows={related[dataset]??[]}/>):null}{relations?Object.entries(relations).map(([kind,child])=><section key={child}><h3>{kind==='settings'?'Settings':'Assignments'}</h3><Notice collection={report.collections.find(c=>c.DataType===child)}/>{failures[child]?<p role="alert">{failures[child]}</p>:busy?<p>Loading…</p>:<Source rows={related[child]??[]}/>}</section>):null}</>:null}
     </div></section>;
@@ -126,11 +129,11 @@ function BackupPolicyList({rows,details,vault}:{rows:Row[];details:Row[];vault:R
     if(entries)entries.push(row);
     else groups.set(group,[row]);
   }
-  return <div className="directory-records">{[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([group,policies])=>
-    <section key={group}><h4>{group}</h4>{policies.map(policy=><details key={policy.SourceId}>
+  return <div className="vault-workloads">{[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([group,policies])=>
+    <details key={group} className="vault-workload"><summary>{group} <span className="vault-policy-count">{policies.length}</span></summary>{policies.map(policy=><details className="vault-policy" key={policy.SourceId}>
       <summary>{String(sourceRecord(policy).name??name(policy))}</summary>
       <RecoveryBackupPolicy row={policy} vault={vault} detail={detailsByPolicy.get(policy.SourceId)}/>
-    </details>)}</section>
+    </details>)}</details>
   )}</div>;
 }
 
