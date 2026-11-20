@@ -1,4 +1,5 @@
 import {datasetCatalog,type SnapshotDataType,type SnapshotRecord} from './catalog.js';
+import {projectAzureSettings} from './azureSettings.js';
 import {CollectionError} from './licensing.js';
 import {uuidPattern} from '../storage/sql.js';
 
@@ -104,5 +105,7 @@ export async function fetchSnapshotPage(dataType:SnapshotDataType,subscriptionId
     return {id:item.id,name:item.name,type:item.type,kind:item.kind,location:item.location,
       resourceGroup:match[2]??null,subscriptionId,tags:item.tags};
   }):values;
-  return {records:normalizeSnapshots(evidence,new Date().toISOString()),nextLink:'latestOnly' in source?null:nextUrl};
+  const projected=dataType==='azureStorageSettings'||dataType==='azureSqlSettings'
+    ?evidence.map(item=>projectAzureSettings(dataType,item,subscriptionId)):evidence;
+  return {records:normalizeSnapshots(projected,new Date().toISOString()),nextLink:'latestOnly' in source?null:nextUrl};
 }

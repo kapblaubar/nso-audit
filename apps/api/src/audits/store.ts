@@ -183,7 +183,7 @@ export async function getJobSubscription(job:CollectionJob):Promise<string|null>
     return row?.SubscriptionId??null;
   });
 }
-export async function getSnapshotRows(tenantId:string,scanId:string,dataType:SnapshotDataType,page:number,search:string,resourceGroup?:string){
+export async function getSnapshotRows(tenantId:string,scanId:string,dataType:SnapshotDataType,page:number,search:string,resourceGroup?:string,resourceId?:string){
   await requireAuditSql();
   return withTenant(tenantId,async(transaction,organizationId)=>{
     const table=evidenceTable(dataType);
@@ -197,11 +197,13 @@ export async function getSnapshotRows(tenantId:string,scanId:string,dataType:Sna
     const where=`OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND
       (@Search='' OR CHARINDEX(@Search,DisplayName)>0 OR CHARINDEX(@Search,SourceId)>0 OR CHARINDEX(@Search,SourceJson)>0${roleSearch})
       ${dataType==='azureResources'&&resourceGroup!==undefined?"AND LOWER(JSON_VALUE(SourceJson,'$.resourceGroup'))=LOWER(@ResourceGroup)":''}`;
+    const idFilter=resourceId?' AND LOWER(SourceId)=LOWER(@ResourceId)':'';
     const result=await scoped(transaction,organizationId,tenantId,scanId).input('Offset',sql.Int,(page-1)*50)
       .input('Search',sql.NVarChar(200),search).input('ResourceGroup',sql.NVarChar(90),resourceGroup??null)
-      .query(`SELECT COUNT(*) Total FROM ${table} evidence WHERE ${where};
+      .input('ResourceId',sql.NVarChar(450),resourceId??null)
+      .query(`SELECT COUNT(*) Total FROM ${table} evidence WHERE ${where}${idFilter};
       SELECT SourceId,DisplayName,State,SourceCreatedAtUtc,SourceUpdatedAtUtc,SourceJson,CollectedAtUtc,StoredAtUtc${'parent' in datasetCatalog[dataType]?','+Object.keys(intuneColumns).join(','):''} FROM ${table} evidence
-      WHERE ${where} ORDER BY SourceId OFFSET @Offset ROWS FETCH NEXT 50 ROWS ONLY;`);
+      WHERE ${where}${idFilter} ORDER BY SourceId OFFSET @Offset ROWS FETCH NEXT 50 ROWS ONLY;`);
     const sets=result.recordsets as sql.IRecordSet<unknown>[];
     return {rows:sets[1]??[],total:(sets[0]?.[0] as {Total:number}|undefined)?.Total??0,page,pageSize:50};
   });

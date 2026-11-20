@@ -6,6 +6,8 @@ for the target environment; credentials and deployment tokens must never be comm
 
 ## Current automation status
 
+Azure Storage and SQL server configuration snapshots require migration 026 before API/web deployment. Use the existing subscription Reader role. Run a fresh audit in a test subscription with a Storage account and SQL logical server and compare saved settings against Azure. Check that both datasets finish and omitted fields are shown as unavailable. Configuration is captured on new scans. To roll back, retain the additive tables and redeploy the prior API/web versions.
+
 Azure resource inventory requires migration 025 before API/web deployment. Validate with a new audit using subscription-scoped Reader access. Compare inventory against the same subscription in Azure and confirm collection completes across all pages. Older audits have no resource inventory snapshot. For application rollback, retain the additive migration and redeploy the prior API/web versions.
 
 Recovery Services backup snapshots require migrations 023–024 before API/web deployment. Validate a fresh audit using [the Recovery Services backup runbook](recovery-services-backups.md).

@@ -5,7 +5,7 @@ import {CollectionError} from './licensing.js';
 import {sourceScope,sourceJson,fetchSnapshotPage,normalizeSnapshots,sanitizeEvidence,sourceUrl,validateSnapshotUrl} from './snapshots.js';
 const sub='00000000-0000-4000-8000-000000000001';
 test('unified scope includes dedicated configuration, security and license datasets',()=>{
-  assert.equal(allDataTypes.length,39);assert.equal(new Set(Object.values(datasetCatalog).map(d=>d.table)).size,37);
+  assert.equal(allDataTypes.length,41);assert.equal(new Set(Object.values(datasetCatalog).map(d=>d.table)).size,39);
   for(const type of ['conditionalAccess','namedLocations','compliancePolicies','licenses','licenseAssignments'])assert.equal(isDataType(type),true);
   assert.equal(isDataType('__proto__'),false);assert.equal(isDataType('DROP TABLE'),false);
 });
@@ -124,4 +124,28 @@ test('Azure inventory stores resource metadata and follows subscription-scoped p
   });
   await assert.rejects(()=>fetchSnapshotPage('azureResources',sub,next,'fixture',async()=>
     Response.json({value:[{id:id.replace(sub,'other'),name:'example',type:'Microsoft.Storage/storageAccounts'}]})),/invalidResponse/);
+});
+
+test('Azure resource settings preserve explicit values and discard unrelated provider properties',async()=>{
+  const storageId='/subscriptions/'+sub+'/resourceGroups/audit/providers/Microsoft.Storage/storageAccounts/example';
+  const storage=await fetchSnapshotPage('azureStorageSettings',sub,null,'fixture',async()=>Response.json({value:[{
+    id:storageId,name:'example',properties:{allowSharedKeyAccess:false,
+      sasPolicy:{sasExpirationPeriod:'01.00:00:00',expirationAction:'Block',token:'discard-me'},
+      networkAcls:{defaultAction:'Deny',ipRules:[{value:'192.0.2.1',action:'Allow'}]},
+      connectionString:'discard-me'}
+  }]}));
+  const saved=JSON.parse(storage.records[0]!.sourceJson);
+  assert.equal(saved.access.allowSharedKeyAccess,false);
+  assert.equal(saved.transport.minimumTlsVersion,null);
+  assert.deepEqual(saved.sasPolicy,{sasExpirationPeriod:'01.00:00:00',expirationAction:'Block'});
+  assert.doesNotMatch(storage.records[0]!.sourceJson,/discard-me/);
+
+  const serverId=storageId.replace('Microsoft.Storage/storageAccounts','Microsoft.Sql/servers');
+  const server={id:serverId,name:'example',properties:{minimalTlsVersion:'1.2',
+    administrators:{login:'audit-admin',azureADOnlyAuthentication:true},administratorLoginPassword:'discard-me'}};
+  const sql=await fetchSnapshotPage('azureSqlSettings',sub,null,'fixture',async()=>Response.json({value:[server]}));
+  assert.equal(JSON.parse(sql.records[0]!.sourceJson).access.azureADOnlyAuthentication,true);
+  assert.doesNotMatch(sql.records[0]!.sourceJson,/discard-me/);
+  await assert.rejects(()=>fetchSnapshotPage('azureSqlSettings',sub,null,'fixture',async()=>
+    Response.json({value:[{...server,id:serverId.replace(sub,'other')}]})),/invalidResponse/);
 });

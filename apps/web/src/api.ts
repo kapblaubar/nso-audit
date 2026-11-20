@@ -136,7 +136,7 @@ async function dataAuditRequest<T>(account:AuditAccount,path:string,method='GET'
 export const startDataAudit=(account:AuditAccount)=>dataAuditRequest<{scanId:string}>(account,'','POST');
 export const loadDataAudit=(account:AuditAccount,scanId:string)=>dataAuditRequest<DataAudit>(account,`/${encodeURIComponent(scanId)}`);
 export const loadLicenseEvidence=(account:AuditAccount,scanId:string,dataType:string,
-  page:number,search:string,skuId:string,resourceGroup?:string)=>{
-  const query=new URLSearchParams({page:String(page),search,...(skuId?{skuId}:{}),...(resourceGroup?{resourceGroup}:{})});
+  page:number,search:string,skuId:string,resourceGroup?:string,resourceId?:string)=>{
+  const query=new URLSearchParams({page:String(page),search,...(skuId?{skuId}:{}),...(resourceGroup?{resourceGroup}:{}),...(resourceId?{resourceId}:{})});
   return dataAuditRequest<LicenseEvidencePage>(account,`/${encodeURIComponent(scanId)}/${dataType}?${query}`);
 };

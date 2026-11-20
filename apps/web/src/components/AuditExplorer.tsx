@@ -123,7 +123,52 @@ function PolicyDetail({account,report,type,row,refresh,definitions}:{account:Aud
     </div></section>;
 }
 
-function AzureResources({rows,tenantId}:{rows:Row[];tenantId:string}){
+function AzureSettings({account,report,resourceId,dataset,refresh}:{account:AuditAccount;report:DataAudit;
+  resourceId:string;dataset:'azureStorageSettings'|'azureSqlSettings';refresh:number}){
+  const [row,setRow]=useState<Row>(),[busy,setBusy]=useState(false),[error,setError]=useState(false);
+  const collection=report.collections.find(c=>c.DataType===dataset);
+  const status=collection?.Status,count=collection?.RecordCount;
+  useEffect(()=>{
+    if(!status)return;
+    let cancelled=false;
+    setRow(undefined);setBusy(true);setError(false);
+    void loadLicenseEvidence(account,report.audit.ScanId,dataset,1,'','',undefined,resourceId)
+      .then(result=>{if(!cancelled)setRow(result.rows[0]);})
+      .catch(()=>{if(!cancelled)setError(true);})
+      .finally(()=>{if(!cancelled)setBusy(false);});
+    return()=>{cancelled=true;};
+  },[account,report.audit.ScanId,dataset,resourceId,refresh,status,count]);
+  const settings=row?sourceRecord(row):{};
+  const storage=dataset==='azureStorageSettings';
+  const network=object(settings.network),transport=object(settings.transport),access=object(settings.access);
+  const sas=object(settings.sasPolicy);
+  return <section aria-label="Security and configuration">
+    <h3>{storage?'Storage security and configuration':'SQL server security and configuration'}</h3>
+    <Notice collection={collection}/>
+    {busy?<p role="status">Loading saved settings?</p>:null}
+    {error?<p role="alert">Settings could not be loaded. Use Refresh to try again.</p>:null}
+    {status==='complete'&&!busy&&!error&&!row?<p>No configuration record was returned for this resource.</p>:null}
+    {row?<div className="azure-settings-sections">
+      <section><h4>Network and transport</h4><Fields value={{
+        'Public network access':network.publicNetworkAccess,
+        'Minimum TLS':storage?transport.minimumTlsVersion:transport.minimalTlsVersion,
+        'Private endpoints':network.privateEndpoints,
+        ...(storage?{'HTTPS only':transport.supportsHttpsTrafficOnly,'Firewall default action':network.defaultAction,
+          'Firewall bypass':network.bypass,'IP rules':network.ipRules,'Virtual network rules':network.virtualNetworkRules,
+          'Resource access rules':network.resourceAccessRules}:{}),
+      }}/></section>
+      {storage?<section><h4>Storage access and SAS</h4><Fields value={{
+        'Anonymous blob access':access.allowBlobPublicAccess,'Shared Key access':access.allowSharedKeyAccess,
+        'SAS maximum validity':sas.sasExpirationPeriod,'SAS expiration action':sas.expirationAction,
+      }}/></section>:<section><h4>Microsoft Entra authentication</h4><Fields value={{
+        'Entra administrator':access.login,'Principal type':access.principalType,'Principal ID':access.sid,
+        'Entra-only authentication':access.azureADOnlyAuthentication,
+      }}/></section>}
+    </div>:null}
+  </section>;
+}
+
+function AzureResources({rows,account,report,refresh}:{rows:Row[];account:AuditAccount;report:DataAudit;refresh:number}){
   const [expanded,setExpanded]=useState<string|null>(null);
   return <div className="azure-resource-scroll"><table className="azure-resource-table" aria-label="Azure resource inventory">
     <thead><tr>{['Name','Resource type','Resource group','Location','Subscription ID','Tags'].map(label=><th key={label} scope="col">{label}</th>)}</tr></thead>
@@ -131,7 +176,10 @@ function AzureResources({rows,tenantId}:{rows:Row[];tenantId:string}){
       const resource=sourceRecord(row),id=row.SourceId??'';
       const tags=Object.entries(object(resource.tags)).map(([key,value])=>key+': '+String(value));
       const open=expanded===id;
-      const portalUrl='https://portal.azure.com/#@'+encodeURIComponent(tenantId)+'/resource'+id.split('/').map(encodeURIComponent).join('/');
+      const type=String(resource.type).toLowerCase();
+      const dataset=type==='microsoft.storage/storageaccounts'?'azureStorageSettings':
+        type==='microsoft.sql/servers'?'azureSqlSettings':null;
+      const portalUrl='https://portal.azure.com/#@'+encodeURIComponent(report.audit.TenantId)+'/resource'+id.split('/').map(encodeURIComponent).join('/');
       return <Fragment key={id}><tr>
         <th scope="row"><button type="button" aria-expanded={open} onClick={()=>setExpanded(open?null:id)}>{name(row)}</button></th>
         {[resource.type,resource.resourceGroup,resource.location,resource.subscriptionId,tags.join(', ')].map((value,index)=>
@@ -139,6 +187,7 @@ function AzureResources({rows,tenantId}:{rows:Row[];tenantId:string}){
       </tr>{open?<tr className="azure-resource-detail"><td colSpan={6}>
         <a href={portalUrl} target="_blank" rel="noreferrer">Open in Azure portal</a>
         <Fields value={{'Resource ID':id,Tags:resource.tags}}/>
+        {dataset?<AzureSettings key={id} account={account} report={report} resourceId={id} dataset={dataset} refresh={refresh}/>:null}
       </td></tr>:null}</Fragment>;
     })}</tbody>
   </table></div>;
@@ -159,7 +208,7 @@ function GroupResources({account,report,resourceGroup,refresh}:{account:AuditAcc
   return <><Notice collection={collection}/>
     {error?<p role="alert">Resources could not be loaded. Use Refresh to try again.</p>:null}
     {status&&!data&&!error?<p role="status">Loading resources?</p>:null}
-    {data?.rows.length?<AzureResources rows={data.rows} tenantId={report.audit.TenantId}/>:null}
+    {data?.rows.length?<AzureResources rows={data.rows} account={account} report={report} refresh={refresh}/>:null}
     {data&&!data.total&&status==='complete'?<p>No resources returned for this group.</p>:null}
     {data&&(page>1||data.total>data.pageSize)?<div className="explorer-pagination">
       <button type="button" disabled={page===1} onClick={()=>setPage(page-1)}>Previous</button>
@@ -243,7 +292,7 @@ export function AuditExplorer({account,report,refresh}:{account:AuditAccount;rep
       {type==='roleAssignments'&&collection?<DirectoryRoleSummary account={account} report={report} refresh={refresh} definitions={definitions}/>:null}
       {collection?<>{singleVault?null:<label>Search inventory<input type="search" value={search} maxLength={200} onChange={e=>{setSearch(e.target.value);setPage(1);setSelected(null);}}/></label>}
       {busy?<p role="status">Loading inventory…</p>:null}{error?<p role="alert">{error}</p>:null}
-      {data?<>{singleVault?null:<p className="explorer-count">{data.total} matching records</p>}{type==='azureResources'?<AzureResources rows={data.rows} tenantId={report.audit.TenantId}/>:type==='resourceGroups'?data.rows.map(row=><AzureResourceGroup key={row.SourceId} row={row} account={account} report={report} refresh={refresh}/>):<div className="explorer-items">{data.rows.map(r=><button key={r.SourceId} type="button" aria-pressed={selected===r.SourceId} onClick={()=>{setSelected(r.SourceId??null);const p=new URLSearchParams({dataset:type,item:r.SourceId??''});window.history.replaceState({},'',`${window.location.pathname}?${p}`);}}><strong>{name(r,definitions)}</strong><small>{type==='roleAssignments'?assigneeName(r):type==='recoveryBackupPolicies'?backupPolicyGroup(r):readable(r.State??sourceRecord(r).platforms??sourceRecord(r)['@odata.type']??'Saved evidence')}</small>{singleVault?null:<span>View details →</span>}</button>)}</div>}
+      {data?<>{singleVault?null:<p className="explorer-count">{data.total} matching records</p>}{type==='azureResources'?<AzureResources rows={data.rows} account={account} report={report} refresh={refresh}/>:type==='resourceGroups'?data.rows.map(row=><AzureResourceGroup key={row.SourceId} row={row} account={account} report={report} refresh={refresh}/>):<div className="explorer-items">{data.rows.map(r=><button key={r.SourceId} type="button" aria-pressed={selected===r.SourceId} onClick={()=>{setSelected(r.SourceId??null);const p=new URLSearchParams({dataset:type,item:r.SourceId??''});window.history.replaceState({},'',`${window.location.pathname}?${p}`);}}><strong>{name(r,definitions)}</strong><small>{type==='roleAssignments'?assigneeName(r):type==='recoveryBackupPolicies'?backupPolicyGroup(r):readable(r.State??sourceRecord(r).platforms??sourceRecord(r)['@odata.type']??'Saved evidence')}</small>{singleVault?null:<span>View details →</span>}</button>)}</div>}
       {!data.rows.length?<p>{collection.Status==='complete'?(search?'No records match your search.':'No records returned for this dataset.'):'No records saved yet.'}</p>:null}
       {vaultView&&page===1&&data.total<=data.pageSize?null:<div className="explorer-pagination"><button type="button" disabled={page===1} onClick={()=>setPage(p=>p-1)}>Previous</button><span>Page {page}</span><button type="button" disabled={page*data.pageSize>=data.total} onClick={()=>setPage(p=>p+1)}>Next</button></div>}</>:null}</>:<p>This category has no collected evidence in this snapshot. It is not a clean audit result.</p>}</section>
     {azureView?null:item?<PolicyDetail key={`${type}:${item.SourceId}`} account={account} report={report} type={type} row={item} refresh={refresh} definitions={definitions}/>:<section className="explorer-detail explorer-empty"><h2>Select an item</h2><p>Choose a category and an inventory item to explore its saved configuration.</p></section>}</div></section>;

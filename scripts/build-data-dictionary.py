@@ -77,11 +77,16 @@ for m in re.finditer(r"(\w+):\{table:'(\w+)',label:'([^']+)',category:'([^']+)',
   select=re.search(r"select:'([^']+)'",tail)
   endpoint+=('/{groupId}' if key=='directoryGroupMembers' else '/{policyId}')+('/'+relationship.group(1) if relationship and relationship.group(1) else '')+('?$expand=settingDefinitions' if 'expandDefinitions:true' in tail else '?$select='+select.group(1) if select else '')
  purpose=label+'. Saved source evidence, not an automatically evaluated compliance finding.'
+ if key=='azureStorageSettings':purpose='Allowlisted Storage account network, transport, authorization and SAS expiration settings per audit and ARM resource ID.'
+ if key=='azureSqlSettings':purpose='Allowlisted Azure SQL logical-server network, TLS and Microsoft Entra administrator settings per audit and ARM resource ID.'
+ if key=='azureResources':purpose='Per-audit Azure resource inventory: full ARM resource ID, name, resource type, kind, resource group, subscription ID, location and tags.'
  if key=='authenticationMethods':purpose='Authentication-method root policy and returned method configurations; not user authentication secrets.'
  if key=='roleAssignments':purpose='Entra directory role assignments with expanded principal. The roleDefinitionId links to the separately captured role catalog in the same audit. Earlier snapshots may include inline role definitions.'
  if key=='secureScores':purpose='Microsoft Secure Score source history returned during an audit; several historical source scores may belong to one NSO audit.'
  if key in ('secureScoreProfiles','defenderMetadata'):purpose=label+'. Reference/control definitions captured with the audit; not evidence that each control is implemented.'
  notes='Snapshot; '+category+'. '+endpoint+'.'
+ if key=='azureResources':notes+=' SourceJson stores projected inventory metadata. The resourceGroup query filter matches the complete group name within the same audit. Historical audits without this dataset have no resource snapshot. Storage and Azure SQL settings are matched by ARM resource ID in the same audit.'
+ if key in ('azureStorageSettings','azureSqlSettings'):notes+=' Resource details query uses the resourceId filter within the same tenant and scan. Null indicates Azure did not return the field. Source JSON contains projected fields only.'
  if parent: notes+=' Parent dataset: '+parent.group(1)+'. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.'
  add('app.'+table,purpose,'Collected evidence',R+' (dataType='+key+')',W+(' via nextIntuneParent/fetchIntuneChildPage' if parent else ' via collectSnapshot/fetchSnapshotPage'),notes)
 

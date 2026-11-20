@@ -410,6 +410,32 @@ against the stored subscription. Historical reads remain constrained by the sign
 tenant partition. Before collection, Azure subscription metadata must confirm that its tenant ID
 matches the validated signed-in tenant ID; cross-tenant/Lighthouse access is rejected for v1.
 
+### Azure resource inventory and configuration evidence
+
+#### Resource inventory
+
+- A subscription audit captures Azure Resource Manager resources and resource groups as separate paginated datasets using the selected subscription and read-only Azure access.
+- The Azure Resources view shows one compact row per resource with its name, type, resource group, location, subscription ID, and tags. The Resource Groups view starts collapsed and shows the same rows when a group is expanded. Group filtering matches the full resource-group name within the saved audit.
+- Each resource row expands inline for the full Azure resource ID, tags, and an Azure portal link. Preserve the audit snapshot when a resource later changes or is deleted.
+- Show collection status alongside results. Older audits may lack resource rows. Validate coverage for child resource types against Azure before claiming portal parity.
+
+#### Storage and Azure SQL
+
+The first implementation captures Storage account network, transport, access and SAS policy settings, and SQL logical-server network, TLS and Entra administrator settings. SQL firewall and auditing, database settings, blob service settings, role assignments and snapshot comparisons are follow-up work.
+
+Resource row details must use service-specific sections, with readable summaries and structured lists for settings such as firewall rules.
+
+| Resource | Configuration evidence to collect |
+|---|---|
+| Storage accounts | Public network access, firewall default action and exceptions, private endpoints, anonymous blob access, Shared Key authorization, HTTPS-only, minimum TLS, SAS maximum validity and Log or Block action, and blob soft delete and versioning. |
+| Azure SQL logical servers | Public network access, firewall rules including Allow Azure services, private endpoints, minimum TLS, Microsoft Entra administrator, Entra-only authentication, and server auditing. |
+| Azure SQL databases | Database auditing, transparent data encryption, and backup retention. Show inherited settings and database overrides where available. |
+
+- Collect only allowlisted, read-only configuration evidence. Exclude storage keys, SAS tokens, connection strings, passwords, and secret values. Display SAS policy settings only.
+- Record which settings were collected, unavailable, or unsupported. Keep missing evidence distinct from disabled settings.
+- Record Azure role assignments with principal, role, assignment scope, and direct or inherited origin where visible. Track SQL database principals separately from Azure RBAC.
+- Compare configuration and access across snapshots covering the same tenant, subscription, and resource ID. Show old and new values and their scan dates. Require complete coverage before reporting a removal.
+
 ## 6. Data Sources & Required Permissions
 
 ### 6.1 Microsoft Graph (application permissions, admin-consented)
