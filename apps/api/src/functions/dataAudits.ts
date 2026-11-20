@@ -45,10 +45,12 @@ export async function readEvidence(request:HttpRequest,context:InvocationContext
     const scanId=request.params.scanId??'',dataType=request.params.dataType;
     const rawPage=request.query.get('page')??'1',page=Number(rawPage),search=(request.query.get('search')??'').trim();
     const skuId=request.query.get('skuId')??undefined;
+    const resourceGroup=request.query.get('resourceGroup')??undefined;
     if(!uuidPattern.test(scanId)||!dataType||!isDataType(dataType)||
       !/^\d+$/.test(rawPage)||!Number.isSafeInteger(page)||page<1||page>1000000||search.length>200||
+      (resourceGroup!==undefined&&(dataType!=='azureResources'||!resourceGroup.trim()||resourceGroup.length>90))||
       (skuId!==undefined&&!uuidPattern.test(skuId)))return {status:400,jsonBody:{error:'Invalid audit data filter.'}};
-    const result=isSnapshotType(dataType)?await getSnapshotRows(tenantId,scanId,dataType,page,search):await getLicenseRows(tenantId,scanId,dataType,page,search,skuId);
+    const result=isSnapshotType(dataType)?await getSnapshotRows(tenantId,scanId,dataType,page,search,resourceGroup):await getLicenseRows(tenantId,scanId,dataType,page,search,skuId);
     return result?{status:200,jsonBody:result}:{status:404,jsonBody:{error:'Audit not found.'}};
   });
 }
