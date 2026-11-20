@@ -10,7 +10,8 @@ const groups=[
   {name:'Identity & access',types:['conditionalAccess','namedLocations','authenticationMethods','registrations','authorizationPolicy','roleAssignments']},
   {name:'Devices',types:['settingsCatalogPolicies','deviceConfigurations','compliancePolicies','appProtectionPolicies']},
   {name:'Data protection',types:[]},
-  {name:'Threat protection',types:['defenderRecommendations','defenderMetadata','endpointRecommendations','resourceGroups']},
+  {name:'Threat protection',types:['defenderRecommendations','defenderMetadata','endpointRecommendations']},
+  {name:'Azure',types:['azureResources','resourceGroups']},
   {name:'Scores',types:['secureScores','secureScoreProfiles','defenderScores','exposureScores','deviceSecureScores']},
   {name:'Backups',types:['recoveryVaults','recoveryBackupPolicies']},
   {name:'Licensing',types:['licenses','licenseAssignments']}
@@ -107,6 +108,7 @@ function PolicyDetail({account,report,type,row,refresh,definitions}:{account:Aud
     </section>;
   }) : null;
   return <section className="explorer-detail" aria-label="Item details"><header>{type!=='recoveryVaults'?<p className="eyebrow">Selected item</p>:null}<h2>{name(row,definitions)}</h2>
+    {type==='azureResources'&&row.SourceId?<a href={'https://portal.azure.com/#@'+encodeURIComponent(report.audit.TenantId)+'/resource'+row.SourceId.split('/').map(encodeURIComponent).join('/')} target="_blank" rel="noreferrer">Open in Azure portal</a>:null}
     <p className="audit-evidence-date">Collected {when(row.CollectedAtUtc)}</p></header>
     <div className="explorer-tabs" role="tablist" aria-label="Detail sections">{tabs.map(t=><button key={t} type="button" role="tab" id={`detail-${t.replaceAll(' ','-')}`} aria-selected={tab===t} aria-controls="explorer-tab-panel" tabIndex={tab===t?0:-1} onKeyDown={event=>{const i=tabs.indexOf(t);const next=event.key==='ArrowRight'?tabs[(i+1)%tabs.length]:event.key==='ArrowLeft'?tabs[(i+tabs.length-1)%tabs.length]:event.key==='Home'?tabs[0]:event.key==='End'?tabs[tabs.length-1]:undefined;if(next){event.preventDefault();setTab(next);document.getElementById(`detail-${next.replaceAll(' ','-')}`)?.focus();}}} onClick={()=>setTab(t)}>{t}</button>)}</div>
     <div id="explorer-tab-panel" role="tabpanel" aria-labelledby={`detail-${tab.replaceAll(' ','-')}`}>
@@ -119,6 +121,21 @@ function PolicyDetail({account,report,type,row,refresh,definitions}:{account:Aud
     {relations&&(tab==='Settings'||tab==='Assignments')?<><Notice collection={collection}/>{failures[child]?<p role="alert">{failures[child]}</p>:busy?<p role="status">Loading linked evidence…</p>:collection?<>{rows.length?(tab==='Settings'?<Settings rows={rows} catalog={type==='settingsCatalogPolicies'}/>:<Assignments rows={rows}/>):<p>{collection.Status==='complete'?`No ${tab.toLowerCase()} returned for this policy.`:'No evidence saved for this policy yet.'}</p>}</>:null}</>:null}
     {tab==='Source evidence'?<><p>Original saved responses for this item. IDs and timestamps are retained for verification.</p><Source rows={[row]}/>{type==='recoveryBackupPolicies'?<Source rows={related.recoveryPolicyDetails??[]}/>:null}{type==='recoveryVaults'?vaultDatasets.map(dataset=><Source key={dataset} rows={related[dataset]??[]}/>):null}{relations?Object.entries(relations).map(([kind,child])=><section key={child}><h3>{kind==='settings'?'Settings':'Assignments'}</h3><Notice collection={report.collections.find(c=>c.DataType===child)}/>{failures[child]?<p role="alert">{failures[child]}</p>:busy?<p>Loading…</p>:<Source rows={related[child]??[]}/>}</section>):null}</>:null}
     </div></section>;
+}
+
+function AzureResources({rows,selected,onSelect}:{rows:Row[];selected:string|null;onSelect:(row:Row)=>void}){
+  return <div style={{overflowX:'auto'}}><table aria-label="Azure resource inventory">
+    <thead><tr>{['Name','Resource type','Resource group','Location','Subscription ID','Tags'].map(label=><th key={label} scope="col">{label}</th>)}</tr></thead>
+    <tbody>{rows.map(row=>{
+      const resource=sourceRecord(row);
+      const tags=Object.entries(object(resource.tags)).map(([key,value])=>key+': '+String(value));
+      return <tr key={row.SourceId}>
+        <th scope="row"><button type="button" aria-pressed={selected===row.SourceId} onClick={()=>onSelect(row)}>{name(row)}</button></th>
+        {[resource.type,resource.resourceGroup,resource.location,resource.subscriptionId,tags.join(', ')].map((value,index)=>
+          <td key={index}>{String(value||'?')}</td>)}
+      </tr>;
+    })}</tbody>
+  </table></div>;
 }
 
 function BackupPolicyList({rows,details,vault}:{rows:Row[];details:Row[];vault:Row}){
@@ -175,6 +192,11 @@ export function AuditExplorer({account,report,refresh}:{account:AuditAccount;rep
     return()=>{cancelled=true;};
   },[account,report.audit.ScanId,type,hasDefinitions,progress,refresh]);
   const item=data?.rows.find(r=>r.SourceId===selected),complete=report.collections.filter(c=>c.Status==='complete').length;
+  const selectItem=(row:Row)=>{
+    setSelected(row.SourceId??null);
+    const params=new URLSearchParams({dataset:type,item:row.SourceId??''});
+    window.history.replaceState({},'',window.location.pathname+'?'+params);
+  };
   const vaultView=type==='recoveryVaults';
   const singleVault=vaultView&&collection?.Status==='complete'&&collection.RecordCount===1&&!search&&(!data||data.total===1);
   return <section className="audit-explorer" aria-label="Audit explorer"><header className="explorer-summary"><div><span className="eyebrow">Audit coverage</span><h2>{complete} / {report.collections.length} datasets collected</h2><p>{when(report.audit.CreatedAtUtc)} · {report.audit.Status}</p></div>
@@ -185,7 +207,7 @@ export function AuditExplorer({account,report,refresh}:{account:AuditAccount;rep
       {type==='roleAssignments'&&collection?<DirectoryRoleSummary account={account} report={report} refresh={refresh} definitions={definitions}/>:null}
       {collection?<>{singleVault?null:<label>Search inventory<input type="search" value={search} maxLength={200} onChange={e=>{setSearch(e.target.value);setPage(1);setSelected(null);}}/></label>}
       {busy?<p role="status">Loading inventory…</p>:null}{error?<p role="alert">{error}</p>:null}
-      {data?<>{singleVault?null:<p className="explorer-count">{data.total} matching records</p>}<div className="explorer-items">{data.rows.map(r=><button key={r.SourceId} type="button" aria-pressed={selected===r.SourceId} onClick={()=>{setSelected(r.SourceId??null);const p=new URLSearchParams({dataset:type,item:r.SourceId??''});window.history.replaceState({},'',`${window.location.pathname}?${p}`);}}><strong>{name(r,definitions)}</strong><small>{type==='roleAssignments'?assigneeName(r):type==='recoveryBackupPolicies'?backupPolicyGroup(r):readable(r.State??sourceRecord(r).platforms??sourceRecord(r)['@odata.type']??'Saved evidence')}</small>{singleVault?null:<span>View details →</span>}</button>)}</div>
+      {data?<>{singleVault?null:<p className="explorer-count">{data.total} matching records</p>}{type==='azureResources'?<AzureResources rows={data.rows} selected={selected} onSelect={selectItem}/>:<div className="explorer-items">{data.rows.map(r=><button key={r.SourceId} type="button" aria-pressed={selected===r.SourceId} onClick={()=>{setSelected(r.SourceId??null);const p=new URLSearchParams({dataset:type,item:r.SourceId??''});window.history.replaceState({},'',`${window.location.pathname}?${p}`);}}><strong>{name(r,definitions)}</strong><small>{type==='roleAssignments'?assigneeName(r):type==='recoveryBackupPolicies'?backupPolicyGroup(r):readable(r.State??sourceRecord(r).platforms??sourceRecord(r)['@odata.type']??'Saved evidence')}</small>{singleVault?null:<span>View details →</span>}</button>)}</div>}
       {!data.rows.length?<p>{collection.Status==='complete'?(search?'No records match your search.':'No records returned for this dataset.'):'No records saved yet.'}</p>:null}
       {vaultView&&page===1&&data.total<=data.pageSize?null:<div className="explorer-pagination"><button type="button" disabled={page===1} onClick={()=>setPage(p=>p-1)}>Previous</button><span>Page {page}</span><button type="button" disabled={page*data.pageSize>=data.total} onClick={()=>setPage(p=>p+1)}>Next</button></div>}</>:null}</>:<p>This category has no collected evidence in this snapshot. It is not a clean audit result.</p>}</section>
     {item?<PolicyDetail key={`${type}:${item.SourceId}`} account={account} report={report} type={type} row={item} refresh={refresh} definitions={definitions}/>:<section className="explorer-detail explorer-empty"><h2>Select an item</h2><p>Choose a category and an inventory item to explore its saved configuration.</p></section>}</div></section>;

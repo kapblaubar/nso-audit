@@ -5,7 +5,7 @@ import {CollectionError} from './licensing.js';
 import {sourceScope,sourceJson,fetchSnapshotPage,normalizeSnapshots,sanitizeEvidence,sourceUrl,validateSnapshotUrl} from './snapshots.js';
 const sub='00000000-0000-4000-8000-000000000001';
 test('unified scope includes dedicated configuration, security and license datasets',()=>{
-  assert.equal(allDataTypes.length,38);assert.equal(new Set(Object.values(datasetCatalog).map(d=>d.table)).size,36);
+  assert.equal(allDataTypes.length,39);assert.equal(new Set(Object.values(datasetCatalog).map(d=>d.table)).size,37);
   for(const type of ['conditionalAccess','namedLocations','compliancePolicies','licenses','licenseAssignments'])assert.equal(isDataType(type),true);
   assert.equal(isDataType('__proto__'),false);assert.equal(isDataType('DROP TABLE'),false);
 });
@@ -106,4 +106,22 @@ test('Secure Score retries a transient request timeout without retrying access d
   calls=0;
   await assert.rejects(()=>fetchSnapshotPage('secureScoreProfiles',null,null,'fixture',async()=>{calls++;return new Response(null,{status:403});}),/missingAccess/);
   assert.equal(calls,1);
+});
+
+test('Azure inventory stores resource metadata and follows subscription-scoped paging',async()=>{
+  const url=sourceUrl('azureResources',sub);
+  const next=url+'&$skiptoken=next';
+  const id='/subscriptions/'+sub+'/resourceGroups/audit/providers/Microsoft.Storage/storageAccounts/example';
+  const page=await fetchSnapshotPage('azureResources',sub,null,'fixture',async input=>{
+    assert.equal(input,url);
+    return Response.json({value:[{id,name:'example',type:'Microsoft.Storage/storageAccounts',
+      location:'westus',tags:{environment:'test'},properties:{credential:'discard'}}],nextLink:next});
+  });
+  assert.equal(page.nextLink,next);
+  assert.deepEqual(JSON.parse(page.records[0]!.sourceJson),{
+    id,name:'example',type:'Microsoft.Storage/storageAccounts',location:'westus',
+    resourceGroup:'audit',subscriptionId:sub,tags:{environment:'test'}
+  });
+  await assert.rejects(()=>fetchSnapshotPage('azureResources',sub,next,'fixture',async()=>
+    Response.json({value:[{id:id.replace(sub,'other'),name:'example',type:'Microsoft.Storage/storageAccounts'}]})),/invalidResponse/);
 });

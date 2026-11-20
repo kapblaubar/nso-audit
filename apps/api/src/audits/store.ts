@@ -132,7 +132,7 @@ export async function getDataAudit(tenantId:string,scanId:string) {
   await requireAuditSql();
   if(!uuidPattern.test(scanId))return null;
   return withTenant(tenantId,async(transaction,organizationId)=>{
-    const audit=(await scoped(transaction,organizationId,tenantId,scanId).query(`SELECT ScanId,Scope,Status,
+    const audit=(await scoped(transaction,organizationId,tenantId,scanId).query(`SELECT ScanId,TenantId,Scope,Status,
       CollectorVersion,SubscriptionId,CreatedAtUtc,StartedAtUtc,CompletedAtUtc FROM app.DataAudits
       WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId;`)).recordset[0];
     if(!audit)return null;

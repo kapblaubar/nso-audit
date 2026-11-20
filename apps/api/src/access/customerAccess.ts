@@ -151,7 +151,7 @@ export async function runStarterCollection(tenantId: string, subscriptionId: str
   const azureScorePercentage = azureScoreMaximum ? Math.round(Number(azureScoreValues?.percentage ?? azureScoreCurrent / azureScoreMaximum) * 100) : 0;
   const findings: StarterFinding[] = [
     { checkId: "entra.authorization-policy", title: "Entra authorization policy", status: "pass", detail: `Policy ${String(policy.id ?? "default")} was read successfully.` },
-    { checkId: "azure.resource-groups", title: "Azure resource inventory", status: "pass", detail: `${groupCount} resource group${groupCount === 1 ? "" : "s"} discovered.` },
+    { checkId: "azure.resource-groups", title: "Azure resource groups", status: "pass", detail: `${groupCount} resource group${groupCount === 1 ? "" : "s"} discovered.` },
     { checkId: "defender.secure-score", title: "Defender for Cloud secure score", status: azureScoreMaximum && azureScorePercentage >= 60 ? "pass" : "warning", detail: azureScoreMaximum ? `${azureScoreCurrent} of ${azureScoreMaximum} points (${azureScorePercentage}%).` : "No secure-score record is currently available for this subscription.", evidence: azureScoreMaximum ? { current: azureScoreCurrent, maximum: azureScoreMaximum, percentage: azureScorePercentage, initiatives: azureScoreRows } : undefined },
   ];
 

@@ -27,6 +27,7 @@ Historical v1 audits retain their original 17-dataset scope without fabricated b
 | App protection policies | app.AuditAppProtectionPolicies |
 | Microsoft Secure Score source records | app.AuditMicrosoftSecureScores |
 | Secure Score control profiles | app.AuditSecureScoreProfiles |
+| Azure resources | app.AuditAzureResources |
 | Azure resource groups | app.AuditResourceGroups |
 | Defender for Cloud scores | app.AuditDefenderCloudScores |
 | Defender for Cloud assessments | app.AuditDefenderRecommendations |

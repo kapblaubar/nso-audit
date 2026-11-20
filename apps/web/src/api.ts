@@ -112,7 +112,7 @@ function workspaceHeader(account:AuditAccount):Record<string,string>{
 }
 
 export interface DataAudit {
-  audit:{ScanId:string;Scope:string;SubscriptionId?:string;Status:string;CollectorVersion:string;CreatedAtUtc:string;StartedAtUtc:string|null;CompletedAtUtc:string|null};
+  audit:{ScanId:string;TenantId:string;Scope:string;SubscriptionId?:string;Status:string;CollectorVersion:string;CreatedAtUtc:string;StartedAtUtc:string|null;CompletedAtUtc:string|null};
   collections:Array<{DataType:string;Label?:string;Category?:string;Status:string;StartedAtUtc:string|null;CompletedAtUtc:string|null;RecordCount:number;ErrorCode:string|null}>;
 }
 export interface LicenseEvidenceRow {

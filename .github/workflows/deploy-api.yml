@@ -1,5 +1,6 @@
 name: Deploy API
 # Deployment prerequisite: apply through 015 for existing forms; 016 is required to create client-v3.
+# Apply migration 025 before deploying Azure resource inventory.
 # SQL migrations are operator-managed; see database/questionnaires.md for order and validation.
 # Migration 017 supplies the licensing foundation; 018 is required for unified collection.
 # Apply migration 019 before deploying Intune child collectors; see database/intune-policy-details.md.

@@ -6,6 +6,8 @@ for the target environment; credentials and deployment tokens must never be comm
 
 ## Current automation status
 
+Azure resource inventory requires migration 025 before API/web deployment. Validate with a new audit using subscription-scoped Reader access. Compare inventory against the same subscription in Azure and confirm collection completes across all pages. Older audits have no resource inventory snapshot. For application rollback, retain the additive migration and redeploy the prior API/web versions.
+
 Recovery Services backup snapshots require migrations 023–024 before API/web deployment. Validate a fresh audit using [the Recovery Services backup runbook](recovery-services-backups.md).
 
 Directory access snapshots require migrations 021–022 before API/web deployment. Configure tenant consent and verify a fresh audit using [the directory access runbook](directory-role-evidence.md).

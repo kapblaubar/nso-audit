@@ -96,5 +96,13 @@ export async function fetchSnapshotPage(dataType:SnapshotDataType,subscriptionId
   }
   const values='singleton' in source?[('endpoint' in source?{...body,id:dataType,lastModifiedDateTime:body.time}:body)]:body.value;
   if(!Array.isArray(values))throw new CollectionError('invalidResponse');
-  return {records:normalizeSnapshots(values,new Date().toISOString()),nextLink:'latestOnly' in source?null:nextUrl};
+  const evidence=dataType==='azureResources'?values.map(value=>{
+    const item=value as Record<string,unknown>|null;
+    const match=typeof item?.id==='string'?/^\/subscriptions\/([^/]+)\/(?:resourceGroups\/([^/]+)\/)?providers\//i.exec(item.id):null;
+    if(!match?.[1]||match[1].toLowerCase()!==subscriptionId?.toLowerCase()||
+      typeof item?.name!=='string'||typeof item.type!=='string')throw new CollectionError('invalidResponse');
+    return {id:item.id,name:item.name,type:item.type,kind:item.kind,location:item.location,
+      resourceGroup:match[2]??null,subscriptionId,tags:item.tags};
+  }):values;
+  return {records:normalizeSnapshots(evidence,new Date().toISOString()),nextLink:'latestOnly' in source?null:nextUrl};
 }
