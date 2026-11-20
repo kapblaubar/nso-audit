@@ -1,5 +1,6 @@
 import {datasetCatalog,type SnapshotDataType,type SnapshotRecord} from './catalog.js';
 import {projectAzureSettings} from './azureSettings.js';
+import {projectAzureRole} from './azureRoles.js';
 import {CollectionError} from './licensing.js';
 import {uuidPattern} from '../storage/sql.js';
 
@@ -107,5 +108,7 @@ export async function fetchSnapshotPage(dataType:SnapshotDataType,subscriptionId
   }):values;
   const projected=dataType==='azureStorageSettings'||dataType==='azureSqlSettings'
     ?evidence.map(item=>projectAzureSettings(dataType,item,subscriptionId)):evidence;
-  return {records:normalizeSnapshots(projected,new Date().toISOString()),nextLink:'latestOnly' in source?null:nextUrl};
+  const records=dataType==='azureRoleAssignments'||dataType==='azureRoleDefinitions'
+    ?projected.map(item=>projectAzureRole(dataType,item)):projected;
+  return {records:normalizeSnapshots(records,new Date().toISOString()),nextLink:'latestOnly' in source?null:nextUrl};
 }

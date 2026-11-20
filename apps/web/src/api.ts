@@ -140,3 +140,16 @@ export const loadLicenseEvidence=(account:AuditAccount,scanId:string,dataType:st
   const query=new URLSearchParams({page:String(page),search,...(skuId?{skuId}:{}),...(resourceGroup?{resourceGroup}:{}),...(resourceId?{resourceId}:{})});
   return dataAuditRequest<LicenseEvidencePage>(account,`/${encodeURIComponent(scanId)}/${dataType}?${query}`);
 };
+
+export interface AzureRoleAssignment {
+  ScanId:string;Id:string;Scope:string;PrincipalId:string;PrincipalType:string|null;RoleId:string;
+  Condition:string|null;ConditionVersion:string|null;RoleName:string|null;PrincipalName:string|null;
+}
+export interface AzureRoleHistory {
+  summary:{Status:string|null;PriorScanId:string|null;PriorCreatedAt:string|null};
+  rows:AzureRoleAssignment[];
+}
+export function loadAzureRoleHistory(account:AuditAccount,scanId:string,scope:string){
+  const query=new URLSearchParams({scope});
+  return dataAuditRequest<AzureRoleHistory>(account,'/'+encodeURIComponent(scanId)+'/azure/roles?'+query);
+}

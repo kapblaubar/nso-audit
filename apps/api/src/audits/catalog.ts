@@ -26,6 +26,8 @@ export const datasetCatalog = {
   endpointRecommendations:{table:'AuditEndpointRecommendations',label:'Defender for Endpoint recommendations',category:'Threat Protection & Security Operations',path:'/api/recommendations',endpoint:true},
   secureScores:{table:'AuditMicrosoftSecureScores',label:'Microsoft Secure Score snapshots',category:'Scores',path:'/v1.0/security/secureScores?$top=1',latestOnly:true},
   secureScoreProfiles:{table:'AuditSecureScoreProfiles',label:'Secure Score control profiles',category:'Scores',path:'/v1.0/security/secureScoreControlProfiles?$top=200'},
+  azureRoleAssignments:{table:'AuditAzureRoleAssignments',label:'Azure role assignments',category:'Cloud access',path:'/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01',arm:true},
+  azureRoleDefinitions:{table:'AuditAzureRoleDefinitions',label:'Azure role definitions',category:'Cloud access',path:'/providers/Microsoft.Authorization/roleDefinitions?api-version=2022-04-01',arm:true},
   azureStorageSettings:{table:'AuditAzureStorageSettings',label:'Azure Storage account settings',category:'Cloud configuration',path:'/providers/Microsoft.Storage/storageAccounts?api-version=2023-05-01',arm:true},
   azureSqlSettings:{table:'AuditAzureSqlSettings',label:'Azure SQL server settings',category:'Cloud configuration',path:'/providers/Microsoft.Sql/servers?api-version=2023-08-01&$expand=administrators/activedirectory',arm:true},
   azureResources:{table:'AuditAzureResources',label:'Azure resources',category:'Cloud inventory',path:'/resources?api-version=2021-04-01',arm:true},

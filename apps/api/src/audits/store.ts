@@ -227,3 +227,49 @@ export async function nextIntuneParent(job:CollectionJob,cursor:IntuneCursor):Pr
     return {status,parent:row?{sourceId:row.SourceId,displayName:row.DisplayName,status,...(row.ChildSourceId?{resourceId:row.ChildSourceId}:{})}:null};
   });
 }
+
+export async function getAzureRoleHistory(tenantId:string,scanId:string,scope:string){
+  await requireAuditSql();
+  return withTenant(tenantId,async(transaction,organizationId)=>{
+    const result=await scoped(transaction,organizationId,tenantId,scanId).input('Scope',sql.NVarChar(450),scope)
+      .query(`
+      DECLARE @SubscriptionId uniqueidentifier,@CreatedAt datetime2,@Status varchar(32),
+        @PriorScanId uniqueidentifier,@PriorCreatedAt datetime2;
+      SELECT @SubscriptionId=a.SubscriptionId,@CreatedAt=a.CreatedAtUtc,@Status=c.Status
+      FROM app.DataAudits a LEFT JOIN app.AuditCollections c ON c.OrganizationId=a.OrganizationId
+        AND c.TenantId=a.TenantId AND c.ScanId=a.ScanId AND c.DataType='azureRoleAssignments'
+      WHERE a.OrganizationId=@OrganizationId AND a.TenantId=@TenantId AND a.ScanId=@ScanId;
+      DECLARE @SubscriptionScope nvarchar(51)=N'/subscriptions/'+LOWER(CONVERT(nvarchar(36),@SubscriptionId));
+      IF @SubscriptionScope IS NULL OR LEFT(@Scope,LEN(@SubscriptionScope)+1)<>@SubscriptionScope+N'/' RETURN;
+      IF @Status='complete'
+        SELECT TOP(1) @PriorScanId=a.ScanId,@PriorCreatedAt=a.CreatedAtUtc
+        FROM app.DataAudits a JOIN app.AuditCollections c ON c.OrganizationId=a.OrganizationId
+          AND c.TenantId=a.TenantId AND c.ScanId=a.ScanId
+        WHERE a.OrganizationId=@OrganizationId AND a.TenantId=@TenantId AND a.SubscriptionId=@SubscriptionId
+          AND (a.CreatedAtUtc<@CreatedAt OR (a.CreatedAtUtc=@CreatedAt AND a.ScanId<@ScanId))
+          AND c.DataType='azureRoleAssignments' AND c.Status='complete'
+        ORDER BY a.CreatedAtUtc DESC,a.ScanId DESC;
+      SELECT @Status Status,@PriorScanId PriorScanId,@PriorCreatedAt PriorCreatedAt;
+      SELECT a.ScanId,a.SourceId Id,p.Scope,p.PrincipalId,p.PrincipalType,p.RoleId,p.Condition,p.ConditionVersion,
+        r.DisplayName RoleName,COALESCE(u.DisplayName,g.DisplayName) PrincipalName
+      FROM app.AuditAzureRoleAssignments a
+      CROSS APPLY OPENJSON(a.SourceJson) WITH (
+        Scope nvarchar(450) '$.scope',PrincipalId nvarchar(36) '$.principalId',
+        PrincipalType nvarchar(128) '$.principalType',RoleId nvarchar(36) '$.roleId',
+        Condition nvarchar(max) '$.condition',ConditionVersion nvarchar(32) '$.conditionVersion'
+      ) p
+      LEFT JOIN app.AuditAzureRoleDefinitions r ON r.OrganizationId=a.OrganizationId
+        AND r.TenantId=a.TenantId AND r.ScanId=a.ScanId AND r.SourceId=p.RoleId
+      LEFT JOIN app.AuditDirectoryUsers u ON u.OrganizationId=a.OrganizationId
+        AND u.TenantId=a.TenantId AND u.ScanId=a.ScanId AND u.SourceId=p.PrincipalId
+      LEFT JOIN app.AuditDirectoryGroups g ON g.OrganizationId=a.OrganizationId
+        AND g.TenantId=a.TenantId AND g.ScanId=a.ScanId AND g.SourceId=p.PrincipalId
+      WHERE a.OrganizationId=@OrganizationId AND a.TenantId=@TenantId AND a.ScanId IN (@ScanId,@PriorScanId)
+        AND (p.Scope=@SubscriptionScope OR LEFT(p.Scope,LEN(@SubscriptionScope)+1)=@SubscriptionScope+N'/')
+        AND (p.Scope=@Scope OR LEFT(@Scope,LEN(p.Scope)+1)=p.Scope+N'/')
+      ORDER BY p.Scope,r.DisplayName,p.PrincipalId,a.SourceId;`);
+    const sets=result.recordsets as sql.IRecordSet<unknown>[];
+    const summary=sets[0]?.[0];
+    return summary?{summary,rows:sets[1]??[]}:null;
+  });
+}

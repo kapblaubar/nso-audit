@@ -5,7 +5,7 @@ import {CollectionError} from './licensing.js';
 import {sourceScope,sourceJson,fetchSnapshotPage,normalizeSnapshots,sanitizeEvidence,sourceUrl,validateSnapshotUrl} from './snapshots.js';
 const sub='00000000-0000-4000-8000-000000000001';
 test('unified scope includes dedicated configuration, security and license datasets',()=>{
-  assert.equal(allDataTypes.length,41);assert.equal(new Set(Object.values(datasetCatalog).map(d=>d.table)).size,39);
+  assert.equal(allDataTypes.length,43);assert.equal(new Set(Object.values(datasetCatalog).map(d=>d.table)).size,41);
   for(const type of ['conditionalAccess','namedLocations','compliancePolicies','licenses','licenseAssignments'])assert.equal(isDataType(type),true);
   assert.equal(isDataType('__proto__'),false);assert.equal(isDataType('DROP TABLE'),false);
 });
@@ -148,4 +148,26 @@ test('Azure resource settings preserve explicit values and discard unrelated pro
   assert.doesNotMatch(sql.records[0]!.sourceJson,/discard-me/);
   await assert.rejects(()=>fetchSnapshotPage('azureSqlSettings',sub,null,'fixture',async()=>
     Response.json({value:[{...server,id:serverId.replace(sub,'other')}]})),/invalidResponse/);
+});
+
+test('Azure RBAC captures scoped assignment identity and condition with stable role IDs',async()=>{
+  const scope='/subscriptions/'+sub+'/resourceGroups/Audit';
+  const principal='00000000-0000-4000-8000-000000000002';
+  const role='00000000-0000-4000-8000-000000000003';
+  const id=scope+'/providers/Microsoft.Authorization/roleAssignments/'+principal;
+  const assignment={id,properties:{scope,principalId:principal,principalType:'Group',
+    roleDefinitionId:'/providers/Microsoft.Authorization/roleDefinitions/'+role,
+    condition:'example condition',conditionVersion:'2.0',description:'discard-me'}};
+  const page=await fetchSnapshotPage('azureRoleAssignments',sub,null,'fixture',async()=>Response.json({value:[assignment]}));
+  assert.deepEqual(JSON.parse(page.records[0]!.sourceJson),{
+    id:id.toLowerCase(),scope:scope.toLowerCase(),principalId:principal,principalType:'Group',
+    roleId:role,condition:'example condition',conditionVersion:'2.0'
+  });
+  await assert.rejects(()=>fetchSnapshotPage('azureRoleAssignments',sub,null,'fixture',async()=>
+    Response.json({value:[{...assignment,id:id.replace('/Audit/','/Other/')}]})),/invalidResponse/);
+  const roles=await fetchSnapshotPage('azureRoleDefinitions',sub,null,'fixture',async()=>Response.json({value:[
+    {id:assignment.properties.roleDefinitionId,properties:{roleName:'Reader'}}
+  ]}));
+  assert.equal(roles.records[0]?.sourceId,role);
+  assert.equal(roles.records[0]?.displayName,'Reader');
 });

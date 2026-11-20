@@ -2,7 +2,7 @@ import {backupPolicyGroup,RecoveryBackupPolicy} from './RecoveryBackupDetails';
 import {DirectoryRoleDetails,DirectoryRoleSummary,roleName,assigneeName,type RoleDefinitions} from './DirectoryRoleDetails';
 import {Fragment,useEffect,useState} from 'react';
 import type {AuditAccount} from '../auth';
-import {loadLicenseEvidence,type DataAudit,type LicenseEvidenceRow as Row,type LicenseEvidencePage} from '../api';
+import {loadAzureRoleHistory,loadLicenseEvidence,type AzureRoleAssignment,type AzureRoleHistory,type DataAudit,type LicenseEvidenceRow as Row,type LicenseEvidencePage} from '../api';
 import {ConditionalAccessDetails,NamedLocationDetails,Fields,sourceRecord} from './AuditPolicyDetails';
 
 type Collection=DataAudit['collections'][number];
@@ -168,6 +168,67 @@ function AzureSettings({account,report,resourceId,dataset,refresh}:{account:Audi
   </section>;
 }
 
+function AzureRoleTable({rows,scope}:{rows:AzureRoleAssignment[];scope:string}){
+  return <div className="azure-resource-scroll"><table className="azure-resource-table" aria-label="Azure role assignments">
+    <thead><tr>{['Principal','Type','Role','Assignment scope','Access','Condition'].map(label=><th key={label} scope="col">{label}</th>)}</tr></thead>
+    <tbody>{rows.map(row=><tr key={row.Id}>
+      <th scope="row" title={row.PrincipalId}>{row.PrincipalName??row.PrincipalId}</th>
+      <td>{row.PrincipalType??'Unknown'}</td><td title={row.RoleId}>{row.RoleName??row.RoleId}</td>
+      <td title={row.Scope}>{row.Scope}</td>
+      <td>{row.Scope===scope.toLowerCase()?'Direct':'Inherited'}</td>
+      <td title={row.Condition??undefined}>{row.Condition?'Conditional':'None returned'}</td>
+    </tr>)}</tbody>
+  </table></div>;
+}
+
+function AzureRoles({account,report,scope,refresh}:{account:AuditAccount;report:DataAudit;scope:string;refresh:number}){
+  const [open,setOpen]=useState(false),[history,setHistory]=useState<AzureRoleHistory>(),[error,setError]=useState(false);
+  const collection=report.collections.find(c=>c.DataType==='azureRoleAssignments');
+  const status=collection?.Status,progress=JSON.stringify(report.collections);
+  const scanId=report.audit.ScanId;
+  useEffect(()=>{
+    if(!open||!status)return;
+    let cancelled=false;
+    setHistory(undefined);setError(false);
+    void loadAzureRoleHistory(account,scanId,scope)
+      .then(result=>{if(!cancelled)setHistory(result);}).catch(()=>{if(!cancelled)setError(true);});
+    return()=>{cancelled=true;};
+  },[account,open,scanId,scope,refresh,status,progress]);
+  const current=history?.rows.filter(row=>row.ScanId.toLowerCase()===scanId.toLowerCase())??[];
+  const priorId=history?.summary.PriorScanId?.toLowerCase();
+  const prior=history?.rows.filter(row=>row.ScanId.toLowerCase()===priorId)??[];
+  const previousById=new Map(prior.map(row=>[row.Id,row]));
+  const currentById=new Map(current.map(row=>[row.Id,row]));
+  const added=current.filter(row=>!previousById.has(row.Id));
+  const removed=prior.filter(row=>!currentById.has(row.Id));
+  const changed=current.filter(row=>{
+    const previous=previousById.get(row.Id);
+    return previous&&(row.RoleId!==previous.RoleId||row.PrincipalId!==previous.PrincipalId||
+      row.Condition!==previous.Condition||row.ConditionVersion!==previous.ConditionVersion);
+  });
+  return <details className="azure-resource-group" onToggle={event=>setOpen(event.currentTarget.open)}>
+    <summary>Azure roles and changes</summary>
+    {open?<div><Notice collection={collection}/>
+      <p>Shows assignments at this scope and inherited within the subscription. Management group and tenant-level grants are outside this view.</p>
+      {status&&!history&&!error?<p role="status">Loading Azure roles?</p>:null}
+      {error?<p role="alert">Azure roles could not be loaded. Use Refresh to try again.</p>:null}
+      {history?<><h4>Saved assignments</h4>
+        {current.length?<AzureRoleTable rows={current} scope={scope}/>:status==='complete'?<p>No Azure role assignments were returned for this scope.</p>:null}
+        <h4>Changes since the previous complete role snapshot</h4>
+        {priorId?<><p>{when(history.summary.PriorCreatedAt)} to {when(report.audit.CreatedAtUtc)}</p>
+          {!added.length&&!removed.length&&!changed.length?<p>No assignment changes detected.</p>:null}
+          {added.length?<><h5>Added</h5><AzureRoleTable rows={added} scope={scope}/></>:null}
+          {removed.length?<><h5>Removed</h5><AzureRoleTable rows={removed} scope={scope}/></>:null}
+          {changed.length?<><h5>Updated assignments</h5>{changed.map(row=><div key={row.Id}>
+            <p>Previous</p><AzureRoleTable rows={[previousById.get(row.Id)!]} scope={scope}/>
+            <p>Current</p><AzureRoleTable rows={[row]} scope={scope}/>
+          </div>)}</>:null}
+        </>:<p>{status==='complete'?'No earlier complete Azure role snapshot for this subscription.':'A complete role snapshot is required to compare changes.'}</p>}
+      </>:null}
+    </div>:null}
+  </details>;
+}
+
 function AzureResources({rows,account,report,refresh}:{rows:Row[];account:AuditAccount;report:DataAudit;refresh:number}){
   const [expanded,setExpanded]=useState<string|null>(null);
   return <div className="azure-resource-scroll"><table className="azure-resource-table" aria-label="Azure resource inventory">
@@ -187,6 +248,7 @@ function AzureResources({rows,account,report,refresh}:{rows:Row[];account:AuditA
       </tr>{open?<tr className="azure-resource-detail"><td colSpan={6}>
         <a href={portalUrl} target="_blank" rel="noreferrer">Open in Azure portal</a>
         <Fields value={{'Resource ID':id,Tags:resource.tags}}/>
+        <AzureRoles key={id} account={account} report={report} scope={id} refresh={refresh}/>
         {dataset?<AzureSettings key={id} account={account} report={report} resourceId={id} dataset={dataset} refresh={refresh}/>:null}
       </td></tr>:null}</Fragment>;
     })}</tbody>
@@ -223,7 +285,8 @@ function AzureResourceGroup({row,account,report,refresh}:{row:Row;account:AuditA
   const groupName=name(row);
   return <details className="azure-resource-group" onToggle={event=>setOpen(event.currentTarget.open)}>
     <summary>{groupName}</summary>
-    {open?<GroupResources account={account} report={report} resourceGroup={groupName} refresh={refresh}/>:null}
+    {open?<>{row.SourceId?<AzureRoles account={account} report={report} scope={row.SourceId} refresh={refresh}/>:null}
+      <GroupResources account={account} report={report} resourceGroup={groupName} refresh={refresh}/></>:null}
   </details>;
 }
 

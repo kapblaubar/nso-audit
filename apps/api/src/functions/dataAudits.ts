@@ -3,7 +3,7 @@ import { requireAuditUser, AuditAccessError } from '../auth/requireAuditUser.js'
 import { customerCredential } from '../access/customerAccess.js';
 import { uuidPattern } from '../storage/sql.js';
 import { claimCollection, checkpointCollection, createDataAudit, getDataAudit, getLicenseRows,
-  requireAuditSql, startCollection,getJobSubscription,getSnapshotRows,nextIntuneParent } from '../audits/store.js';
+  requireAuditSql, startCollection,getJobSubscription,getSnapshotRows,nextIntuneParent,getAzureRoleHistory } from '../audits/store.js';
 import {fetchIntuneChildPage,parseIntuneCursor} from '../audits/intune.js';
 import { graphPage, processCollection } from '../audits/worker.js';
 import {datasetCatalog,isDataType,isSnapshotType} from '../audits/catalog.js';
@@ -57,6 +57,15 @@ export async function readEvidence(request:HttpRequest,context:InvocationContext
     return result?{status:200,jsonBody:result}:{status:404,jsonBody:{error:'Audit not found.'}};
   });
 }
+export async function readAzureRoles(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
+  return handle(request,context,async tenantId=>{
+    const scanId=request.params.scanId??'',scope=(request.query.get('scope')??'').toLowerCase();
+    if(!uuidPattern.test(scanId)||scope.length>450||!/^\/subscriptions\/[a-f0-9-]{36}\/(?:resourcegroups\/[^/]+(?:\/providers\/.+)?|providers\/.+)$/.test(scope))
+      return {status:400,jsonBody:{error:'A valid Azure resource or resource group scope is required.'}};
+    const result=await getAzureRoleHistory(tenantId,scanId,scope);
+    return result?{status:200,jsonBody:result}:{status:404,jsonBody:{error:'Audit or Azure scope not found.'}};
+  });
+}
 async function collectSnapshot(job:CollectionJob):Promise<void>{
   if(!isSnapshotType(job.DataType))throw new Error('Invalid snapshot type.');
   await startCollection(job);
@@ -108,5 +117,6 @@ export async function collectAuditData(_timer:unknown,context:InvocationContext)
 }
 app.http('createDataAudit',{methods:['POST'],authLevel:'anonymous',route:'me/audits',handler:createAudit});
 app.http('readDataAudit',{methods:['GET'],authLevel:'anonymous',route:'me/audits/{scanId}',handler:readAudit});
+app.http('readAzureRoles',{methods:['GET'],authLevel:'anonymous',route:'me/audits/{scanId}/azure/roles',handler:readAzureRoles});
 app.http('readAuditEvidence',{methods:['GET'],authLevel:'anonymous',route:'me/audits/{scanId}/{dataType}',handler:readEvidence});
 app.timer('collectAuditData',{schedule:'0 * * * * *',useMonitor:true,runOnStartup:false,handler:collectAuditData});
