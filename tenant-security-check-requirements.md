@@ -415,7 +415,7 @@ matches the validated signed-in tenant ID; cross-tenant/Lighthouse access is rej
 #### Resource inventory
 
 - A subscription audit captures Azure Resource Manager resources and resource groups as separate paginated datasets using the selected subscription and read-only Azure access.
-- The Azure Resources view shows one compact row per resource with its name, type, resource group, location, subscription ID, and tags. The Resource Groups view starts collapsed and shows the same rows when a group is expanded. Group filtering matches the full resource-group name within the saved audit.
+- The Azure Resources view shows one compact row per resource with its name, friendly type, original ARM resource type, resource group, location, subscription ID, and tags. Classify Microsoft.Web/sites using saved Azure kind when available, including Function App, Web App and Logic App (Standard). Use an App Service Site fallback when subtype evidence is absent. The Resource Groups view starts collapsed and shows the same rows when a group is expanded. Group filtering matches the full resource-group name within the saved audit.
 - Each resource row expands inline for the full Azure resource ID, tags, and an Azure portal link. Preserve the audit snapshot when a resource later changes or is deleted.
 - Show collection status alongside results. Older audits may lack resource rows. Validate coverage for child resource types against Azure before claiming portal parity.
 
@@ -440,7 +440,11 @@ Resource row details must use service-specific sections, with readable summaries
 
 - Highlight a Key Vault when saved evidence shows public network access enabled and the firewall default action is Allow or absent. Describe missing firewall evidence explicitly.
 - Highlight a vault with no diagnostic settings only after diagnostic collection completes successfully. Incomplete, failed, or missing collection must not generate a missing-diagnostics finding.
-- Show the same findings under Recommendations ? Azure configuration, with the affected vault and a review action. Derive findings from the saved audit snapshot.
+- Show findings under Recommendations ? Azure configuration and in the resource details, with saved evidence and a review action.
+- Surface Storage public access with firewall default Allow, explicit Shared Key access, and SAS expiration policy evidence Azure did not return.
+- Surface the SQL Allow Azure services rule and explicitly disabled auditing. Highlight a strictly widened IPv4 range on the same firewall rule across complete snapshots.
+- Flag NSG rules that allow inbound TCP from a broad internet source to SSH or RDP ports. Include attachments where returned. Configured rules alone do not establish effective reachability.
+- Flag new built-in Owner, Contributor, and User Access Administrator assignments from complete snapshots of the same subscription. Include the principal and assignment scope.
 
 #### Azure evidence backlog
 

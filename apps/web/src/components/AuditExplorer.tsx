@@ -1,3 +1,4 @@
+import {azureConfigurationFindings,azureResourceLabel,privilegedGrantFindings,type AzureFinding} from './AzureConfigurationFindings';
 import {vaultNetworkFinding,vaultDiagnosticsFinding} from './AzureVaultFindings';
 import {backupPolicyGroup,RecoveryBackupPolicy} from './RecoveryBackupDetails';
 import {DirectoryRoleDetails,DirectoryRoleSummary,roleName,assigneeName,type RoleDefinitions} from './DirectoryRoleDetails';
@@ -124,6 +125,11 @@ function PolicyDetail({account,report,type,row,refresh,definitions}:{account:Aud
     </div></section>;
 }
 
+function AzureFindingNotes({findings,scanId}:{findings:AzureFinding[];scanId:string}){
+  return <>{findings.map(finding=><p key={finding.id} className="azure-config-finding"><strong>Finding:</strong> {finding.detail}{' '}
+    <a href={'/audit-data/'+encodeURIComponent(scanId)+'/recommendations?source=azure'}>View recommendation</a></p>)}</>;
+}
+
 const azureProtectionLabels={
   azureSqlFirewall:'SQL firewall rules',azureSqlVnet:'SQL virtual network rules',
   azureSqlAudit:'SQL server auditing',azureBlobProtection:'Blob recovery protection',
@@ -221,6 +227,7 @@ function AzureProtection({account,report,scope,dataset,refresh}:{account:AuditAc
       <p>Allow Azure services: {rows.some(row=>sourceRecord(row).allowAzureServices===true)?'Rule present':'No matching rule returned'}</p>:null}
     {rows.map(row=><div key={row.SourceId}>
       {dataset==='azureSqlFirewall'||dataset==='azureSqlVnet'||dataset==='azureVaultDiagnostics'?<strong>{String(sourceRecord(row).name??row.ChildSourceId)}</strong>:null}
+      <AzureFindingNotes scanId={scanId} findings={azureConfigurationFindings(dataset,row,before.get(row.ChildSourceId?.toLowerCase()))}/>
       <AzureConfigurationFields value={protectionFields(dataset,row)}/>
     </div>)}
     {result&&status==='complete'&&!rows.length&&!finding?<p>No settings returned for this resource.</p>:null}
@@ -260,6 +267,7 @@ function AzureSettings({account,report,resourceId,dataset,refresh,kind}:{account
     {busy?<p role="status">Loading saved settings?</p>:null}
     {error?<p role="alert">Settings could not be loaded. Use Refresh to try again.</p>:null}
     {status==='complete'&&!busy&&!error&&!row?<p>No configuration record was returned for this resource.</p>:null}
+    {row?<AzureFindingNotes scanId={report.audit.ScanId} findings={azureConfigurationFindings(dataset,row)}/>:null}
     {row?<div className="azure-settings-sections">
       <section><h4>Network and transport</h4><Fields value={{
         'Public network access':network.publicNetworkAccess,
@@ -331,6 +339,7 @@ function AzureRoles({account,report,scope,refresh}:{account:AuditAccount;report:
       {history?<><h4>Saved assignments</h4>
         {current.length?<AzureRoleTable rows={current} scope={scope}/>:status==='complete'?<p>No Azure role assignments were returned for this scope.</p>:null}
         <h4>Changes since the previous complete role snapshot</h4>
+        <AzureFindingNotes scanId={scanId} findings={privilegedGrantFindings(history,scanId)}/>
         {priorId?<><p>{when(history.summary.PriorCreatedAt)} to {when(report.audit.CreatedAtUtc)}</p>
           {!added.length&&!removed.length&&!changed.length?<p>No assignment changes detected.</p>:null}
           {added.length?<><h5>Added</h5><AzureRoleTable rows={added} scope={scope}/></>:null}
@@ -348,7 +357,7 @@ function AzureRoles({account,report,scope,refresh}:{account:AuditAccount;report:
 function AzureResources({rows,account,report,refresh}:{rows:Row[];account:AuditAccount;report:DataAudit;refresh:number}){
   const [expanded,setExpanded]=useState<string|null>(null);
   return <div className="azure-resource-scroll"><table className="azure-resource-table" aria-label="Azure resource inventory">
-    <thead><tr>{['Name','Resource type','Resource group','Location','Subscription ID','Tags'].map(label=><th key={label} scope="col">{label}</th>)}</tr></thead>
+    <thead><tr>{['Name','Type','ARM resource type','Resource group','Location','Subscription ID','Tags'].map(label=><th key={label} scope="col">{label}</th>)}</tr></thead>
     <tbody>{rows.map(row=>{
       const resource=sourceRecord(row),id=row.SourceId??'';
       const tags=Object.entries(object(resource.tags)).map(([key,value])=>key+': '+String(value));
@@ -362,11 +371,11 @@ function AzureResources({rows,account,report,refresh}:{rows:Row[];account:AuditA
       const portalUrl='https://portal.azure.com/#@'+encodeURIComponent(report.audit.TenantId)+'/resource'+id.split('/').map(encodeURIComponent).join('/');
       return <Fragment key={id}><tr>
         <th scope="row"><button type="button" aria-expanded={open} onClick={()=>setExpanded(open?null:id)}>{name(row)}</button></th>
-        {[resource.type,resource.resourceGroup,resource.location,resource.subscriptionId,tags.join(', ')].map((value,index)=>
+        {[azureResourceLabel(resource.type,resource.kind),resource.type,resource.resourceGroup,resource.location,resource.subscriptionId,tags.join(', ')].map((value,index)=>
           <td key={index} title={String(value||'?')}>{String(value||'?')}</td>)}
-      </tr>{open?<tr className="azure-resource-detail"><td colSpan={6}>
+      </tr>{open?<tr className="azure-resource-detail"><td colSpan={7}>
         <a href={portalUrl} target="_blank" rel="noreferrer">Open in Azure portal</a>
-        <Fields value={{'Resource ID':id,Tags:resource.tags}}/>
+        <Fields value={{'Resource ID':id,'Azure kind':resource.kind,Tags:resource.tags}}/>
         {configuration.map(key=><AzureProtection key={key+id} account={account} report={report} scope={id} dataset={key} refresh={refresh}/>)}
         <AzureRoles key={id} account={account} report={report} scope={id} refresh={refresh}/>
         {dataset?<AzureSettings key={id} account={account} report={report} resourceId={id} dataset={dataset} refresh={refresh} kind={resource.kind}/>:null}

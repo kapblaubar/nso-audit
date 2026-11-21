@@ -198,7 +198,7 @@ export async function getSnapshotRows(tenantId:string,scanId:string,dataType:Sna
       (@Search='' OR CHARINDEX(@Search,DisplayName)>0 OR CHARINDEX(@Search,SourceId)>0 OR CHARINDEX(@Search,SourceJson)>0${roleSearch})
       ${dataType==='azureResources'&&resourceGroup!==undefined?"AND LOWER(JSON_VALUE(SourceJson,'$.resourceGroup'))=LOWER(@ResourceGroup)":''}`;
     const source=datasetCatalog[dataType];
-    const comparable=resourceId&&'azureConfiguration' in source;
+    const comparable='azureConfiguration' in source&&(resourceId||dataType==='azureSqlFirewall');
     const history=comparable?`
       SELECT TOP(1) older.ScanId,older.CreatedAtUtc
       FROM app.DataAudits currentAudit
@@ -210,8 +210,8 @@ export async function getSnapshotRows(tenantId:string,scanId:string,dataType:Sna
       JOIN app.AuditCollections olderCollection ON olderCollection.OrganizationId=older.OrganizationId
         AND olderCollection.TenantId=older.TenantId AND olderCollection.ScanId=older.ScanId
         AND olderCollection.DataType=@DataType AND olderCollection.Status='complete'
-      JOIN ${evidenceTable(source.parent)} parent ON parent.OrganizationId=older.OrganizationId
-        AND parent.TenantId=older.TenantId AND parent.ScanId=older.ScanId AND LOWER(parent.SourceId)=LOWER(@ResourceId)
+      ${resourceId?`JOIN ${evidenceTable(source.parent)} parent ON parent.OrganizationId=older.OrganizationId
+        AND parent.TenantId=older.TenantId AND parent.ScanId=older.ScanId AND LOWER(parent.SourceId)=LOWER(@ResourceId)`:''}
       WHERE currentAudit.OrganizationId=@OrganizationId AND currentAudit.TenantId=@TenantId AND currentAudit.ScanId=@ScanId
         AND older.CreatedAtUtc<currentAudit.CreatedAtUtc
       ORDER BY older.CreatedAtUtc DESC,older.ScanId DESC;`:'';
@@ -263,7 +263,7 @@ export async function getAzureRoleHistory(tenantId:string,scanId:string,scope:st
         AND c.TenantId=a.TenantId AND c.ScanId=a.ScanId AND c.DataType='azureRoleAssignments'
       WHERE a.OrganizationId=@OrganizationId AND a.TenantId=@TenantId AND a.ScanId=@ScanId;
       DECLARE @SubscriptionScope nvarchar(51)=N'/subscriptions/'+LOWER(CONVERT(nvarchar(36),@SubscriptionId));
-      IF @SubscriptionScope IS NULL OR LEFT(@Scope,LEN(@SubscriptionScope)+1)<>@SubscriptionScope+N'/' RETURN;
+      IF @SubscriptionScope IS NULL OR (@Scope<>@SubscriptionScope AND LEFT(@Scope,LEN(@SubscriptionScope)+1)<>@SubscriptionScope+N'/') RETURN;
       IF @Status='complete'
         SELECT TOP(1) @PriorScanId=a.ScanId,@PriorCreatedAt=a.CreatedAtUtc
         FROM app.DataAudits a JOIN app.AuditCollections c ON c.OrganizationId=a.OrganizationId
@@ -289,7 +289,7 @@ export async function getAzureRoleHistory(tenantId:string,scanId:string,scope:st
         AND g.TenantId=a.TenantId AND g.ScanId=a.ScanId AND g.SourceId=p.PrincipalId
       WHERE a.OrganizationId=@OrganizationId AND a.TenantId=@TenantId AND a.ScanId IN (@ScanId,@PriorScanId)
         AND (p.Scope=@SubscriptionScope OR LEFT(p.Scope,LEN(@SubscriptionScope)+1)=@SubscriptionScope+N'/')
-        AND (p.Scope=@Scope OR LEFT(@Scope,LEN(p.Scope)+1)=p.Scope+N'/')
+        AND (@Scope=@SubscriptionScope OR p.Scope=@Scope OR LEFT(@Scope,LEN(p.Scope)+1)=p.Scope+N'/')
       ORDER BY p.Scope,r.DisplayName,p.PrincipalId,a.SourceId;`);
     const sets=result.recordsets as sql.IRecordSet<unknown>[];
     const summary=sets[0]?.[0];

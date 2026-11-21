@@ -1,7 +1,8 @@
 import {useEffect,useState} from 'react';
 import type {AuditAccount} from '../auth';
-import {loadLicenseEvidence,type DataAudit,type LicenseEvidenceRow} from '../api';
+import {loadAzureRoleHistory,loadLicenseEvidence,type AzureRoleHistory,type DataAudit,type LicenseEvidenceRow} from '../api';
 import {sourceRecord} from './AuditPolicyDetails';
+import {azureConfigurationFindings,privilegedGrantFindings} from './AzureConfigurationFindings';
 import {vaultNetworkRecommendation,vaultDiagnosticsRecommendation,vaultNetworkFinding,vaultDiagnosticsFinding} from './AzureVaultFindings';
 import {RecommendationDetails} from './FindingDetailsModal';
 
@@ -12,24 +13,51 @@ export function Recommendations({account,report,refresh}:{account:AuditAccount;r
   const [tab,setTab]=useState(tabs.some(([id])=>id===requested)?requested!:'secure');
   const [datasets,setDatasets]=useState<Record<string,LicenseEvidenceRow[]>>({});
   const [error,setError]=useState(''),[loading,setLoading]=useState(false);
+  const [priorFirewall,setPriorFirewall]=useState<LicenseEvidenceRow[]>([]);
+  const [roleHistory,setRoleHistory]=useState<AzureRoleHistory>();
+  const [comparisonError,setComparisonError]=useState(false);
   const azure=tab==='azure';
-  const types=azure?['azureVaultSecurity','azureVaultDiagnostics']:tab==='secure'?['secureScores','secureScoreProfiles']:tab==='defender'?['defenderRecommendations','defenderMetadata']:[tab==='exposure'?'exposureScores':'deviceSecureScores','endpointRecommendations'];
+  const types=azure?['azureVaultSecurity','azureVaultDiagnostics','azureStorageSettings','azureSqlFirewall','azureSqlAudit','azureNsgSettings','azureRoleAssignments']:tab==='secure'?['secureScores','secureScoreProfiles']:tab==='defender'?['defenderRecommendations','defenderMetadata']:[tab==='exposure'?'exposureScores':'deviceSecureScores','endpointRecommendations'];
   const typeKey=types.join(','),progress=JSON.stringify(report.collections);
   useEffect(()=>{
-    let cancelled=false;setDatasets({});setError('');setLoading(true);
+    let cancelled=false;
+    setDatasets({});setPriorFirewall([]);setRoleHistory(undefined);setComparisonError(false);setError('');setLoading(true);
+    const scanId=report.audit.ScanId;
+    async function loadRows(type:string,id:string){
+      const rows:LicenseEvidenceRow[]=[];
+      let prior:string|undefined;
+      for(let page=1;!cancelled;page++){
+        const result=await loadLicenseEvidence(account,id,type,page,'','');
+        if(page===1)prior=result.prior?.ScanId;
+        rows.push(...result.rows);
+        if(page*result.pageSize>=result.total)break;
+      }
+      return {rows,prior};
+    }
     void Promise.all(types.map(async type=>{
       if(!report.collections.some(c=>c.DataType===type))return [type,[]] as const;
-      const rows:LicenseEvidenceRow[]=[];
-      for(let page=1;!cancelled;page++){
-        const result=await loadLicenseEvidence(account,report.audit.ScanId,type,page,'','');
-        rows.push(...result.rows);if(page*result.pageSize>=result.total)break;
+      if(type==='azureRoleAssignments'){
+        if(report.audit.SubscriptionId&&report.collections.some(c=>c.DataType===type&&c.Status==='complete')){
+          try{
+            const history=await loadAzureRoleHistory(account,scanId,'/subscriptions/'+report.audit.SubscriptionId);
+            if(!cancelled)setRoleHistory(history);
+          }catch{if(!cancelled)setComparisonError(true);}
+        }
+        return [type,[]] as const;
       }
-      return [type,rows] as const;
+      const current=await loadRows(type,scanId);
+      if(type==='azureSqlFirewall'&&current.prior&&!cancelled){
+        try{
+          const previous=await loadRows(type,current.prior);
+          if(!cancelled)setPriorFirewall(previous.rows);
+        }catch{if(!cancelled)setComparisonError(true);}
+      }
+      return [type,current.rows] as const;
     })).then(entries=>{if(!cancelled)setDatasets(Object.fromEntries(entries));})
       .catch(()=>{if(!cancelled)setError('Saved recommendations could not be loaded. Use Refresh to try again.');})
       .finally(()=>{if(!cancelled)setLoading(false);});
     return()=>{cancelled=true;};
-  },[account,report.audit.ScanId,typeKey,progress,refresh]);
+  },[account,report.audit.ScanId,report.audit.SubscriptionId,typeKey,progress,refresh]);
   const profiles=new Map((datasets.secureScoreProfiles??[]).map(row=>{const source=sourceRecord(row);return [String(source.id??row.SourceId),source];}));
   const latest=(datasets.secureScores??[]).map(sourceRecord).sort((a,b)=>String(b.createdDateTime??'').localeCompare(String(a.createdDateTime??'')))[0];
   const controls=Array.isArray(latest?.controlScores)?latest.controlScores.map(object):[];
@@ -58,7 +86,7 @@ export function Recommendations({account,report,refresh}:{account:AuditAccount;r
   const complete=types.length>0&&types.every(type=>report.collections.find(c=>c.DataType===type)?.Status==='complete');
   const diagnosticStatus=report.collections.find(c=>c.DataType==='azureVaultDiagnostics')?.Status;
   const vaultsWithDiagnostics=new Set((datasets.azureVaultDiagnostics??[]).map(row=>row.ParentSourceId?.toLowerCase()));
-  const azureFindings=(datasets.azureVaultSecurity??[]).flatMap(row=>{
+  const vaultFindings=(datasets.azureVaultSecurity??[]).flatMap(row=>{
     const vaultId=row.ParentSourceId;
     if(!vaultId)return [];
     const vaultName=String(sourceRecord(row).name??vaultId);
@@ -69,6 +97,15 @@ export function Recommendations({account,report,refresh}:{account:AuditAccount;r
       ...(diagnostics?[{...vaultDiagnosticsRecommendation,detail:diagnostics,vaultName,vaultId}]:[]),
     ];
   });
+  const priorFirewallById=new Map(priorFirewall.map(row=>[row.ChildSourceId?.toLowerCase(),row]));
+  const azureFindings=[
+    ...vaultFindings.map(({vaultName,vaultId,...finding})=>({...finding,resource:vaultName,key:finding.id+vaultId})),
+    ...['azureStorageSettings','azureSqlFirewall','azureSqlAudit','azureNsgSettings'].flatMap(type=>
+      (datasets[type]??[]).flatMap(row=>azureConfigurationFindings(type,row,priorFirewallById.get(row.ChildSourceId?.toLowerCase()))
+        .map(finding=>({...finding,key:row.SourceId+finding.id,
+          resource:row.ParentSourceId?.split('/').at(-1)??String(sourceRecord(row).name??row.DisplayName??'Azure resource')})))),
+    ...privilegedGrantFindings(roleHistory,report.audit.ScanId).map(finding=>({...finding,key:finding.id,resource:null})),
+  ];
   const select=(id:string)=>{setTab(id);const params=new URLSearchParams(window.location.search);params.set('source',id);window.history.replaceState({},'',`${window.location.pathname}?${params}`);};
   return <section className="tenant-recommendations" aria-labelledby="tenant-recommendations-title"><p className="eyebrow">Prioritized actions</p><h2 id="tenant-recommendations-title">Tenant recommendations</h2>
     <nav className="audit-provider-tabs" aria-label="Recommendation sources">{tabs.map(([id,label])=><button type="button" key={id} className="detail-button" aria-pressed={tab===id} onClick={()=>select(id)}>{label}</button>)}</nav>
@@ -77,10 +114,11 @@ export function Recommendations({account,report,refresh}:{account:AuditAccount;r
       {!complete?<p role="status">{types.some(type=>!report.collections.some(c=>c.DataType===type))?'This snapshot does not include all sources for this tab. Run a new audit after the collector is deployed.':types.some(type=>report.collections.find(c=>c.DataType===type)?.Status==='missingAccess')?(azure?'Azure denied access. Check the connected application?s Reader role and scope before running another audit.':'Microsoft denied access. Check the connected application permissions, tenant consent and Defender licensing before running another audit.'):'Collection is incomplete or failed. Saved recommendations may be incomplete. Review the dataset status before retrying.'}</p>:null}
       {endpoint&&typeof score.score==='number'?<p><strong>{tabs.find(([id])=>id===tab)?.[1]}: {score.score.toLocaleString(undefined,{maximumFractionDigits:2})}</strong>{tab==='exposure'?' - Lower is better.':' - Higher is better.'}{typeof score.time==='string'?` - Source updated ${new Date(score.time).toLocaleString()}`:''}</p>:null}
       {endpoint&&!loading&&!error?<>{endpointRows.length?<div className="recommendation-list">{endpointRows.map((item,index)=><article key={String(item.id??index)}><h3>{String(item.recommendationName??item.id)}</h3><p>{String(item[impact])} {tab==='exposure'?'exposure':'configuration score'} impact - {String(item.exposedMachinesCount??'Unknown')} exposed devices</p><p>{String(item.remediationType??'Review')} - {String(item.productName??item.relatedComponent??'')}</p><p>{item.publicExploit===true?'Public exploit reported. ':''}{item.activeAlert===true?'Active alert reported.':''}</p><a href={`https://security.microsoft.com/security-recommendations?recommendationId=${encodeURIComponent(String(item.id))}`} target="_blank" rel="noreferrer">Open Microsoft recommendation</a></article>)}</div>:<p>{complete?'No active recommendations with a positive impact were returned.':'No recommendation evidence is available yet. Run a new audit after checking Defender permissions and licensing.'}</p>}</>:null}
-      {loading?<p role="status">Loading saved recommendations�</p>:error?<p role="alert">{error}</p>:azure?(azureFindings.length?<div className="recommendation-list">{azureFindings.map(finding=><article key={finding.id+finding.vaultId}>
-        <h3>{finding.title}</h3><p><strong>{finding.vaultName}</strong></p>
+      {azure&&comparisonError?<p role="status">Some Azure change comparisons could not be loaded.</p>:null}
+      {loading?<p role="status">Loading saved recommendations�</p>:error?<p role="alert">{error}</p>:azure?(azureFindings.length?<div className="recommendation-list">{azureFindings.map(finding=><article key={finding.key}>
+        <h3>{finding.title}</h3>{finding.resource?<p><strong>{finding.resource}</strong></p>:null}
         <p className="azure-config-finding">{finding.detail}</p><p>{finding.action}</p>
-      </article>)}</div>:<p>{complete?'No Key Vault findings in this snapshot.':'No Key Vault findings are available from the saved evidence.'}</p>):endpoint?null:recommendations.length?<><p>{recommendations.length} outstanding recommendations from this audit, ordered by {tab==='secure'?'potential points gained':'severity'}.</p><RecommendationDetails evidence={{recommendations}} defender={tab==='defender'}/></>:<p>{complete?'No outstanding recommendations returned in this snapshot.':'No recommendation evidence is available from the saved records yet.'}</p>}
+      </article>)}</div>:<p>{complete?'No Azure configuration findings in this snapshot.':'No Azure configuration findings are available from the saved evidence.'}</p>):endpoint?null:recommendations.length?<><p>{recommendations.length} outstanding recommendations from this audit, ordered by {tab==='secure'?'potential points gained':'severity'}.</p><RecommendationDetails evidence={{recommendations}} defender={tab==='defender'}/></>:<p>{complete?'No outstanding recommendations returned in this snapshot.':'No recommendation evidence is available from the saved records yet.'}</p>}
     </>}</div>
   </section>;
 }

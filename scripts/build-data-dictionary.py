@@ -103,6 +103,8 @@ for m in re.finditer(r"(\w+):\{table:'(\w+)',label:'([^']+)',category:'([^']+)',
  if key=='azureResources':notes+=' SourceJson stores projected inventory metadata. The resourceGroup query filter matches the complete group name within the same audit. Historical audits without this dataset have no resource snapshot. Storage and Azure SQL settings are matched by ARM resource ID in the same audit.'
  if key in ('azureStorageSettings','azureSqlSettings'):notes+=' Resource details query uses the resourceId filter within the same tenant and scan. Null indicates Azure did not return the field. Source JSON contains projected fields only.'
  if parent: notes+=' Parent dataset: '+parent.group(1)+'. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.'
+ if key in ('azureStorageSettings','azureSqlFirewall','azureSqlAudit','azureNsgSettings','azureRoleAssignments'):notes+=' Also supplies saved Azure configuration findings in Audit Explorer and Recommendations.'
+ if key=='azureResources':notes+=' The inventory displays a friendly resource type derived from ARM type and kind while retaining both original values.'
  if key in ('azureVaultSecurity','azureVaultDiagnostics'):notes+=' Audit Explorer and Recommendations derive warnings from these saved rows. Missing diagnostics is evaluated only after successful diagnostics collection.'
  if 'azureConfiguration:true' in tail:notes+=' Resource details use the exact parent ARM ID. Comparison uses the previous complete dataset in the same subscription containing that parent.'
  reader=R+' (dataType='+key+')'

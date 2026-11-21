@@ -60,8 +60,8 @@ export async function readEvidence(request:HttpRequest,context:InvocationContext
 export async function readAzureRoles(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
   return handle(request,context,async tenantId=>{
     const scanId=request.params.scanId??'',scope=(request.query.get('scope')??'').toLowerCase();
-    if(!uuidPattern.test(scanId)||scope.length>450||!/^\/subscriptions\/[a-f0-9-]{36}\/(?:resourcegroups\/[^/]+(?:\/providers\/.+)?|providers\/.+)$/.test(scope))
-      return {status:400,jsonBody:{error:'A valid Azure resource or resource group scope is required.'}};
+    if(!uuidPattern.test(scanId)||scope.length>450||!/^\/subscriptions\/[a-f0-9-]{36}(?:\/(?:resourcegroups\/[^/]+(?:\/providers\/.+)?|providers\/.+))?$/.test(scope))
+      return {status:400,jsonBody:{error:'A valid Azure subscription, resource group, or resource scope is required.'}};
     const result=await getAzureRoleHistory(tenantId,scanId,scope);
     return result?{status:200,jsonBody:result}:{status:404,jsonBody:{error:'Audit or Azure scope not found.'}};
   });
