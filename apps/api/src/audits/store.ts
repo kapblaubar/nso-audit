@@ -197,15 +197,34 @@ export async function getSnapshotRows(tenantId:string,scanId:string,dataType:Sna
     const where=`OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND
       (@Search='' OR CHARINDEX(@Search,DisplayName)>0 OR CHARINDEX(@Search,SourceId)>0 OR CHARINDEX(@Search,SourceJson)>0${roleSearch})
       ${dataType==='azureResources'&&resourceGroup!==undefined?"AND LOWER(JSON_VALUE(SourceJson,'$.resourceGroup'))=LOWER(@ResourceGroup)":''}`;
-    const idFilter=resourceId?' AND LOWER(SourceId)=LOWER(@ResourceId)':'';
+    const source=datasetCatalog[dataType];
+    const comparable=resourceId&&'azureConfiguration' in source;
+    const history=comparable?`
+      SELECT TOP(1) older.ScanId,older.CreatedAtUtc
+      FROM app.DataAudits currentAudit
+      JOIN app.DataAudits older ON older.OrganizationId=currentAudit.OrganizationId
+        AND older.TenantId=currentAudit.TenantId AND older.SubscriptionId=currentAudit.SubscriptionId
+      JOIN app.AuditCollections currentCollection ON currentCollection.OrganizationId=currentAudit.OrganizationId
+        AND currentCollection.TenantId=currentAudit.TenantId AND currentCollection.ScanId=currentAudit.ScanId
+        AND currentCollection.DataType=@DataType AND currentCollection.Status='complete'
+      JOIN app.AuditCollections olderCollection ON olderCollection.OrganizationId=older.OrganizationId
+        AND olderCollection.TenantId=older.TenantId AND olderCollection.ScanId=older.ScanId
+        AND olderCollection.DataType=@DataType AND olderCollection.Status='complete'
+      JOIN ${evidenceTable(source.parent)} parent ON parent.OrganizationId=older.OrganizationId
+        AND parent.TenantId=older.TenantId AND parent.ScanId=older.ScanId AND LOWER(parent.SourceId)=LOWER(@ResourceId)
+      WHERE currentAudit.OrganizationId=@OrganizationId AND currentAudit.TenantId=@TenantId AND currentAudit.ScanId=@ScanId
+        AND older.CreatedAtUtc<currentAudit.CreatedAtUtc
+      ORDER BY older.CreatedAtUtc DESC,older.ScanId DESC;`:'';
+    const identityColumn='azureConfiguration' in source?'ParentSourceId':'SourceId';
+    const idFilter=resourceId?` AND LOWER(${identityColumn})=LOWER(@ResourceId)`:'';
     const result=await scoped(transaction,organizationId,tenantId,scanId).input('Offset',sql.Int,(page-1)*50)
       .input('Search',sql.NVarChar(200),search).input('ResourceGroup',sql.NVarChar(90),resourceGroup??null)
-      .input('ResourceId',sql.NVarChar(450),resourceId??null)
+      .input('ResourceId',sql.NVarChar(450),resourceId??null).input('DataType',sql.VarChar(32),dataType)
       .query(`SELECT COUNT(*) Total FROM ${table} evidence WHERE ${where}${idFilter};
       SELECT SourceId,DisplayName,State,SourceCreatedAtUtc,SourceUpdatedAtUtc,SourceJson,CollectedAtUtc,StoredAtUtc${'parent' in datasetCatalog[dataType]?','+Object.keys(intuneColumns).join(','):''} FROM ${table} evidence
-      WHERE ${where}${idFilter} ORDER BY SourceId OFFSET @Offset ROWS FETCH NEXT 50 ROWS ONLY;`);
+      WHERE ${where}${idFilter} ORDER BY SourceId OFFSET @Offset ROWS FETCH NEXT 50 ROWS ONLY;${history}`);
     const sets=result.recordsets as sql.IRecordSet<unknown>[];
-    return {rows:sets[1]??[],total:(sets[0]?.[0] as {Total:number}|undefined)?.Total??0,page,pageSize:50};
+    return {rows:sets[1]??[],total:(sets[0]?.[0] as {Total:number}|undefined)?.Total??0,page,pageSize:50,prior:sets[2]?.[0]??null};
   });
 }
 
@@ -221,7 +240,9 @@ export async function nextIntuneParent(job:CollectionJob,cursor:IntuneCursor):Pr
       .input('After',sql.NVarChar(450),cursor.after).query(`
       SELECT Status FROM app.AuditCollections WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND DataType=@ParentType;
       SELECT TOP(1) SourceId,DisplayName${source.parent==='recoveryBackupPolicies'?',ChildSourceId':''} FROM ${evidenceTable(source.parent)}
-      WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND SourceId${cursor.page?'=':'>'}@After ORDER BY SourceId;`);
+      WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND SourceId${cursor.page?'=':'>'}@After
+        ${job.DataType==='azureBlobProtection'?"AND COALESCE(LOWER(JSON_VALUE(SourceJson,'$.kind')),'')<>'filestorage'":''}
+      ORDER BY SourceId;`);
     const sets=result.recordsets as sql.IRecordSet<any>[];
     const status=sets[0]?.[0]?.Status??'failed',row=sets[1]?.[0];
     return {status,parent:row?{sourceId:row.SourceId,displayName:row.DisplayName,status,...(row.ChildSourceId?{resourceId:row.ChildSourceId}:{})}:null};

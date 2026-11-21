@@ -75,3 +75,30 @@ test('Recovery Services child snapshots preserve nested policy settings and ARM 
   assert.equal(detail.records[0]?.parentSourceId,detailParent.sourceId);
   assert.equal(JSON.parse(detail.records[0]!.sourceJson).properties.protectedItemsCount,2);
 });
+
+const sub='00000000-0000-4000-8000-000000000001';
+test('Azure SQL firewall evidence identifies the Azure services rule and omits unrelated fields',async()=>{
+  const parentId='/subscriptions/'+sub+'/resourceGroups/Test/providers/Microsoft.Sql/servers/server';
+  const parent={sourceId:parentId,displayName:'server',status:'complete'};
+  const page=await fetchIntuneChildPage('azureSqlFirewall',parent,{after:'',page:null},'fixture',async url=>{
+    assert.equal(url,'https://management.azure.com'+parentId+'/firewallRules?api-version=2023-08-01');
+    return Response.json({value:[{id:parentId+'/firewallRules/azure',name:'azure',
+      properties:{startIpAddress:'0.0.0.0',endIpAddress:'0.0.0.0',secret:'discard'}}]});
+  },sub);
+  assert.equal(page.records[0]?.parentSourceId,parentId);
+  assert.equal(JSON.parse(page.records[0]!.sourceJson).allowAzureServices,true);
+  assert.doesNotMatch(page.records[0]!.sourceJson,/discard/);
+  assert.throws(()=>intuneChildUrl('azureSqlFirewall',parentId,sub.replace(/1$/,'2')),/invalidSourceIdentifier/);
+});
+
+test('Blob protection preserves disabled booleans and missing retention independently',async()=>{
+  const parentId='/subscriptions/'+sub+'/resourceGroups/Test/providers/Microsoft.Storage/storageAccounts/example';
+  const child=parentId+'/blobServices/default';
+  const page=await fetchIntuneChildPage('azureBlobProtection',{sourceId:parentId,displayName:null,status:'complete'},
+    {after:'',page:null},'fixture',async url=>{
+      assert.equal(url,'https://management.azure.com'+child+'?api-version=2023-05-01');
+      return Response.json({id:child,name:'default',properties:{isVersioningEnabled:false,deleteRetentionPolicy:{enabled:true,days:14}}});
+    },sub);
+  assert.deepEqual(JSON.parse(page.records[0]!.sourceJson),{id:child,name:'default',isVersioningEnabled:false,
+    blobSoftDelete:{enabled:true,days:14},containerSoftDelete:{enabled:null,days:null}});
+});

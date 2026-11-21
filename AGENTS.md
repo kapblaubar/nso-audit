@@ -9,6 +9,7 @@
 - Design for separate Dev and future Prod environments. Parameterize names, locations, capacity,
   endpoints and identity configuration. Keep data, credentials and deployment targets isolated;
   do not copy Dev identities, secrets or customer data into Prod.
+- When audit evidence or schema changes, update the audit requirements and regenerate the SQL data dictionary.
 - Keep database schema migrations versioned with the application. Document deployment order,
   validation, data migration and rollback/recovery for changes that require them.
 - Keep deployment workflows and `docs/deploy-from-scratch.md` current. Validate relevant

@@ -29,6 +29,10 @@ Historical v1 audits retain their original 17-dataset scope without fabricated b
 | Secure Score control profiles | app.AuditSecureScoreProfiles |
 | Azure role assignments | app.AuditAzureRoleAssignments |
 | Azure role definitions | app.AuditAzureRoleDefinitions |
+| Azure SQL firewall rules | app.AuditAzureSqlFirewall |
+| Azure SQL virtual network rules | app.AuditAzureSqlVnet |
+| Azure SQL server auditing | app.AuditAzureSqlAudit |
+| Azure Blob protection | app.AuditAzureBlobProtection |
 | Azure resources | app.AuditAzureResources |
 | Azure resource groups | app.AuditResourceGroups |
 | Defender for Cloud scores | app.AuditDefenderCloudScores |

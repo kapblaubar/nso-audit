@@ -123,7 +123,7 @@ export interface LicenseEvidenceRow {
   AssignmentState?:string|null;AssignmentError?:string|null;SourceUpdatedAtUtc?:string|null;
   CollectedAtUtc:string;StoredAtUtc:string;
 }
-export interface LicenseEvidencePage {rows:LicenseEvidenceRow[];total:number;page:number;pageSize:number}
+export interface LicenseEvidencePage {rows:LicenseEvidenceRow[];total:number;page:number;pageSize:number;prior?:{ScanId:string;CreatedAtUtc:string}|null}
 async function dataAuditRequest<T>(account:AuditAccount,path:string,method='GET'):Promise<T>{
   if(!appConfig.apiBaseUrl)throw new Error('The NSO Audit API URL is not configured.');
   const token=await getApiAccessToken(account);

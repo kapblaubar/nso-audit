@@ -123,8 +123,89 @@ function PolicyDetail({account,report,type,row,refresh,definitions}:{account:Aud
     </div></section>;
 }
 
-function AzureSettings({account,report,resourceId,dataset,refresh}:{account:AuditAccount;report:DataAudit;
-  resourceId:string;dataset:'azureStorageSettings'|'azureSqlSettings';refresh:number}){
+const azureProtectionLabels={
+  azureSqlFirewall:'SQL firewall rules',azureSqlVnet:'SQL virtual network rules',
+  azureSqlAudit:'SQL server auditing',azureBlobProtection:'Blob recovery protection',
+};
+type AzureProtectionDataset=keyof typeof azureProtectionLabels;
+
+function protectionFields(dataset:AzureProtectionDataset,row:Row){
+  const data=sourceRecord(row);
+  switch(dataset){
+    case 'azureSqlFirewall':return {'Start IP':data.startIpAddress,'End IP':data.endIpAddress,'Allows Azure services':data.allowAzureServices};
+    case 'azureSqlVnet':return {Subnet:data.virtualNetworkSubnetId,State:data.state,'Ignore missing service endpoint':data.ignoreMissingVnetServiceEndpoint};
+    case 'azureSqlAudit':return {State:data.state,'Retention days':data.retentionDays,'Azure Monitor target':data.isAzureMonitorTargetEnabled,
+      'Storage target configured':data.storageTargetConfigured,'Uses managed identity':data.isManagedIdentityInUse};
+    case 'azureBlobProtection':{
+      const blob=object(data.blobSoftDelete),container=object(data.containerSoftDelete);
+      return {'Versioning':data.isVersioningEnabled,'Blob soft delete':blob.enabled,'Blob retention days':blob.days,
+        'Container soft delete':container.enabled,'Container retention days':container.days};
+    }
+  }
+}
+
+function AzureProtection({account,report,scope,dataset,refresh}:{account:AuditAccount;report:DataAudit;scope:string;dataset:AzureProtectionDataset;refresh:number}){
+  const collection=report.collections.find(c=>c.DataType===dataset);
+  const status=collection?.Status,count=collection?.RecordCount,scanId=report.audit.ScanId;
+  const [result,setResult]=useState<{rows:Row[];previous?:Row[];prior?:LicenseEvidencePage['prior'];comparisonError?:boolean}>();
+  const [error,setError]=useState(false);
+  useEffect(()=>{
+    if(!status)return;
+    let cancelled=false;
+    async function load(id:string){
+      const first=await loadLicenseEvidence(account,id,dataset,1,'','',undefined,scope);
+      const rows=[...first.rows];
+      for(let page=2;!cancelled&&(page-1)*first.pageSize<first.total;page++){
+        const next=await loadLicenseEvidence(account,id,dataset,page,'','',undefined,scope);
+        rows.push(...next.rows);
+      }
+      return {...first,rows};
+    }
+    setResult(undefined);setError(false);
+    void load(scanId).then(async current=>{
+      if(cancelled)return;
+      setResult(current);
+      if(!current.prior)return;
+      try{
+        const previous=await load(current.prior.ScanId);
+        if(!cancelled)setResult({...current,previous:previous.rows});
+      }catch{if(!cancelled)setResult({...current,comparisonError:true});}
+    }).catch(()=>{if(!cancelled)setError(true);});
+    return()=>{cancelled=true;};
+  },[account,scanId,scope,dataset,status,count,refresh]);
+  const rows=result?.rows??[];
+  const before=new Map(result?.previous?.map(row=>[row.ChildSourceId?.toLowerCase(),row]));
+  const after=new Map(rows.map(row=>[row.ChildSourceId?.toLowerCase(),row]));
+  const changes=result?.previous?[...new Set([...before.keys(),...after.keys()])].flatMap(id=>{
+    const previous=before.get(id),current=after.get(id);
+    if(previous&&current&&JSON.stringify(protectionFields(dataset,previous))===JSON.stringify(protectionFields(dataset,current)))return [];
+    return [{id,previous,current}];
+  }):[];
+  return <section>
+    <h4>{azureProtectionLabels[dataset]}</h4>
+    <Notice collection={collection}/>
+    {error?<p role="alert">Saved settings could not be loaded. Use Refresh to try again.</p>:null}
+    {status&&!result&&!error?<p role="status">Loading saved settings?</p>:null}
+    {result&&dataset==='azureSqlFirewall'&&(status==='complete'||rows.some(row=>sourceRecord(row).allowAzureServices===true))?
+      <p>Allow Azure services: {rows.some(row=>sourceRecord(row).allowAzureServices===true)?'Rule present':'No matching rule returned'}</p>:null}
+    {rows.map(row=><div key={row.SourceId}>
+      {dataset==='azureSqlFirewall'||dataset==='azureSqlVnet'?<strong>{String(sourceRecord(row).name??row.ChildSourceId)}</strong>:null}
+      <Fields value={protectionFields(dataset,row)}/>
+    </div>)}
+    {result&&status==='complete'&&!rows.length?<p>No settings returned for this resource.</p>:null}
+    {result?.comparisonError?<p role="alert">Previous snapshot could not be loaded.</p>:null}
+    {result?.previous?<details><summary>Changes since {when(result.prior?.CreatedAtUtc)}</summary>
+      {changes.length?changes.map(({id,previous,current})=><section key={id}>
+        <h5>{previous?current?'Changed':'Removed':'Added'} ? {String(sourceRecord((current??previous)!).name??id)}</h5>
+        {previous?<><p>Previous</p><Fields value={protectionFields(dataset,previous)}/></>:null}
+        {current?<><p>Current</p><Fields value={protectionFields(dataset,current)}/></>:null}
+      </section>):<p>No configuration changes detected.</p>}
+    </details>:null}
+  </section>;
+}
+
+function AzureSettings({account,report,resourceId,dataset,refresh,kind}:{account:AuditAccount;report:DataAudit;
+  resourceId:string;dataset:'azureStorageSettings'|'azureSqlSettings';refresh:number;kind:unknown}){
   const [row,setRow]=useState<Row>(),[busy,setBusy]=useState(false),[error,setError]=useState(false);
   const collection=report.collections.find(c=>c.DataType===dataset);
   const status=collection?.Status,count=collection?.RecordCount;
@@ -141,7 +222,7 @@ function AzureSettings({account,report,resourceId,dataset,refresh}:{account:Audi
   const settings=row?sourceRecord(row):{};
   const storage=dataset==='azureStorageSettings';
   const network=object(settings.network),transport=object(settings.transport),access=object(settings.access);
-  const sas=object(settings.sasPolicy);
+  const sas=object(settings.sasPolicy),fileOnly=storage&&String(kind).toLowerCase()==='filestorage';
   return <section aria-label="Security and configuration">
     <h3>{storage?'Storage security and configuration':'SQL server security and configuration'}</h3>
     <Notice collection={collection}/>
@@ -159,12 +240,16 @@ function AzureSettings({account,report,resourceId,dataset,refresh}:{account:Audi
       }}/></section>
       {storage?<section><h4>Storage access and SAS</h4><Fields value={{
         'Anonymous blob access':access.allowBlobPublicAccess,'Shared Key access':access.allowSharedKeyAccess,
-        'SAS maximum validity':sas.sasExpirationPeriod,'SAS expiration action':sas.expirationAction,
+        ...(sas.sasExpirationPeriod||sas.expirationAction?{'SAS maximum validity':sas.sasExpirationPeriod,'SAS expiration action':sas.expirationAction}
+          :{'SAS expiration policy':'No SAS expiration policy returned'}),
       }}/></section>:<section><h4>Microsoft Entra authentication</h4><Fields value={{
         'Entra administrator':access.login,'Principal type':access.principalType,'Principal ID':access.sid,
         'Entra-only authentication':access.azureADOnlyAuthentication,
       }}/></section>}
     </div>:null}
+    {fileOnly?<p>Blob recovery protection is unavailable for FileStorage accounts.</p>:null}
+    {(storage?(fileOnly?[]:['azureBlobProtection'] as const):(['azureSqlFirewall','azureSqlVnet','azureSqlAudit'] as const)).map(key=>
+      <AzureProtection key={key} account={account} report={report} scope={resourceId} dataset={key} refresh={refresh}/>)}
   </section>;
 }
 
@@ -249,7 +334,7 @@ function AzureResources({rows,account,report,refresh}:{rows:Row[];account:AuditA
         <a href={portalUrl} target="_blank" rel="noreferrer">Open in Azure portal</a>
         <Fields value={{'Resource ID':id,Tags:resource.tags}}/>
         <AzureRoles key={id} account={account} report={report} scope={id} refresh={refresh}/>
-        {dataset?<AzureSettings key={id} account={account} report={report} resourceId={id} dataset={dataset} refresh={refresh}/>:null}
+        {dataset?<AzureSettings key={id} account={account} report={report} resourceId={id} dataset={dataset} refresh={refresh} kind={resource.kind}/>:null}
       </td></tr>:null}</Fragment>;
     })}</tbody>
   </table></div>;

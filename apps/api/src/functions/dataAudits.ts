@@ -50,7 +50,7 @@ export async function readEvidence(request:HttpRequest,context:InvocationContext
     if(!uuidPattern.test(scanId)||!dataType||!isDataType(dataType)||
       !/^\d+$/.test(rawPage)||!Number.isSafeInteger(page)||page<1||page>1000000||search.length>200||
       (resourceId!==undefined&&(!resourceId.toLowerCase().startsWith('/subscriptions/')||resourceId.length>450||
-        (dataType!=='azureStorageSettings'&&dataType!=='azureSqlSettings')))||
+        (!isSnapshotType(dataType)||(!('azureConfiguration' in datasetCatalog[dataType])&&dataType!=='azureStorageSettings'&&dataType!=='azureSqlSettings'))))||
       (resourceGroup!==undefined&&(dataType!=='azureResources'||!resourceGroup.trim()||resourceGroup.length>90))||
       (skuId!==undefined&&!uuidPattern.test(skuId)))return {status:400,jsonBody:{error:'Invalid audit data filter.'}};
     const result=isSnapshotType(dataType)?await getSnapshotRows(tenantId,scanId,dataType,page,search,resourceGroup,resourceId):await getLicenseRows(tenantId,scanId,dataType,page,search,skuId);

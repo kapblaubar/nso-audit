@@ -6,6 +6,14 @@ for the target environment; credentials and deployment tokens must never be comm
 
 ## Current automation status
 
+SQL and Blob protection snapshots require migration 028 before API/web deployment. The existing scoped Azure Reader role supplies the management-plane reads. Run a fresh audit with a SQL logical server and a Blob-capable Storage account, then compare the saved evidence with Azure. Run a second audit after an approved test-resource setting change and validate the before/after view. Rollback retains the additive tables. Let new collector jobs reach a terminal state before restoring the previous API and web versions.
+
+### Separate-tenant release verification
+
+Provision a disposable environment in the intended hosting topology before declaring Prod rebuildable. Supply target environment values through the shared Bicep and its parameter files, verify the target tenant and subscription, validate templates and review what-if, then provision the network, SQL, Key Vault and app identities. Use fresh deployment and workload identities, app registrations, secrets and SQL data. Independently configure the customer service principal through admin consent and subscription Reader access in each audited tenant.
+
+Apply the versioned SQL migrations through 028 against the new database and verify that rerunning the migration runner reports the same checksums. Deploy API and web, check the API-to-SQL VNet path, and verify all four protection datasets on a fresh audit and a second comparable scan. Repeat onboarding in an independent customer tenant and verify that users scoped to one customer workspace cannot retrieve the other customer's audit evidence. Capture deployment results, what-if output and audit IDs. Until these checks pass, this is a deployment procedure and Prod remains unverified.
+
 Azure role snapshots require migration 027 before API/web deployment. Use existing subscription Reader access for role assignments and definitions. Run two fresh audits around an authorized test-scope role change and confirm the per-resource and per-resource-group views show direct and inherited grants and the expected change. For rollback, keep the additive migration and redeploy the prior API/web versions together.
 
 Azure Storage and SQL server configuration snapshots require migration 026 before API/web deployment. Use the existing subscription Reader role. Run a fresh audit in a test subscription with a Storage account and SQL logical server and compare saved settings against Azure. Check that both datasets finish and omitted fields are shown as unavailable. Configuration is captured on new scans. To roll back, retain the additive tables and redeploy the prior API/web versions.

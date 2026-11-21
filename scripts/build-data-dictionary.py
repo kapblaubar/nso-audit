@@ -67,7 +67,10 @@ cat=(ROOT/'apps/api/src/audits/catalog.ts').read_text()
 for m in re.finditer(r"(\w+):\{table:'(\w+)',label:'([^']+)',category:'([^']+)',path:'([^']+)'([^\n]*)",cat):
  key,table,label,category,path,tail=m.groups();parent=re.search(r"parent:'([^']+)'",tail);relationship=re.search(r"relationship:'([^']*)'",tail)
  endpoint=('ARM GET /subscriptions/{subscriptionId}' if 'arm:true' in tail else 'Graph GET ')+path
- if parent and 'arm:true' in tail:
+ if parent and 'azureConfiguration:true' in tail:
+  version=re.search(r"apiVersion:'([^']+)'",tail)
+  endpoint='ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}'+path+'/{resourceName}/'+relationship.group(1)+'?api-version='+version.group(1)
+ elif parent and 'arm:true' in tail:
   version=re.search(r"apiVersion:'([^']+)'",tail)
   endpoint='ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}'+path+'/{vaultName}'
   if key=='recoveryPolicyDetails': endpoint+='/backupPolicies/{policyName}'
@@ -79,6 +82,10 @@ for m in re.finditer(r"(\w+):\{table:'(\w+)',label:'([^']+)',category:'([^']+)',
  purpose=label+'. Saved source evidence, not an automatically evaluated compliance finding.'
  if key=='azureRoleAssignments':purpose='Observed Azure RBAC grants per audit: assignment ID, scope, principal ID and type, role definition ID, and condition.'
  if key=='azureRoleDefinitions':purpose='Azure role definition GUID and display name captured with the audit.'
+ if key=='azureSqlFirewall':purpose='SQL server IPv4 firewall rule ranges and the Allow Azure services marker.'
+ if key=='azureSqlVnet':purpose='SQL server virtual network rules with subnet ID, state, and service endpoint behavior.'
+ if key=='azureSqlAudit':purpose='SQL server auditing state, retention, target indicators and managed identity usage.'
+ if key=='azureBlobProtection':purpose='Blob versioning and blob/container soft-delete settings with retention days.'
  if key=='azureStorageSettings':purpose='Allowlisted Storage account network, transport, authorization and SAS expiration settings per audit and ARM resource ID.'
  if key=='azureSqlSettings':purpose='Allowlisted Azure SQL logical-server network, TLS and Microsoft Entra administrator settings per audit and ARM resource ID.'
  if key=='azureResources':purpose='Per-audit Azure resource inventory: full ARM resource ID, name, resource type, kind, resource group, subscription ID, location and tags.'
@@ -91,6 +98,7 @@ for m in re.finditer(r"(\w+):\{table:'(\w+)',label:'([^']+)',category:'([^']+)',
  if key=='azureResources':notes+=' SourceJson stores projected inventory metadata. The resourceGroup query filter matches the complete group name within the same audit. Historical audits without this dataset have no resource snapshot. Storage and Azure SQL settings are matched by ARM resource ID in the same audit.'
  if key in ('azureStorageSettings','azureSqlSettings'):notes+=' Resource details query uses the resourceId filter within the same tenant and scan. Null indicates Azure did not return the field. Source JSON contains projected fields only.'
  if parent: notes+=' Parent dataset: '+parent.group(1)+'. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.'
+ if 'azureConfiguration:true' in tail:notes+=' Resource details use the exact parent ARM ID. Comparison uses the previous complete dataset in the same subscription containing that parent.'
  reader=R+' (dataType='+key+')'
  if key in ('azureRoleAssignments','azureRoleDefinitions'):reader+='; readAzureRoles ? GET /api/me/audits/{scanId}/azure/roles -> getAzureRoleHistory'
  add('app.'+table,purpose,'Collected evidence',reader,W+(' via nextIntuneParent/fetchIntuneChildPage' if parent else ' via collectSnapshot/fetchSnapshotPage'),notes)

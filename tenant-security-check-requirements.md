@@ -421,7 +421,7 @@ matches the validated signed-in tenant ID; cross-tenant/Lighthouse access is rej
 
 #### Storage and Azure SQL
 
-The first implementation captures Storage account network, transport, access and SAS policy settings, and SQL logical-server network, TLS and Entra administrator settings. SQL firewall and auditing, database settings, blob service settings, and configuration comparisons are follow-up work.
+The first implementation captures Storage account network, transport, access and SAS policy settings, and SQL logical-server network, TLS and Entra administrator settings. SQL firewall and virtual network rules, server auditing, and Blob versioning and soft-delete settings include comparisons to the previous complete dataset for the same resource. Database settings, container anonymous access and comparison for the original account/server settings are follow-up work.
 
 Resource row details must use service-specific sections, with readable summaries and structured lists for settings such as firewall rules.
 
@@ -445,9 +445,9 @@ Use the status in this table to track delivery. A completed dataset confirms col
 | Current | Subscription inventory | Resource and group metadata, paging, and grouping by full resource-group name. Compare representative child resources against the portal. | Collecting. Reviewed Dev snapshot returned 82 resources and 12 groups. Portal coverage comparison is pending. |
 | Current | Storage accounts | Public access, firewall default and exceptions, private endpoint status, HTTPS/TLS, anonymous blob access, Shared Key, and SAS maximum validity and action. | Collecting. Label missing SAS evidence ?No SAS expiration policy returned? and distinguish it from an explicit setting. |
 | Current | Azure SQL logical servers | Public endpoint setting, private endpoints, minimum TLS, Entra administrator and Entra-only authentication. | Collecting. Public endpoint status alone does not establish client reachability. |
-| Next | Azure SQL logical servers | Firewall rule names and IP ranges, explicit Allow Azure services indicator, and server auditing status. Include evidence for network rules that affect reachability, including virtual network rules where applicable. | Planned |
+| Current | Azure SQL logical servers | Firewall rule names and IP ranges, explicit Allow Azure services indicator, virtual network rules, server auditing status, targets and retention. | Implemented. Live audit verification pending. |
 | Next | Azure SQL databases | Auditing and inheritance, transparent data encryption, and short- and long-term backup retention. Identify system databases so findings can be scoped appropriately. | Planned |
-| Next | Storage blob services | Blob and container soft-delete settings and retention, blob versioning, and container public access configuration where visible. | Planned |
+| Current | Storage blob services | Blob and container soft-delete settings and retention, and blob versioning. | Implemented. Live audit verification and container-level public access remain pending. |
 | Current | Azure RBAC | Resource and group views show principal, role, scope, condition and direct or inherited origin within the subscription. Compare added, removed and updated assignment IDs against the previous complete role dataset for that subscription. | Implemented. Live verification pending. Management-group and tenant-root inheritance, role-definition permission changes, PIM eligibility, and SQL database principals require separate evidence. |
 | Later | Key Vault | Network controls, RBAC or access-policy mode, soft-delete retention, purge protection, and diagnostics. | Planned |
 | Later | App Service and Functions | Managed identity, incoming access restrictions, private endpoints, outbound VNet integration, HTTPS/TLS and platform authentication. | Planned |

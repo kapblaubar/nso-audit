@@ -36,7 +36,7 @@ export function projectAzureSettings(dataset:SettingsDataset,value:unknown,subsc
   });
   const network=object(properties.networkAcls);
   return {
-    id,name:item.name,
+    id,name:item.name,...(storage?fields(item,'kind'):{}),
     network:{
       ...fields(properties,'publicNetworkAccess'),privateEndpoints,
       ...(storage?{
@@ -51,4 +51,29 @@ export function projectAzureSettings(dataset:SettingsDataset,value:unknown,subsc
       fields(properties.administrators,'login','principalType','sid','azureADOnlyAuthentication'),
     ...(storage?{sasPolicy:fields(properties.sasPolicy,'sasExpirationPeriod','expirationAction')}:{}),
   };
+}
+
+export function projectAzureChildSettings(dataset:string,item:Record<string,unknown>){
+  const {id,name}=item;
+  const properties=object(item.properties);
+  if(!item.properties||typeof item.properties!=='object'||Array.isArray(item.properties))
+    throw new CollectionError('invalidResponse');
+  switch(dataset){
+    case 'azureSqlFirewall': {
+      const rule=fields(properties,'startIpAddress','endIpAddress');
+      if(typeof rule.startIpAddress!=='string'||typeof rule.endIpAddress!=='string')
+        throw new CollectionError('invalidResponse');
+      return {id,name,...rule,allowAzureServices:rule.startIpAddress==='0.0.0.0'&&rule.endIpAddress==='0.0.0.0'};
+    }
+    case 'azureSqlVnet':
+      return {id,name,...fields(properties,'virtualNetworkSubnetId','ignoreMissingVnetServiceEndpoint','state')};
+    case 'azureSqlAudit':
+      return {id,name,...fields(properties,'state','retentionDays','isAzureMonitorTargetEnabled','isManagedIdentityInUse'),
+        storageTargetConfigured:typeof properties.storageEndpoint==='string'?Boolean(properties.storageEndpoint):null};
+    case 'azureBlobProtection':
+      return {id,name,...fields(properties,'isVersioningEnabled'),
+        blobSoftDelete:fields(properties.deleteRetentionPolicy,'enabled','days'),
+        containerSoftDelete:fields(properties.containerDeleteRetentionPolicy,'enabled','days')};
+    default:throw new CollectionError('invalidDataType');
+  }
 }

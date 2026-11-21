@@ -1,5 +1,6 @@
 import {createHash} from 'node:crypto';
 import {datasetCatalog,type SnapshotDataType,type SnapshotRecord} from './catalog.js';
+import {projectAzureChildSettings} from './azureSettings.js';
 import {CollectionError} from './licensing.js';
 import {normalizeSnapshots,sourceJson,validateSnapshotUrl} from './snapshots.js';
 
@@ -18,6 +19,16 @@ export function intuneChildUrl(dataType:SnapshotDataType,parentId:string,subscri
   const source=datasetCatalog[dataType];
   if(!('parent' in source)||!parentId||parentId.length>450||parentId==='.'||parentId==='..')throw new CollectionError('invalidSourceIdentifier');
   if('arm' in source){
+    if('azureConfiguration' in source){
+      const parts=parentId.split('/');
+      const [root,subscriptions,subscription,groups,group,providers,namespace,resourceType,name]=parts;
+      if(parts.length!==9||root!==''||subscriptions?.toLowerCase()!=='subscriptions'||
+        !subscriptionId||subscription?.toLowerCase()!==subscriptionId.toLowerCase()||
+        groups?.toLowerCase()!=='resourcegroups'||('/'+[providers,namespace,resourceType].join('/')).toLowerCase()!==source.path.toLowerCase()||
+        !group||!name||[group,name].some(value=>/[\\%?#]/.test(value)||value==='.'||value==='..'))
+        throw new CollectionError('invalidSourceIdentifier');
+      return `https://management.azure.com/subscriptions/${subscriptionId}/resourceGroups/${encodeURIComponent(group)}${source.path}/${encodeURIComponent(name)}/${source.relationship}?api-version=${source.apiVersion}`;
+    }
     const match=/^\/subscriptions\/([a-f\d-]{36})\/resourceGroups\/([^/]+)\/providers\/Microsoft\.RecoveryServices\/vaults\/([a-z\d-]+)(?:\/backupPolicies\/([^/]+))?$/i.exec(parentId);
     if(!match||match[1]?.toLowerCase()!==subscriptionId?.toLowerCase()||
       !match[2]||[match[2],match[4]].some(segment=>segment!==undefined&&(/[\\%?#]/.test(segment)||segment==='.'||segment==='..'))||
@@ -54,7 +65,7 @@ export async function fetchIntuneChildPage(dataType:SnapshotDataType,parent:Pare
       if(!id||(singleton?id!==path:!id.startsWith(path+'/')||!id.slice(path.length+1)||id.slice(path.length+1).includes('/')))
         throw new CollectionError('invalidSourceIdentifier');
     }
-    const row=normalizeSnapshots([item],new Date().toISOString())[0]!;
+    const row=normalizeSnapshots(['azureConfiguration' in source?projectAzureChildSettings(dataType,item):item],new Date().toISOString())[0]!;
     const definitions=Array.isArray(item.settingDefinitions)?item.settingDefinitions.map(object):[];
     const definition=definitions.find(d=>d.id===instance.settingDefinitionId);
     const type=string(target['@odata.type'],128);
