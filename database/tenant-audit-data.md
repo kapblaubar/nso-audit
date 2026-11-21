@@ -33,6 +33,10 @@ Historical v1 audits retain their original 17-dataset scope without fabricated b
 | Azure SQL virtual network rules | app.AuditAzureSqlVnet |
 | Azure SQL server auditing | app.AuditAzureSqlAudit |
 | Azure Blob protection | app.AuditAzureBlobProtection |
+| Key Vault security | app.AuditAzureVaultSecurity |
+| Key Vault diagnostic settings | app.AuditAzureVaultDiagnostics |
+| Virtual network configuration | app.AuditAzureVnetSettings |
+| Network security group configuration | app.AuditAzureNsgSettings |
 | Azure resources | app.AuditAzureResources |
 | Azure resource groups | app.AuditResourceGroups |
 | Defender for Cloud scores | app.AuditDefenderCloudScores |

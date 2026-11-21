@@ -237,11 +237,13 @@ export async function nextIntuneParent(job:CollectionJob,cursor:IntuneCursor):Pr
   if(!('parent' in source))throw new Error('Invalid child type.');
   return withOrganization(job.OrganizationId,async transaction=>{
     const result=await jobRequest(transaction,job).input('ParentType',sql.VarChar(32),source.parent)
-      .input('After',sql.NVarChar(450),cursor.after).query(`
+      .input('After',sql.NVarChar(450),cursor.after)
+      .input('ParentResourceType',sql.NVarChar(160),source.parent==='azureResources'?source.path.slice('/providers/'.length).toLowerCase():null).query(`
       SELECT Status FROM app.AuditCollections WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND DataType=@ParentType;
       SELECT TOP(1) SourceId,DisplayName${source.parent==='recoveryBackupPolicies'?',ChildSourceId':''} FROM ${evidenceTable(source.parent)}
       WHERE OrganizationId=@OrganizationId AND TenantId=@TenantId AND ScanId=@ScanId AND SourceId${cursor.page?'=':'>'}@After
         ${job.DataType==='azureBlobProtection'?"AND COALESCE(LOWER(JSON_VALUE(SourceJson,'$.kind')),'')<>'filestorage'":''}
+        ${source.parent==='azureResources'?"AND LOWER(JSON_VALUE(SourceJson,'$.type'))=@ParentResourceType":''}
       ORDER BY SourceId;`);
     const sets=result.recordsets as sql.IRecordSet<any>[];
     const status=sets[0]?.[0]?.Status??'failed',row=sets[1]?.[0];

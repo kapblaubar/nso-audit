@@ -11,7 +11,8 @@ name: Deploy API
 # Apply migrations 023–024 before deploying Recovery Services collection.
 # Azure role snapshots require migration 027.
 # SQL and Storage protection snapshots require migration 028 before API/web rollout.
-# Unified tenant datasets: apply through 028 before API deployment; explicit activation is versioned in
+# Key Vault and network snapshots require migration 029 before API/web rollout.
+# Unified tenant datasets: apply through 029 before API deployment; explicit activation is versioned in
 # the SQL runtime script/Dev Bicep parameters. SQL is the only audit backend. See database/tenant-audit-data.md.
 
 on:

@@ -27,7 +27,7 @@ export function intuneChildUrl(dataType:SnapshotDataType,parentId:string,subscri
         groups?.toLowerCase()!=='resourcegroups'||('/'+[providers,namespace,resourceType].join('/')).toLowerCase()!==source.path.toLowerCase()||
         !group||!name||[group,name].some(value=>/[\\%?#]/.test(value)||value==='.'||value==='..'))
         throw new CollectionError('invalidSourceIdentifier');
-      return `https://management.azure.com/subscriptions/${subscriptionId}/resourceGroups/${encodeURIComponent(group)}${source.path}/${encodeURIComponent(name)}/${source.relationship}?api-version=${source.apiVersion}`;
+      return `https://management.azure.com/subscriptions/${subscriptionId}/resourceGroups/${encodeURIComponent(group)}${source.path}/${encodeURIComponent(name)}${source.relationship?'/'+source.relationship:''}?api-version=${source.apiVersion}`;
     }
     const match=/^\/subscriptions\/([a-f\d-]{36})\/resourceGroups\/([^/]+)\/providers\/Microsoft\.RecoveryServices\/vaults\/([a-z\d-]+)(?:\/backupPolicies\/([^/]+))?$/i.exec(parentId);
     if(!match||match[1]?.toLowerCase()!==subscriptionId?.toLowerCase()||

@@ -97,6 +97,7 @@ The following describes normal application access plus important operator paths.
 | [app.AuditAuthenticationRegistrations](#appauditauthenticationregistrations) | Collected evidence | Authentication registration. Saved source evidence, not an automatically evaluated compliance finding. |
 | [app.AuditAuthorizationPolicies](#appauditauthorizationpolicies) | Collected evidence | Authorization policy. Saved source evidence, not an automatically evaluated compliance finding. |
 | [app.AuditAzureBlobProtection](#appauditazureblobprotection) | Collected evidence | Blob versioning and blob/container soft-delete settings with retention days. |
+| [app.AuditAzureNsgSettings](#appauditazurensgsettings) | Collected evidence | NSG custom and default rule settings, with subnet and NIC attachment identifiers. |
 | [app.AuditAzureResources](#appauditazureresources) | Collected evidence | Per-audit Azure resource inventory: full ARM resource ID, name, resource type, kind, resource group, subscription ID, location and tags. |
 | [app.AuditAzureRoleAssignments](#appauditazureroleassignments) | Collected evidence | Observed Azure RBAC grants per audit: assignment ID, scope, principal ID and type, role definition ID, and condition. |
 | [app.AuditAzureRoleDefinitions](#appauditazureroledefinitions) | Collected evidence | Azure role definition GUID and display name captured with the audit. |
@@ -105,6 +106,9 @@ The following describes normal application access plus important operator paths.
 | [app.AuditAzureSqlSettings](#appauditazuresqlsettings) | Collected evidence | Allowlisted Azure SQL logical-server network, TLS and Microsoft Entra administrator settings per audit and ARM resource ID. |
 | [app.AuditAzureSqlVnet](#appauditazuresqlvnet) | Collected evidence | SQL server virtual network rules with subnet ID, state, and service endpoint behavior. |
 | [app.AuditAzureStorageSettings](#appauditazurestoragesettings) | Collected evidence | Allowlisted Storage account network, transport, authorization and SAS expiration settings per audit and ARM resource ID. |
+| [app.AuditAzureVaultDiagnostics](#appauditazurevaultdiagnostics) | Collected evidence | Key Vault diagnostic category settings and destination identifiers. |
+| [app.AuditAzureVaultSecurity](#appauditazurevaultsecurity) | Collected evidence | Key Vault firewall, private endpoint approval, access model, legacy policy operation names, soft delete and purge protection. |
+| [app.AuditAzureVnetSettings](#appauditazurevnetsettings) | Collected evidence | VNet address and DNS settings, peerings, subnet policies, and subnet attachment identifiers. |
 | [app.AuditCollections](#appauditcollections) | Audit control | Per-audit dataset status, row count, start/end timestamps and safe error code. |
 | [app.AuditCompliancePolicies](#appauditcompliancepolicies) | Collected evidence | Device compliance policies. Saved source evidence, not an automatically evaluated compliance finding. |
 | [app.AuditCompliancePolicyAssignments](#appauditcompliancepolicyassignments) | Collected evidence | Compliance policy assignments. Saved source evidence, not an automatically evaluated compliance finding. |
@@ -186,7 +190,7 @@ The following describes normal application access plus important operator paths.
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,DataType`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Distinguish empty complete, missingAccess, failed and partial. This is dataset status, not individual evidence.
-- **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql), [database/migrations/025_azure_resource_inventory.sql](../database/migrations/025_azure_resource_inventory.sql), [database/migrations/026_azure_resource_settings.sql](../database/migrations/026_azure_resource_settings.sql), [database/migrations/027_azure_roles.sql](../database/migrations/027_azure_roles.sql), [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql)
+- **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql), [database/migrations/025_azure_resource_inventory.sql](../database/migrations/025_azure_resource_inventory.sql), [database/migrations/026_azure_resource_settings.sql](../database/migrations/026_azure_resource_settings.sql), [database/migrations/027_azure_roles.sql](../database/migrations/027_azure_roles.sql), [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql), [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql)
 - **Application implementation:** [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 - **SQL procedures referencing this table:** `security.EnqueueAuditCollection (017_audit_licensing.sql)`
 
@@ -198,7 +202,7 @@ The following describes normal application access plus important operator paths.
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId`
 - **Parent relationships (creation DDL):** app.ScanRuns (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** One typed run; completed evidence retained as a snapshot. A complete run covers its requested datasets only.
-- **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql), [database/migrations/025_azure_resource_inventory.sql](../database/migrations/025_azure_resource_inventory.sql), [database/migrations/026_azure_resource_settings.sql](../database/migrations/026_azure_resource_settings.sql), [database/migrations/027_azure_roles.sql](../database/migrations/027_azure_roles.sql), [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql)
+- **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql), [database/migrations/025_azure_resource_inventory.sql](../database/migrations/025_azure_resource_inventory.sql), [database/migrations/026_azure_resource_settings.sql](../database/migrations/026_azure_resource_settings.sql), [database/migrations/027_azure_roles.sql](../database/migrations/027_azure_roles.sql), [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql), [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql)
 - **Application implementation:** [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts), [apps/api/src/functions/scans.ts](../apps/api/src/functions/scans.ts)
 
 #### app.ScanFindings
@@ -253,7 +257,7 @@ The following describes normal application access plus important operator paths.
 - **Primary key (creation DDL):** `DataType`
 - **Parent relationships (creation DDL):** No table foreign key in original CREATE TABLE; see later migrations/live metadata.
 - **Lifecycle / cautions:** Reference configuration, not tenant evidence. Children wait for parent inventory to become terminal.
-- **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql), [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql)
+- **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql), [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql), [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql)
 - **SQL procedures referencing this table:** `security.ClaimAuditCollection (019_intune_policy_details.sql)`
 
 #### dbo.ScanStorageCutover
@@ -334,6 +338,17 @@ The following describes normal application access plus important operator paths.
 - **Schema sources:** [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
+#### app.AuditAzureNsgSettings
+
+- **Stores:** NSG custom and default rule settings, with subnet and NIC attachment identifiers.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureNsgSettings)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.AuditAzureResources (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Cloud configuration. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Network/networkSecurityGroups/{resourceName}?api-version=2025-05-01. Parent dataset: azureResources. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId. Resource details use the exact parent ARM ID. Comparison uses the previous complete dataset in the same subscription containing that parent.
+- **Schema sources:** [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
 #### app.AuditAzureResources
 
 - **Stores:** Per-audit Azure resource inventory: full ARM resource ID, name, resource type, kind, resource group, subscription ID, location and tags.
@@ -342,7 +357,7 @@ The following describes normal application access plus important operator paths.
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Cloud inventory. ARM GET /subscriptions/{subscriptionId}/resources?api-version=2021-04-01. SourceJson stores projected inventory metadata. The resourceGroup query filter matches the complete group name within the same audit. Historical audits without this dataset have no resource snapshot. Storage and Azure SQL settings are matched by ARM resource ID in the same audit.
-- **Schema sources:** [database/migrations/025_azure_resource_inventory.sql](../database/migrations/025_azure_resource_inventory.sql)
+- **Schema sources:** [database/migrations/025_azure_resource_inventory.sql](../database/migrations/025_azure_resource_inventory.sql), [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAzureRoleAssignments
@@ -420,6 +435,39 @@ The following describes normal application access plus important operator paths.
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Cloud configuration. ARM GET /subscriptions/{subscriptionId}/providers/Microsoft.Storage/storageAccounts?api-version=2023-05-01. Resource details query uses the resourceId filter within the same tenant and scan. Null indicates Azure did not return the field. Source JSON contains projected fields only.
 - **Schema sources:** [database/migrations/026_azure_resource_settings.sql](../database/migrations/026_azure_resource_settings.sql), [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditAzureVaultDiagnostics
+
+- **Stores:** Key Vault diagnostic category settings and destination identifiers.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureVaultDiagnostics)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.AuditAzureResources (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Cloud configuration. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.KeyVault/vaults/{resourceName}/providers/Microsoft.Insights/diagnosticSettings?api-version=2021-05-01-preview. Parent dataset: azureResources. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId. Resource details use the exact parent ARM ID. Comparison uses the previous complete dataset in the same subscription containing that parent.
+- **Schema sources:** [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditAzureVaultSecurity
+
+- **Stores:** Key Vault firewall, private endpoint approval, access model, legacy policy operation names, soft delete and purge protection.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureVaultSecurity)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.AuditAzureResources (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Cloud configuration. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.KeyVault/vaults/{resourceName}?api-version=2024-11-01. Parent dataset: azureResources. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId. Resource details use the exact parent ARM ID. Comparison uses the previous complete dataset in the same subscription containing that parent.
+- **Schema sources:** [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditAzureVnetSettings
+
+- **Stores:** VNet address and DNS settings, peerings, subnet policies, and subnet attachment identifiers.
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureVnetSettings)
+- **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.AuditAzureResources (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Snapshot; Cloud configuration. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Network/virtualNetworks/{resourceName}?api-version=2025-05-01. Parent dataset: azureResources. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId. Resource details use the exact parent ARM ID. Comparison uses the previous complete dataset in the same subscription containing that parent.
+- **Schema sources:** [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditCompliancePolicies

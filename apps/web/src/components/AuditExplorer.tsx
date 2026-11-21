@@ -126,6 +126,8 @@ function PolicyDetail({account,report,type,row,refresh,definitions}:{account:Aud
 const azureProtectionLabels={
   azureSqlFirewall:'SQL firewall rules',azureSqlVnet:'SQL virtual network rules',
   azureSqlAudit:'SQL server auditing',azureBlobProtection:'Blob recovery protection',
+  azureVaultSecurity:'Key Vault security',azureVaultDiagnostics:'Key Vault diagnostic settings',
+  azureVnetSettings:'Virtual network configuration',azureNsgSettings:'Network security group configuration',
 };
 type AzureProtectionDataset=keyof typeof azureProtectionLabels;
 
@@ -136,12 +138,36 @@ function protectionFields(dataset:AzureProtectionDataset,row:Row){
     case 'azureSqlVnet':return {Subnet:data.virtualNetworkSubnetId,State:data.state,'Ignore missing service endpoint':data.ignoreMissingVnetServiceEndpoint};
     case 'azureSqlAudit':return {State:data.state,'Retention days':data.retentionDays,'Azure Monitor target':data.isAzureMonitorTargetEnabled,
       'Storage target configured':data.storageTargetConfigured,'Uses managed identity':data.isManagedIdentityInUse};
+    case 'azureVaultSecurity':return {
+      'Public network access':data.publicNetworkAccess,'Firewall':data.firewall,'Private endpoints':data.privateEndpoints,
+      'Data access model':data.enableRbacAuthorization===true?'Azure RBAC':data.enableRbacAuthorization===false?'Vault access policies':null,
+      'Configured legacy access policies':data.accessPolicies,'Soft delete':data.enableSoftDelete,
+      'Soft-delete retention days':data.softDeleteRetentionInDays,'Purge protection':data.enablePurgeProtection};
+    case 'azureVaultDiagnostics':return {
+      'Log Analytics workspace':data.workspaceId,'Storage account':data.storageAccountId,
+      'Event Hub authorization rule':data.eventHubAuthorizationRuleId,'Event Hub':data.eventHubName,
+      'Partner destination':data.marketplacePartnerId,Logs:data.logs,Metrics:data.metrics};
+    case 'azureVnetSettings':return {'Address prefixes':data.addressPrefixes,'DNS servers':data.dnsServers,
+      Subnets:data.subnets,Peerings:data.peerings};
+    case 'azureNsgSettings':return {Subnets:data.subnets,'Network interfaces':data.networkInterfaces,
+      'Custom rules':data.securityRules,'Default rules':data.defaultSecurityRules};
     case 'azureBlobProtection':{
       const blob=object(data.blobSoftDelete),container=object(data.containerSoftDelete);
       return {'Versioning':data.isVersioningEnabled,'Blob soft delete':blob.enabled,'Blob retention days':blob.days,
         'Container soft delete':container.enabled,'Container retention days':container.days};
     }
   }
+}
+
+function AzureConfigurationFields({value}:{value:Record<string,unknown>}){
+  const entries=Object.entries(value);
+  const sections=entries.filter(([,item])=>item&&typeof item==='object');
+  return <>
+    {entries.some(([,item])=>!item||typeof item!=='object')?<Fields value={Object.fromEntries(entries.filter(([,item])=>!item||typeof item!=='object'))}/>:null}
+    {sections.map(([label,item])=><details key={label}><summary>{label}{Array.isArray(item)?' ('+item.length+')':''}</summary>
+      <Fields value={item}/>
+    </details>)}
+  </>;
 }
 
 function AzureProtection({account,report,scope,dataset,refresh}:{account:AuditAccount;report:DataAudit;scope:string;dataset:AzureProtectionDataset;refresh:number}){
@@ -189,8 +215,8 @@ function AzureProtection({account,report,scope,dataset,refresh}:{account:AuditAc
     {result&&dataset==='azureSqlFirewall'&&(status==='complete'||rows.some(row=>sourceRecord(row).allowAzureServices===true))?
       <p>Allow Azure services: {rows.some(row=>sourceRecord(row).allowAzureServices===true)?'Rule present':'No matching rule returned'}</p>:null}
     {rows.map(row=><div key={row.SourceId}>
-      {dataset==='azureSqlFirewall'||dataset==='azureSqlVnet'?<strong>{String(sourceRecord(row).name??row.ChildSourceId)}</strong>:null}
-      <Fields value={protectionFields(dataset,row)}/>
+      {dataset==='azureSqlFirewall'||dataset==='azureSqlVnet'||dataset==='azureVaultDiagnostics'?<strong>{String(sourceRecord(row).name??row.ChildSourceId)}</strong>:null}
+      <AzureConfigurationFields value={protectionFields(dataset,row)}/>
     </div>)}
     {result&&status==='complete'&&!rows.length?<p>No settings returned for this resource.</p>:null}
     {result?.comparisonError?<p role="alert">Previous snapshot could not be loaded.</p>:null}
@@ -325,6 +351,9 @@ function AzureResources({rows,account,report,refresh}:{rows:Row[];account:AuditA
       const type=String(resource.type).toLowerCase();
       const dataset=type==='microsoft.storage/storageaccounts'?'azureStorageSettings':
         type==='microsoft.sql/servers'?'azureSqlSettings':null;
+      const configuration:AzureProtectionDataset[]=type==='microsoft.keyvault/vaults'?['azureVaultSecurity','azureVaultDiagnostics']:
+        type==='microsoft.network/virtualnetworks'?['azureVnetSettings']:
+        type==='microsoft.network/networksecuritygroups'?['azureNsgSettings']:[];
       const portalUrl='https://portal.azure.com/#@'+encodeURIComponent(report.audit.TenantId)+'/resource'+id.split('/').map(encodeURIComponent).join('/');
       return <Fragment key={id}><tr>
         <th scope="row"><button type="button" aria-expanded={open} onClick={()=>setExpanded(open?null:id)}>{name(row)}</button></th>
@@ -333,6 +362,7 @@ function AzureResources({rows,account,report,refresh}:{rows:Row[];account:AuditA
       </tr>{open?<tr className="azure-resource-detail"><td colSpan={6}>
         <a href={portalUrl} target="_blank" rel="noreferrer">Open in Azure portal</a>
         <Fields value={{'Resource ID':id,Tags:resource.tags}}/>
+        {configuration.map(key=><AzureProtection key={key+id} account={account} report={report} scope={id} dataset={key} refresh={refresh}/>)}
         <AzureRoles key={id} account={account} report={report} scope={id} refresh={refresh}/>
         {dataset?<AzureSettings key={id} account={account} report={report} resourceId={id} dataset={dataset} refresh={refresh} kind={resource.kind}/>:null}
       </td></tr>:null}</Fragment>;

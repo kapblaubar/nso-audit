@@ -69,7 +69,7 @@ for m in re.finditer(r"(\w+):\{table:'(\w+)',label:'([^']+)',category:'([^']+)',
  endpoint=('ARM GET /subscriptions/{subscriptionId}' if 'arm:true' in tail else 'Graph GET ')+path
  if parent and 'azureConfiguration:true' in tail:
   version=re.search(r"apiVersion:'([^']+)'",tail)
-  endpoint='ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}'+path+'/{resourceName}/'+relationship.group(1)+'?api-version='+version.group(1)
+  endpoint='ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}'+path+'/{resourceName}'+('/'+relationship.group(1) if relationship.group(1) else '')+'?api-version='+version.group(1)
  elif parent and 'arm:true' in tail:
   version=re.search(r"apiVersion:'([^']+)'",tail)
   endpoint='ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}'+path+'/{vaultName}'
@@ -82,6 +82,10 @@ for m in re.finditer(r"(\w+):\{table:'(\w+)',label:'([^']+)',category:'([^']+)',
  purpose=label+'. Saved source evidence, not an automatically evaluated compliance finding.'
  if key=='azureRoleAssignments':purpose='Observed Azure RBAC grants per audit: assignment ID, scope, principal ID and type, role definition ID, and condition.'
  if key=='azureRoleDefinitions':purpose='Azure role definition GUID and display name captured with the audit.'
+ if key=='azureVaultSecurity':purpose='Key Vault firewall, private endpoint approval, access model, legacy policy operation names, soft delete and purge protection.'
+ if key=='azureVaultDiagnostics':purpose='Key Vault diagnostic category settings and destination identifiers.'
+ if key=='azureVnetSettings':purpose='VNet address and DNS settings, peerings, subnet policies, and subnet attachment identifiers.'
+ if key=='azureNsgSettings':purpose='NSG custom and default rule settings, with subnet and NIC attachment identifiers.'
  if key=='azureSqlFirewall':purpose='SQL server IPv4 firewall rule ranges and the Allow Azure services marker.'
  if key=='azureSqlVnet':purpose='SQL server virtual network rules with subnet ID, state, and service endpoint behavior.'
  if key=='azureSqlAudit':purpose='SQL server auditing state, retention, target indicators and managed identity usage.'

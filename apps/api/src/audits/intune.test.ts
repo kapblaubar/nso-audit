@@ -102,3 +102,36 @@ test('Blob protection preserves disabled booleans and missing retention independ
   assert.deepEqual(JSON.parse(page.records[0]!.sourceJson),{id:child,name:'default',isVersioningEnabled:false,
     blobSoftDelete:{enabled:true,days:14},containerSoftDelete:{enabled:null,days:null}});
 });
+
+test('Key Vault collection retains access-policy operations and excludes secret material',async()=>{
+  const id='/subscriptions/'+sub+'/resourceGroups/Test/providers/Microsoft.KeyVault/vaults/test-vault';
+  const parent={sourceId:id,displayName:'Vault',status:'complete'};
+  const page=await fetchIntuneChildPage('azureVaultSecurity',parent,{after:'',page:null},'fixture',async url=>{
+    assert.equal(url,'https://management.azure.com'+id+'?api-version=2024-11-01');
+    return Response.json({id,name:'test-vault',properties:{enableRbacAuthorization:false,enablePurgeProtection:true,
+      accessPolicies:[{objectId:sub,permissions:{secrets:['list','get']},secretValue:'discard'}]}});
+  },sub);
+  const saved=JSON.parse(page.records[0]!.sourceJson);
+  assert.equal(saved.enableRbacAuthorization,false);
+  assert.deepEqual(saved.accessPolicies[0].secrets,['get','list']);
+  assert.doesNotMatch(page.records[0]!.sourceJson,/discard/);
+  const diagnostics=await fetchIntuneChildPage('azureVaultDiagnostics',parent,{after:'',page:null},'fixture',async url=>{
+    const settings=id+'/providers/Microsoft.Insights/diagnosticSettings';
+    assert.equal(url,'https://management.azure.com'+settings+'?api-version=2021-05-01-preview');
+    return Response.json({value:[{id:settings+'/audit',name:'audit',properties:{logs:[{category:'AuditEvent',enabled:false}]}}]});
+  },sub);
+  assert.equal(JSON.parse(diagnostics.records[0]!.sourceJson).logs[0].enabled,false);
+});
+
+test('VNet evidence links subnet attachments and rejects the wrong inventory resource type',async()=>{
+  const id='/subscriptions/'+sub+'/resourceGroups/Test/providers/Microsoft.Network/virtualNetworks/test-vnet';
+  const parent={sourceId:id,displayName:'VNet',status:'complete'};
+  const page=await fetchIntuneChildPage('azureVnetSettings',parent,{after:'',page:null},'fixture',async()=>
+    Response.json({id,name:'test-vnet',properties:{subnets:[{id:id+'/subnets/test',name:'test',properties:{
+      defaultOutboundAccess:false,networkSecurityGroup:{id:'nsg',extendedPayload:'discard'}}}]}}),sub);
+  const saved=JSON.parse(page.records[0]!.sourceJson);
+  assert.equal(saved.subnets[0].networkSecurityGroup,'nsg');
+  assert.equal(saved.subnets[0].defaultOutboundAccess,false);
+  assert.doesNotMatch(page.records[0]!.sourceJson,/discard/);
+  assert.throws(()=>intuneChildUrl('azureNsgSettings',id,sub),/invalidSourceIdentifier/);
+});

@@ -449,9 +449,9 @@ Use the status in this table to track delivery. A completed dataset confirms col
 | Next | Azure SQL databases | Auditing and inheritance, transparent data encryption, and short- and long-term backup retention. Identify system databases so findings can be scoped appropriately. | Planned |
 | Current | Storage blob services | Blob and container soft-delete settings and retention, and blob versioning. | Implemented. Live audit verification and container-level public access remain pending. |
 | Current | Azure RBAC | Resource and group views show principal, role, scope, condition and direct or inherited origin within the subscription. Compare added, removed and updated assignment IDs against the previous complete role dataset for that subscription. | Implemented. Live verification pending. Management-group and tenant-root inheritance, role-definition permission changes, PIM eligibility, and SQL database principals require separate evidence. |
-| Later | Key Vault | Network controls, RBAC or access-policy mode, soft-delete retention, purge protection, and diagnostics. | Planned |
+| Current | Key Vault | Public network access, firewall, bypass, private endpoint status, RBAC or legacy access-policy mode and permission names, soft-delete retention, purge protection, and diagnostic categories and destinations. | Implemented. Live audit verification pending. |
 | Later | App Service and Functions | Managed identity, incoming access restrictions, private endpoints, outbound VNet integration, HTTPS/TLS and platform authentication. | Planned |
-| Later | Network resources | NSG rule priority, source, destination, ports, action and attachment. Link public IPs to their attached resources. | Planned |
+| Current | VNets and network security groups | Address spaces, DNS, peerings, subnet attachment and endpoint settings, NSG rule priority, source, destination, ports, action and subnet/NIC attachments. | Implemented. Public IP correlation and effective reachability analysis are follow-up work. |
 | Later | Findings and changes | Compare complete, equivalent snapshots for configuration, roles, resource additions and removals. Show before and after with scan dates. Track actor attribution separately when activity-log evidence is available. | Planned |
 
 ## 6. Data Sources & Required Permissions
