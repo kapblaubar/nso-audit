@@ -436,6 +436,12 @@ Resource row details must use service-specific sections, with readable summaries
 - Record Azure role assignments with principal, role, assignment scope, and direct or inherited origin where visible. Track SQL database principals separately from Azure RBAC.
 - Compare configuration and access across snapshots covering the same tenant, subscription, and resource ID. Show old and new values and their scan dates. Require complete coverage before reporting a removal.
 
+#### Azure configuration recommendations
+
+- Highlight a Key Vault when saved evidence shows public network access enabled and the firewall default action is Allow or absent. Describe missing firewall evidence explicitly.
+- Highlight a vault with no diagnostic settings only after diagnostic collection completes successfully. Incomplete, failed, or missing collection must not generate a missing-diagnostics finding.
+- Show the same findings under Recommendations ? Azure configuration, with the affected vault and a review action. Derive findings from the saved audit snapshot.
+
 #### Azure evidence backlog
 
 Use the status in this table to track delivery. A completed dataset confirms collection finished for that dataset. Individual settings still need their own evidence status.

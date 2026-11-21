@@ -2,16 +2,18 @@ import {useEffect,useState} from 'react';
 import type {AuditAccount} from '../auth';
 import {loadLicenseEvidence,type DataAudit,type LicenseEvidenceRow} from '../api';
 import {sourceRecord} from './AuditPolicyDetails';
+import {vaultNetworkRecommendation,vaultDiagnosticsRecommendation,vaultNetworkFinding,vaultDiagnosticsFinding} from './AzureVaultFindings';
 import {RecommendationDetails} from './FindingDetailsModal';
 
-const tabs=[['secure','Secure Score'],['exposure','Exposure Score'],['devices','Secure Score for Devices'],['defender','Defender for Cloud']] as const;
+const tabs=[['secure','Secure Score'],['exposure','Exposure Score'],['devices','Secure Score for Devices'],['defender','Defender for Cloud'],['azure','Azure configuration']] as const;
 const object=(value:unknown):Record<string,unknown>=>value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};
 export function Recommendations({account,report,refresh}:{account:AuditAccount;report:DataAudit;refresh:number}){
   const requested=new URLSearchParams(window.location.search).get('source');
   const [tab,setTab]=useState(tabs.some(([id])=>id===requested)?requested!:'secure');
   const [datasets,setDatasets]=useState<Record<string,LicenseEvidenceRow[]>>({});
   const [error,setError]=useState(''),[loading,setLoading]=useState(false);
-  const types=tab==='secure'?['secureScores','secureScoreProfiles']:tab==='defender'?['defenderRecommendations','defenderMetadata']:[tab==='exposure'?'exposureScores':'deviceSecureScores','endpointRecommendations'];
+  const azure=tab==='azure';
+  const types=azure?['azureVaultSecurity','azureVaultDiagnostics']:tab==='secure'?['secureScores','secureScoreProfiles']:tab==='defender'?['defenderRecommendations','defenderMetadata']:[tab==='exposure'?'exposureScores':'deviceSecureScores','endpointRecommendations'];
   const typeKey=types.join(','),progress=JSON.stringify(report.collections);
   useEffect(()=>{
     let cancelled=false;setDatasets({});setError('');setLoading(true);
@@ -54,15 +56,31 @@ export function Recommendations({account,report,refresh}:{account:AuditAccount;r
   const score=sourceRecord((datasets[tab==='exposure'?'exposureScores':'deviceSecureScores']??[])[0]??{} as LicenseEvidenceRow);
   const recommendations=tab==='secure'?secure:defender;
   const complete=types.length>0&&types.every(type=>report.collections.find(c=>c.DataType===type)?.Status==='complete');
+  const diagnosticStatus=report.collections.find(c=>c.DataType==='azureVaultDiagnostics')?.Status;
+  const vaultsWithDiagnostics=new Set((datasets.azureVaultDiagnostics??[]).map(row=>row.ParentSourceId?.toLowerCase()));
+  const azureFindings=(datasets.azureVaultSecurity??[]).flatMap(row=>{
+    const vaultId=row.ParentSourceId;
+    if(!vaultId)return [];
+    const vaultName=String(sourceRecord(row).name??vaultId);
+    const publicAccess=vaultNetworkFinding(row);
+    const diagnostics=vaultDiagnosticsFinding(diagnosticStatus,vaultsWithDiagnostics.has(vaultId.toLowerCase())?1:0);
+    return [
+      ...(publicAccess?[{...vaultNetworkRecommendation,detail:publicAccess,vaultName,vaultId}]:[]),
+      ...(diagnostics?[{...vaultDiagnosticsRecommendation,detail:diagnostics,vaultName,vaultId}]:[]),
+    ];
+  });
   const select=(id:string)=>{setTab(id);const params=new URLSearchParams(window.location.search);params.set('source',id);window.history.replaceState({},'',`${window.location.pathname}?${params}`);};
   return <section className="tenant-recommendations" aria-labelledby="tenant-recommendations-title"><p className="eyebrow">Prioritized actions</p><h2 id="tenant-recommendations-title">Tenant recommendations</h2>
     <nav className="audit-provider-tabs" aria-label="Recommendation sources">{tabs.map(([id,label])=><button type="button" key={id} className="detail-button" aria-pressed={tab===id} onClick={()=>select(id)}>{label}</button>)}</nav>
     <div aria-live="polite">{!types.length?<section className="audit-provider-empty"><h3>{tabs.find(([id])=>id===tab)?.[1]}</h3><p>This source is not collected yet. No recommendations from this source are available in saved audits.</p></section>:<>
       {types.map(type=>{const collection=report.collections.find(c=>c.DataType===type);const status=collection?.Status;return <p key={type}>{collection?.Label??type}: {status==='missingAccess'?'Access denied':status??'Not collected in this audit'}{collection?.CompletedAtUtc?` - ${status==='complete'?'Collected':'Attempt finished'} ${new Date(collection.CompletedAtUtc).toLocaleString()}`:''}{collection?.ErrorCode?` - ${collection.ErrorCode==='sourceTimeout'?'Microsoft did not respond before the request timed out':collection.ErrorCode}`:''}</p>;})}
-      {!complete?<p role="status">{types.some(type=>!report.collections.some(c=>c.DataType===type))?'This snapshot does not include all sources for this tab. Run a new audit after the collector is deployed.':types.some(type=>report.collections.find(c=>c.DataType===type)?.Status==='missingAccess')?'Microsoft denied access. Check the connected application permissions, tenant consent and Defender licensing before running another audit.':'Collection is incomplete or failed. Saved recommendations may be incomplete. Review the dataset status before retrying.'}</p>:null}
+      {!complete?<p role="status">{types.some(type=>!report.collections.some(c=>c.DataType===type))?'This snapshot does not include all sources for this tab. Run a new audit after the collector is deployed.':types.some(type=>report.collections.find(c=>c.DataType===type)?.Status==='missingAccess')?(azure?'Azure denied access. Check the connected application?s Reader role and scope before running another audit.':'Microsoft denied access. Check the connected application permissions, tenant consent and Defender licensing before running another audit.'):'Collection is incomplete or failed. Saved recommendations may be incomplete. Review the dataset status before retrying.'}</p>:null}
       {endpoint&&typeof score.score==='number'?<p><strong>{tabs.find(([id])=>id===tab)?.[1]}: {score.score.toLocaleString(undefined,{maximumFractionDigits:2})}</strong>{tab==='exposure'?' - Lower is better.':' - Higher is better.'}{typeof score.time==='string'?` - Source updated ${new Date(score.time).toLocaleString()}`:''}</p>:null}
       {endpoint&&!loading&&!error?<>{endpointRows.length?<div className="recommendation-list">{endpointRows.map((item,index)=><article key={String(item.id??index)}><h3>{String(item.recommendationName??item.id)}</h3><p>{String(item[impact])} {tab==='exposure'?'exposure':'configuration score'} impact - {String(item.exposedMachinesCount??'Unknown')} exposed devices</p><p>{String(item.remediationType??'Review')} - {String(item.productName??item.relatedComponent??'')}</p><p>{item.publicExploit===true?'Public exploit reported. ':''}{item.activeAlert===true?'Active alert reported.':''}</p><a href={`https://security.microsoft.com/security-recommendations?recommendationId=${encodeURIComponent(String(item.id))}`} target="_blank" rel="noreferrer">Open Microsoft recommendation</a></article>)}</div>:<p>{complete?'No active recommendations with a positive impact were returned.':'No recommendation evidence is available yet. Run a new audit after checking Defender permissions and licensing.'}</p>}</>:null}
-      {loading?<p role="status">Loading saved recommendations�</p>:error?<p role="alert">{error}</p>:endpoint?null:recommendations.length?<><p>{recommendations.length} outstanding recommendations from this audit, ordered by {tab==='secure'?'potential points gained':'severity'}.</p><RecommendationDetails evidence={{recommendations}} defender={tab==='defender'}/></>:<p>{complete?'No outstanding recommendations returned in this snapshot.':'No recommendation evidence is available from the saved records yet.'}</p>}
+      {loading?<p role="status">Loading saved recommendations�</p>:error?<p role="alert">{error}</p>:azure?(azureFindings.length?<div className="recommendation-list">{azureFindings.map(finding=><article key={finding.id+finding.vaultId}>
+        <h3>{finding.title}</h3><p><strong>{finding.vaultName}</strong></p>
+        <p className="azure-config-finding">{finding.detail}</p><p>{finding.action}</p>
+      </article>)}</div>:<p>{complete?'No Key Vault findings in this snapshot.':'No Key Vault findings are available from the saved evidence.'}</p>):endpoint?null:recommendations.length?<><p>{recommendations.length} outstanding recommendations from this audit, ordered by {tab==='secure'?'potential points gained':'severity'}.</p><RecommendationDetails evidence={{recommendations}} defender={tab==='defender'}/></>:<p>{complete?'No outstanding recommendations returned in this snapshot.':'No recommendation evidence is available from the saved records yet.'}</p>}
     </>}</div>
   </section>;
 }

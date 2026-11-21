@@ -820,3 +820,7 @@ html[data-theme=light] .explorer-tabs button[aria-selected=true] { color:white; 
 .azure-resource-group { border-bottom:1px solid var(--ex-line); padding:8px 0; }
 .azure-resource-group summary { cursor:pointer; padding:6px 0; font-weight:600; }
 @media(max-width:1100px) { .explorer-layout.explorer-azure-layout { grid-template-columns:180px minmax(0,1fr); } }
+
+.azure-config-finding { color:#ffaaa4; }
+html[data-theme=light] .azure-config-finding { color:#a82620; }
+.azure-config-finding a { color:inherit; text-decoration:underline; }

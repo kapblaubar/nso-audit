@@ -1,3 +1,4 @@
+import {vaultNetworkFinding,vaultDiagnosticsFinding} from './AzureVaultFindings';
 import {backupPolicyGroup,RecoveryBackupPolicy} from './RecoveryBackupDetails';
 import {DirectoryRoleDetails,DirectoryRoleSummary,roleName,assigneeName,type RoleDefinitions} from './DirectoryRoleDetails';
 import {Fragment,useEffect,useState} from 'react';
@@ -200,6 +201,8 @@ function AzureProtection({account,report,scope,dataset,refresh}:{account:AuditAc
     return()=>{cancelled=true;};
   },[account,scanId,scope,dataset,status,count,refresh]);
   const rows=result?.rows??[];
+  const finding=dataset==='azureVaultSecurity'&&rows[0]?vaultNetworkFinding(rows[0]):
+    dataset==='azureVaultDiagnostics'&&result?vaultDiagnosticsFinding(status,rows.length):null;
   const before=new Map(result?.previous?.map(row=>[row.ChildSourceId?.toLowerCase(),row]));
   const after=new Map(rows.map(row=>[row.ChildSourceId?.toLowerCase(),row]));
   const changes=result?.previous?[...new Set([...before.keys(),...after.keys()])].flatMap(id=>{
@@ -209,6 +212,8 @@ function AzureProtection({account,report,scope,dataset,refresh}:{account:AuditAc
   }):[];
   return <section>
     <h4>{azureProtectionLabels[dataset]}</h4>
+    {finding?<p className="azure-config-finding"><strong>Finding:</strong> {finding}{' '}
+      <a href={'/audit-data/'+encodeURIComponent(scanId)+'/recommendations?source=azure'}>View recommendation</a></p>:null}
     <Notice collection={collection}/>
     {error?<p role="alert">Saved settings could not be loaded. Use Refresh to try again.</p>:null}
     {status&&!result&&!error?<p role="status">Loading saved settings?</p>:null}
@@ -218,7 +223,7 @@ function AzureProtection({account,report,scope,dataset,refresh}:{account:AuditAc
       {dataset==='azureSqlFirewall'||dataset==='azureSqlVnet'||dataset==='azureVaultDiagnostics'?<strong>{String(sourceRecord(row).name??row.ChildSourceId)}</strong>:null}
       <AzureConfigurationFields value={protectionFields(dataset,row)}/>
     </div>)}
-    {result&&status==='complete'&&!rows.length?<p>No settings returned for this resource.</p>:null}
+    {result&&status==='complete'&&!rows.length&&!finding?<p>No settings returned for this resource.</p>:null}
     {result?.comparisonError?<p role="alert">Previous snapshot could not be loaded.</p>:null}
     {result?.previous?<details><summary>Changes since {when(result.prior?.CreatedAtUtc)}</summary>
       {changes.length?changes.map(({id,previous,current})=><section key={id}>
