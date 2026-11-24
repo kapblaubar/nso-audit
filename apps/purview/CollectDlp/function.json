@@ -1,0 +1,6 @@
+{
+  "bindings": [
+    {"name":"Request","type":"httpTrigger","direction":"in","authLevel":"anonymous","methods":["post"],"route":"dlp"},
+    {"name":"Response","type":"http","direction":"out"}
+  ]
+}

@@ -406,6 +406,29 @@ legacy Microsoft access. Keep migrations 031 and 032 applied when restoring a pr
 Earlier API packages predate partner authorization. Leave the partner API unavailable
 during rollback or use a package that retains the scoped authorization checks.
 
+## Windows Purview collector
+
+Use `infra/purview-collector.bicep` and environment parameters to create the Windows
+PowerShell collector. For Dev, run a resource-group what-if with
+`infra/purview-collector.dev.bicepparam` in `NSO-Audit`, then apply the template in
+incremental mode and publish using `scripts/Publish-NsoAuditPurview.ps1`.
+The Dev parameters reuse the existing NSO Audit registration and the
+`nso-audit-dlp-certificate` in `nso-audit-dev-kv`. Prod requires its own vault,
+certificate key material, collector identity, authorized caller and verified tenant list.
+The collector reads the backing PFX secret through its scoped managed identity grant.
+
+The HTTP package exposes `GET /api/health` and `POST /api/dlp`. The latter requires
+an Entra app token for the configured audience and the main API's configured
+managed identity. Its JSON body contains `tenantId` and `scanId`. The server maps
+the tenant GUID to a configured, verified domain. Each enabled tenant needs Security
+& Compliance PowerShell app consent and roles permitting both DLP read commands.
+Check health, an unsigned POST returning 401, and a signed test collection before
+enabling the collector from the main audit workflow. Keep SQL writes in the main API.
+
+For recovery, disable the calling workflow and redeploy the prior collector package,
+or stop the new Dev worker. Revoke its certificate secret role if retiring it.
+The collector deployment has no SQL migration or evidence backfill.
+
 ## Audit Compare
 
 Audit Compare runs in a dedicated Flex Consumption Function App with its own
