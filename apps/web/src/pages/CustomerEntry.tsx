@@ -1,5 +1,7 @@
+import {PortalAccountHeader,WorkspaceSelectionContext,type PortalWorkspace} from '../components/PortalAccountHeader';
 import {useEffect,useState,type FormEvent} from 'react';
 import {signIn,initializeAuth} from '../auth';
+import {portalRoleLabel} from '../portalRoles';
 import {appConfig} from '../config';
 import {CustomerAudit} from './CustomerAudit';
 import {ThemeToggle} from '../components/ThemeToggle';
@@ -12,6 +14,7 @@ const storageKey='nso.customerSession';
 export function CustomerEntry(){
   const initial:Mode=window.location.pathname==='/account/reset'?'reset':window.location.pathname==='/account/verify'?'verify':'login';
   const [activeOrg,setActiveOrg]=useState(()=>window.location.pathname!=='/signin'&&window.location.pathname!=='/account'?sessionStorage.getItem('nso.customerWorkspace')??'':'');
+  const [activeTenant,setActiveTenant]=useState(()=>sessionStorage.getItem('nso.customerTenant')??'');
   const [questionnaire,setQuestionnaire]=useState(window.location.pathname==='/account/questionnaires');
   const [mode,setMode]=useState<Mode>(initial),[name,setName]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState('');
   const [token]=useState(()=>new URLSearchParams(window.location.hash.slice(1)).get('token')??'');
@@ -48,19 +51,29 @@ export function CustomerEntry(){
     finally{setBusy(false);}
   }
   async function microsoft(){setBusy(true);setError('');try{await initializeAuth();await signIn();}catch(cause){setError(cause instanceof Error?cause.message:'Microsoft sign-in failed.');setBusy(false);}}
-  async function logout(){setBusy(true);setError('');try{await call('logout',{},sessionStorage.getItem(storageKey)??'');sessionStorage.removeItem(storageKey);setSession(undefined);setActiveOrg('');sessionStorage.removeItem('nso.customerWorkspace');change('login');}catch{setError('Could not sign out. Please try again.');}finally{setBusy(false);}}
+  async function logout(){setBusy(true);setError('');try{await call('logout',{},sessionStorage.getItem(storageKey)??'');sessionStorage.removeItem(storageKey);setSession(undefined);setActiveOrg('');sessionStorage.removeItem('nso.customerWorkspace');sessionStorage.removeItem('nso.customerTenant');setActiveTenant('');change('login');}catch{setError('Could not sign out. Please try again.');}finally{setBusy(false);}}
   const title={login:'Sign in to NSO Audit',register:'Create your account',forgot:'Reset your password',resend:'Verify your email',verify:'Confirm your email',reset:'Choose a new password'}[mode];
-  const workspace=session?.workspaces.find(item=>item.id===activeOrg);
-  if(session&&workspace&&questionnaire)return <QuestionnairePage key={workspace.id} organizationId={workspace.id} workspaceName={workspace.name} role={workspace.role} onBack={()=>{setQuestionnaire(false);setActiveOrg('');window.history.replaceState({},'','/account');}}/>;
-  if(session&&workspace?.tenantId)return <CustomerAudit key={workspace.id} account={{kind:'email',organizationId:workspace.id,tenantId:workspace.tenantId,name:session.user.name,username:session.user.email,role:workspace.role}} onSignOut={()=>void logout()} onBack={()=>{setActiveOrg('');window.history.replaceState({},'','/account');}}/>;
+  const workspace=session?.workspaces.find(item=>item.id===activeOrg&&item.tenantId===activeTenant)??session?.workspaces.find(item=>item.id===activeOrg);
+  const clients=Array.from(new Map((session?.workspaces??[]).map(item=>[item.id,item])).values());
+  const workspaces=(session?.workspaces??[]).flatMap(item=>item.tenantId?[{organizationId:item.id,name:item.name,tenantId:item.tenantId}]:[]);
+  const select=(next:PortalWorkspace)=>{
+    sessionStorage.setItem('nso.customerWorkspace',next.organizationId);
+    sessionStorage.setItem('nso.customerTenant',next.tenantId);
+    setActiveOrg(next.organizationId);
+    setActiveTenant(next.tenantId);
+    window.history.replaceState({},'','/audit-data');
+  };
+  const roles=[...new Set(clients.map(item=>item.role))];
+  if(session&&workspace&&questionnaire)return <QuestionnairePage key={workspace.id} organizationId={workspace.id} workspaceName={workspace.name} role={workspace.role} username={session.user.email} onBack={()=>{setQuestionnaire(false);setActiveOrg('');window.history.replaceState({},'','/account');}}/>;
+  if(session&&workspace?.tenantId)return <WorkspaceSelectionContext.Provider value={{workspaces,active:workspaces.find(item=>item.organizationId===workspace.id&&item.tenantId===workspace.tenantId),select}}><CustomerAudit key={workspace.id+':'+workspace.tenantId} account={{kind:'email',organizationId:workspace.id,tenantId:workspace.tenantId,name:session.user.name,username:session.user.email,role:workspace.role}} onSignOut={()=>void logout()} onBack={()=>{setActiveOrg('');window.history.replaceState({},'','/account');}}/></WorkspaceSelectionContext.Provider>;
   if(!ready)return <main className="route-loading">Loading your account?</main>;
-  return <main className="customer-entry"><nav className="nav"><a className="brand" href="/"><img className="brand-mark" src="/brand/nsosquare.png" width="40" height="40" alt=""/><span className="brand-name">NSO Audit</span></a><div className="nav-actions"><ThemeToggle/>{session?<button className="text-button" onClick={()=>void logout()} disabled={busy}>Sign out</button>:null}</div></nav>
+  return <main className="customer-entry"><nav className="nav"><a className="brand" href="/"><img className="brand-mark" src="/brand/nsosquare.png" width="40" height="40" alt=""/><span className="brand-name">NSO Audit</span></a><div className="nav-actions">{session&&<PortalAccountHeader username={session.user.email} {...(roles.length===1?{role:roles[0]!}:{})}/>}<ThemeToggle/>{session?<button className="text-button" onClick={()=>void logout()} disabled={busy}>Sign out</button>:null}</div></nav>
     <section className="customer-entry-card">
       <p className="eyebrow">Customer portal</p>
       <h1>{session?`Welcome, ${session.user.name}`:title}</h1>
       {error?<p className="management-error" role="alert">{error}</p>:null}
       {notice?<p className="management-success" role="status">{notice}</p>:null}
-      {session?<><p>Signed in as {session.user.email}</p><h2>Your workspaces</h2>{session.workspaces.length?<ul className="customer-workspaces">{session.workspaces.map(workspace=><li key={workspace.id}><strong>{workspace.name}</strong><span>{workspace.role}</span><button className="management-secondary" onClick={()=>{sessionStorage.setItem('nso.customerWorkspace',workspace.id);setActiveOrg(workspace.id);setQuestionnaire(true);window.history.replaceState({},'','/account/questionnaires');}}>Questionnaire</button>{workspace.tenantId?<button className="management-secondary" onClick={()=>{sessionStorage.setItem('nso.customerWorkspace',workspace.id);setActiveOrg(workspace.id);window.history.replaceState({},'',pendingAuditDestination()??'/audit-data');}}>Open workspace</button>:<span>Microsoft connection pending</span>}</li>)}</ul>:<p>Your email is verified. Your workspace will appear here after NewSommer approves your access.</p>}<p className="management-help">Your portal account does not grant Microsoft assessment permissions. Microsoft connections are authorized separately by your organization?s administrator.</p></>:<>
+      {session?<><p>Signed in as {session.user.email}</p><h2>Your workspaces</h2>{session.workspaces.length?<ul className="customer-workspaces">{clients.map(workspace=><li key={workspace.id}><strong>{workspace.name}</strong><span>{portalRoleLabel(workspace.role)}</span><button className="management-secondary" onClick={()=>{sessionStorage.setItem('nso.customerWorkspace',workspace.id);setActiveOrg(workspace.id);setQuestionnaire(true);window.history.replaceState({},'','/account/questionnaires');}}>Questionnaire</button>{workspaces.some(item=>item.organizationId===workspace.id)?<button className="management-secondary" onClick={()=>{sessionStorage.setItem('nso.customerWorkspace',workspace.id);setActiveOrg(workspace.id);window.history.replaceState({},'',pendingAuditDestination()??'/audit-data');}}>Open workspace</button>:<span>Microsoft connection pending</span>}</li>)}</ul>:<p>Your email is verified. Your workspace will appear here after NewSommer approves your access.</p>}<p className="management-help">Your portal account does not grant Microsoft assessment permissions. Microsoft connections are authorized separately by your organization?s administrator.</p></>:<>
         {mode==='login'?<><p>Use your Microsoft work account or your NSO Audit email and password.</p><button className="management-primary customer-microsoft" onClick={()=>void microsoft()} disabled={busy}>Continue with Microsoft</button><div className="customer-divider">or sign in with email</div></>:null}
         {mode==='register'?<p>Use any email address and create a separate NSO Audit password. We?ll email you a verification link.</p>:null}
         {mode==='forgot'||mode==='resend'?<p>Enter your email address to request a new link.</p>:null}

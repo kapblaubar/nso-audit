@@ -10,7 +10,12 @@ import {pendingAuditDestination} from './auditNavigation';
 const signInScopes = ["openid", "profile", "email", ...(appConfig.apiScope ? [appConfig.apiScope] : [])];
 
 export interface EmailAuditAccount{kind:'email';organizationId:string;tenantId:string;name:string;username:string;role:string}
-export type AuditAccount=AccountInfo|EmailAuditAccount;
+export interface PartnerAuditAccount {
+  kind:'partner'; organizationId:string; tenantId:string; name?:string; username:string;
+  role:'partnerAdmin'|'partnerUser'; entraAccount:AccountInfo;
+}
+export type AuditAccount=AccountInfo|EmailAuditAccount|PartnerAuditAccount;
+
 let client: PublicClientApplication | undefined;
 
 function getClient(): PublicClientApplication {
@@ -85,7 +90,7 @@ export async function signOutManagement():Promise<void>{
 }
 
 export async function getApiAccessToken(account: AuditAccount): Promise<string> {
-  if(!('homeAccountId' in account)){
+  if('kind' in account&&account.kind==='email'){
     const token=sessionStorage.getItem('nso.customerSession');
     if(!token)throw new Error('Please sign in again.');
     return token;
@@ -95,16 +100,17 @@ export async function getApiAccessToken(account: AuditAccount): Promise<string> 
   }
 
   const authClient = getClient();
+  const entraAccount='kind' in account?account.entraAccount:account;
   try {
     const result = await authClient.acquireTokenSilent({
-      account,
+      account:entraAccount,
       scopes: [appConfig.apiScope],
     });
     return result.accessToken;
   } catch (error) {
     if (error instanceof InteractionRequiredAuthError) {
       await authClient.acquireTokenRedirect({
-        account,
+        account:entraAccount,
         scopes: [appConfig.apiScope],
       });
     }

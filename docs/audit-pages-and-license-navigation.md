@@ -6,10 +6,10 @@ Open **Audit Compare** after **Current audit** in the workspace menu. Choose a b
 and comparison from the workspace's recent finished tenant or licensing audits. Opening
 the page from a saved audit preselects it when eligible.
 
-Select a dataset to see added, removed, and changed records in red. Changed records
-show baseline and comparison values for each changed field. **All datasets** checks
-every dataset completed in both audits and links to each dataset's details.
-**Difference Only** hides unchanged records or datasets. The comparison ignores local
+**All datasets** opens by default and lists the saved records for each dataset completed
+in both audits. Use the dataset selector to focus on one collection. Changed values
+and added evidence are highlighted in red on the comparison side.
+**Difference Only** hides unchanged records. The comparison ignores local
 collection and storage timestamps and JSON object key order. Source timestamps and
 array order remain part of the saved evidence. Disabled license plans are compared
 as a list of plan IDs regardless of order. The page shows collection status

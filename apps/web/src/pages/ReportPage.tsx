@@ -1,3 +1,5 @@
+import {PortalAccountHeader,PortalWorkspaceSelectors} from '../components/PortalAccountHeader';
+import {canRunAudits} from '../portalRoles';
 import type { AuditAccount } from "../auth";
 import { useEffect, useState } from "react";
 import { loadScanHistory, loadStarterScan, startStarterScan, type ScanHistoryItem, type StarterScan, type TenantBootstrap } from "../api";
@@ -209,9 +211,9 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
           <img className="brand-mark" src="/brand/nsosquare.png" alt="" width="40" height="40" />
           <span className="brand-name">NSO Audit</span>
         </a>
-        <div className="nav-actions"><ThemeToggle /><button className="text-button" type="button" onClick={onSignOut}>Sign out</button></div>
+        <div className="nav-actions"><PortalAccountHeader username={account.username} role={'kind' in account?account.role:'microsoft'}/><ThemeToggle /><button className="text-button" type="button" onClick={onSignOut}>Sign out</button></div>
       </nav>
-      <section className="report-shell">
+      <section className="report-shell"><PortalWorkspaceSelectors/>
         <p className="eyebrow">Tenant scorecard</p>
         <h1>{account.name ?? account.username}</h1>
         <p>Tenant ID: {bootstrap.tenantId}</p>
@@ -263,7 +265,7 @@ export function ReportPage({ account, bootstrap, scanId, onSignOut }: ReportPage
         {recommendationFindings.length ? <section className="recommendation-section" aria-labelledby="recommendations-title"><p className="eyebrow">Prioritized actions</p><h2 id="recommendations-title">Recommendations</h2><p>Up to 25 of the most important available recommendations are retained for each area.</p><div className="recommendation-card-grid">{recommendationFindings.map((finding) => <article key={finding.checkId}><span>{finding.checkId === "defender.recommendations" ? "Azure" : "Microsoft 365"}</span><h3>{finding.title}</h3><p>{finding.detail}</p>{finding.evidence !== undefined ? <button className="detail-button" type="button" onClick={() => setSelectedFinding(finding)}>View recommendations</button> : null}</article>)}</div></section> : null}
         <div className="report-actions">
           <DataAuditLink/>
-          <button className="step-action" type="button" onClick={runAgain} disabled={!scan?.subscriptionId || running || ('kind' in account && account.role==='viewer')}>{running ? "Running audit…" : "Run audit again"}</button>
+          <button className="step-action" type="button" onClick={runAgain} disabled={!scan?.subscriptionId || running || !canRunAudits(account)}>{running ? "Running audit…" : "Run audit again"}</button>
           <button className="detail-button" type="button" onClick={downloadScoreReview} disabled={!scan}>Download score-review report</button>
           {runError ? <p className="auth-error" role="alert">{runError}</p> : null}
         </div>

@@ -1,3 +1,4 @@
+import {PortalAccountHeader} from '../components/PortalAccountHeader';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
 import type {AccountInfo} from '@azure/msal-browser';
 import {initializeAuth,signInManagement,signOutManagement} from '../auth';
@@ -94,7 +95,7 @@ export function ManagementPage(){
       <a className="management-back" href="/">Back to NSO Audit</a></section></main>;
   return <main className="management-page">
     <nav className="nav" aria-label="Management navigation"><a className="brand" href="/clientmanagement"><img className="brand-mark" src="/brand/nsosquare.png" width="40" height="40" alt=""/><span className="brand-name">NSO Audit <small>Management</small></span></a>
-      <div className="account-menu"><span className="management-env">{session.environment}</span><span>{account?.name??session.name}</span><a href="/audit">Existing audit</a><ThemeToggle/><button className="text-button" onClick={logout}>Sign out</button></div></nav>
+      <div className="account-menu"><span className="management-env">{session.environment}</span><PortalAccountHeader username={account?.username??session.name} role={session.role}/><a href="/audit">Existing audit</a><ThemeToggle/><button className="text-button" onClick={logout}>Sign out</button></div></nav>
     <header className="management-header"><div><p className="eyebrow">NewSommer workspace</p><h1>Customer management</h1><p>Set up the company first. Connect its systems when it is ready.</p></div><button className="management-primary" onClick={create} disabled={saving}>+ New customer</button></header>
     {session.environment==='dev'&&account?<details className="management-test-accounts"><summary>Test accounts ? delete and register again</summary><TestAccounts account={account} blocked={dirty||saving||loading} onBusyChange={setSaving} onDeleted={()=>{selectionRequest.current++;populate(undefined);void listCustomers(account).then(result=>setCustomers(result.customers)).catch(()=>setError('Refresh customers to reload changes.'));}}/></details>:null}
     <div className="management-layout">

@@ -1,3 +1,4 @@
+import {PortalAccountHeader} from '../components/PortalAccountHeader';
 import {useEffect,useState,type FormEvent} from 'react';
 import {appConfig} from '../config';
 import {TechnologyForm} from '../components/TechnologyForm';
@@ -6,7 +7,7 @@ import {groupQuestions,type ClientAnswer,type ClientAssessment,type Review} from
 import {LegacyQuestionnairePage} from './LegacyQuestionnairePage';
 
 interface Listing{assessments:{id:string;name:string;templateVersion:string}[];earlierAssessments:{id:string;name:string;assetClass:string}[]}
-export function QuestionnairePage({organizationId,workspaceName,role,onBack}:{organizationId:string;workspaceName:string;role:string;onBack:()=>void}){
+export function QuestionnairePage({organizationId,workspaceName,role,username,onBack}:{organizationId:string;workspaceName:string;role:string;username:string;onBack:()=>void}){
   const [listing,setListing]=useState<Listing>({assessments:[],earlierAssessments:[]}),[assessment,setAssessment]=useState<ClientAssessment>();
   const [reviewView,setReviewView]=useState(false);
   const [expandedQuestions,setExpandedQuestions]=useState<Record<string,boolean>>({});
@@ -44,8 +45,8 @@ export function QuestionnairePage({organizationId,workspaceName,role,onBack}:{or
   async function addGroup(event:FormEvent){event.preventDefault();if(!assessment)return;await run(async()=>{const data=await call<ClientAssessment>(`/${assessment.id}/groups`,{revision:assessment.revision,sectionId,name:groupName,context:groupContext},'POST');const added=data.groups.find(g=>!assessment.groups.some(old=>old.id===g.id));accept(data,sectionId,added?.id??'');setGroupName('');setGroupContext({});setNotice(sectionId==='assets'&&assessment.templateVersion==='client-v3'?'Technology added. The questions below apply to this entry.':'Scope group added. Its answers are kept separate from other groups.');});}
   async function save(event:FormEvent){event.preventDefault();if(!assessment||!group)return;await run(async()=>{const editable=questions.filter(q=>!q.reviewerOnly||canReview);const data=await call<ClientAssessment>(`/${assessment.id}/groups/${group.id}`,{revision:assessment.revision,answers:Object.values(answers).filter(answer=>editable.some(q=>q.id===answer.questionId))},'PUT');accept(data);setNotice('Draft saved. You can return later to continue.');});}
   async function saveReview(review:Review){if(!assessment||!group)return;if(dirty){setError('Save your answers before recording a reviewer conclusion.');return;}await run(async()=>{const data=await call<ClientAssessment>(`/${assessment.id}/groups/${group.id}/reviews/${encodeURIComponent(review.questionId)}`,{revision:assessment.revision,questionVersion:review.questionVersion,review},'PUT');accept(data);setNotice('Reviewer conclusion saved separately from the original answer.');});}
-  if(legacyId)return <LegacyQuestionnairePage organizationId={organizationId} workspaceName={workspaceName} role={role} initialAssessmentId={legacyId} onBack={()=>setLegacyId('')}/>;
-  return <main className="questionnaire-page assessment-page"><nav className="nav"><strong>NSO Audit · {workspaceName}</strong><button type="button" className="text-button" disabled={busy} onClick={()=>leave(onBack)}>Your workspaces</button></nav>
+  if(legacyId)return <LegacyQuestionnairePage organizationId={organizationId} workspaceName={workspaceName} role={role} username={username} initialAssessmentId={legacyId} onBack={()=>setLegacyId('')}/>;
+  return <main className="questionnaire-page assessment-page"><nav className="nav"><strong>NSO Audit · {workspaceName}</strong><PortalAccountHeader username={username} role={role}/><button type="button" className="text-button" disabled={busy} onClick={()=>leave(onBack)}>Your workspaces</button></nav>
     <h1>Client assessment questionnaire</h1><p>Company, security, configuration and readiness questions in one assessment. Save each section as you go. No Microsoft connection is required.</p>
     {error?<p role="alert" className="management-error">{error}</p>:null}{notice?<p role="status" className="management-success">{notice}</p>:null}{busy?<p role="status">Loading or saving assessment…</p>:null}
     {!assessment?<><h2>Saved client assessments</h2>{!busy&&!listing.assessments.length?<p>No client assessments yet.</p>:null}<ul className="customer-workspaces">{listing.assessments.map(item=><li key={item.id}><strong>{item.name}</strong><button type="button" className="management-secondary" disabled={busy} onClick={()=>void run(async()=>accept(await call<ClientAssessment>(`/${item.id}`),'company',''))}>Open assessment</button></li>)}</ul>

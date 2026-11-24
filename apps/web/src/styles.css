@@ -265,6 +265,12 @@ main {
 .nav-link { color: #9dafb9; font-size: .9rem; text-decoration: none; }
 .nav-link:hover { color: #e8edf3; }
 .nav-actions { display: flex; align-items: center; gap: 18px; }
+.portal-account { display:grid; gap:3px; text-align:right; font-size:.82rem; overflow-wrap:anywhere; }
+.portal-account span { font-size:.76rem; }
+.portal-workspace-selectors { display:flex; flex-wrap:wrap; gap:12px 20px; margin-block:0 18px; }
+.portal-workspace-selectors label { display:grid; gap:4px; min-width:0; font-size:.85rem; }
+.portal-workspace-selectors select { max-width:100%; padding:6px; font:inherit; color:inherit; background:transparent; border:1px solid currentColor; border-radius:5px; }
+.portal-workspace-selectors option { color:CanvasText; background:Canvas; }
 .text-button { padding: 0; border: 0; color: #9dafb9; background: transparent; cursor: pointer; }
 .text-button:hover { color: #e8edf3; }
 .nav-sign-in { padding: 10px 16px; border: 1px solid #57e6b4; border-radius: 7px; color: #06110d; background: #57e6b4; font-weight: 800; cursor: pointer; }
@@ -857,9 +863,8 @@ html[data-theme=light] .audit-compare {
 .audit-compare-record pre { margin:8px 0; white-space:pre-wrap; overflow-wrap:anywhere; }
 .audit-compare-record th[scope=row] { overflow-wrap:anywhere; white-space:normal; min-width:9rem; max-width:25rem; text-align:left; }
 .audit-compare-changed { border-inline-start:4px solid var(--compare-change-border); }
-.audit-compare-changed h3 small, .audit-compare-changed tbody td {
+.audit-compare .audit-compare-value-changed {
   background:var(--compare-change-bg);
   color:var(--compare-change-text);
 }
-.audit-compare-changed h3 small { display:inline-block; padding:2px 7px; border-radius:4px; }
 @media(max-width:650px) { .audit-compare-columns { grid-template-columns:minmax(0,1fr); } }

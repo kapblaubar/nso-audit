@@ -149,6 +149,36 @@ async function bootstrapManagement() {
   console.log('Explicit Entra principal provisioned as setup administrator.');
 }
 
+async function bootstrapPartnerAdmin() {
+  const {MANAGEMENT_TENANT_ID:tenantId,MANAGEMENT_OBJECT_ID:objectId,PARTNER_CLIENT_ORGANIZATION_ID:organizationId}=process.env;
+  const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if(![tenantId,objectId,organizationId].every(value=>uuid.test(value??'')))
+    throw new Error('Set MANAGEMENT_TENANT_ID, MANAGEMENT_OBJECT_ID and PARTNER_CLIENT_ORGANIZATION_ID.');
+  await pool.request().input('tenantId',sql.UniqueIdentifier,tenantId).input('objectId',sql.UniqueIdentifier,objectId)
+    .input('organizationId',sql.UniqueIdentifier,organizationId).query(`
+      SET XACT_ABORT ON;
+      BEGIN TRANSACTION;
+      IF NOT EXISTS(SELECT 1 FROM identitydata.ManagementUsers WHERE EntraTenantId=@tenantId AND EntraObjectId=@objectId AND DisabledAt IS NULL)
+        THROW 51000,'An active pre-approved staff principal is required for this bootstrap.',1;
+      IF NOT EXISTS(SELECT 1 FROM security.EntraConnections WHERE OrganizationId=@organizationId)
+        THROW 51000,'An existing client with an approved tenant connection is required.',1;
+      IF NOT EXISTS(SELECT 1 FROM identitydata.PartnerAuditUsers WITH (UPDLOCK,HOLDLOCK)
+          WHERE EntraTenantId=@tenantId AND EntraObjectId=@objectId)
+        INSERT identitydata.PartnerAuditUsers(EntraTenantId,EntraObjectId,Role) VALUES(@tenantId,@objectId,'partnerAdmin');
+      IF NOT EXISTS(SELECT 1 FROM identitydata.PartnerAuditUsers WHERE EntraTenantId=@tenantId AND EntraObjectId=@objectId
+          AND Role='partnerAdmin' AND DisabledAt IS NULL)
+        THROW 51000,'Existing partner role or disabled status requires explicit review.',1;
+      IF NOT EXISTS(SELECT 1 FROM security.PartnerAuditAssignments WITH (UPDLOCK,HOLDLOCK)
+          WHERE EntraTenantId=@tenantId AND EntraObjectId=@objectId AND OrganizationId=@organizationId)
+        INSERT security.PartnerAuditAssignments(EntraTenantId,EntraObjectId,OrganizationId)
+          VALUES(@tenantId,@objectId,@organizationId);
+      IF EXISTS(SELECT 1 FROM security.PartnerAuditAssignments WHERE EntraTenantId=@tenantId
+          AND EntraObjectId=@objectId AND OrganizationId=@organizationId AND RevokedAt IS NOT NULL)
+        THROW 51000,'A revoked assignment requires explicit review.',1;
+      COMMIT;`);
+  console.log('Explicit partner admin and client workspace assignment verified.');
+}
+
 async function verifyIsolation() {
   const a = randomUUID(), b = randomUUID();
   const transaction = new sql.Transaction(pool);
@@ -211,6 +241,7 @@ try {
   else if (command === 'repair-runtime') await bootstrap(true);
   else if (command === 'bootstrap-compare') await bootstrapCompare();
   else if (command === 'bootstrap-management') await bootstrapManagement();
+  else if (command === 'bootstrap-partner-admin') await bootstrapPartnerAdmin();
   else if (command === 'verify') await verifyIsolation();
-  else throw new Error(`Usage: node ${fileURLToPath(import.meta.url)} migrate|bootstrap|repair-runtime|bootstrap-compare|bootstrap-management|verify`);
+  else throw new Error(`Usage: node ${fileURLToPath(import.meta.url)} migrate|bootstrap|repair-runtime|bootstrap-compare|bootstrap-management|bootstrap-partner-admin|verify`);
 } finally { await pool.close(); }

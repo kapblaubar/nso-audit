@@ -226,8 +226,10 @@ authorization and tenant-scoped data access are server-side responsibilities of 
 - Handles: organizational user login (OIDC), tenant registration record (tenantId, display name, consent
   timestamp, RBAC-onboarding status, subscription/RG scope selected), triggering scans, exposing
   scan status/results to the dashboard.
-- Enforces tenant isolation: a logged-in user can only ever query data for their own
-  `tenantId`.
+- Enforces customer isolation by resolving each request to an authorized client workspace.
+  Partner access requires explicit delegation and, for Partner Users, an individual assignment.
+  Provider tenant, account and project IDs identify connections within the workspace.
+  See [portal roles and organization boundaries](docs/product-direction-v2.md#42-organization-boundaries).
 
 ### 5.4 Optional Azure RBAC Onboarding Script
 - Not required for the Phase 1 Graph-only scan. When Azure-resource modules are enabled, an
@@ -468,8 +470,9 @@ Use the status in this table to track delivery. A completed dataset confirms col
 
 The Audit Compare menu opens a baseline and comparison selector for finished audits in
 the authorized workspace. Each dataset requires complete collection in both audits.
-Compare highlights added, removed and changed evidence and offers a Difference Only
-view. It shows collection status when either audit lacks complete evidence. Collection
+Compare opens across all datasets and highlights added evidence and changed values in
+the right-hand comparison column. Removed records retain their baseline evidence.
+Difference Only hides unchanged records. Compare shows collection status when either audit lacks complete evidence. Collection
 and storage timestamps are excluded from the delta. The separate Compare runtime
 reads the saved snapshots using a read-only managed identity and the environment's
 approved SQL subnet.

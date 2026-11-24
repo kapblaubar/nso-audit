@@ -378,6 +378,34 @@ deployment or a Prod rebuild.
 
 Directory role evidence collection and application-only deployment/recovery: [directory-role-evidence.md](directory-role-evidence.md).
 
+## Partner audit workspace access
+
+Apply migrations 031 and 032 after migration 030 and before publishing the API
+and Audit Compare Function packages. These migrations add a directory and assignments
+for verified Entra principals, grants both runtimes execution of the authorization
+procedure, and adds optional tenant selection to the existing email audit procedure.
+Existing memberships and saved evidence require no data migration.
+
+Verify the staff Entra tenant and object ID against the nominated account and confirm the
+target client organization and its connected tenant. Set `MANAGEMENT_TENANT_ID`,
+`MANAGEMENT_OBJECT_ID` and `PARTNER_CLIENT_ORGANIZATION_ID` and run
+`node scripts/database.mjs bootstrap-partner-admin` using temporary exact-IP operator access.
+Use explicit identities and client assignments in each environment. The bootstrap adds
+one verified staff principal and one existing client organization per invocation.
+For a Partner User, provision both the client assignment and specific tenant
+assignments under that client. Client assignment alone gives a Partner User no tenant access.
+
+Publish both APIs before publishing the web portal. Verify that an authenticated partner
+sees only assigned clients and their connected tenants, can read their saved audits
+and Compare results, and receives a denial for an unassigned tenant or a write request.
+Check email client sign-in and legacy Microsoft access as part of the release.
+
+To withdraw a grant, set `RevokedAt` on its assignment. To disable the entire partner
+principal, set `DisabledAt` and retain the principal row so it cannot fall through to
+legacy Microsoft access. Keep migrations 031 and 032 applied when restoring a prior frontend.
+Earlier API packages predate partner authorization. Leave the partner API unavailable
+during rollback or use a package that retains the scoped authorization checks.
+
 ## Audit Compare
 
 Audit Compare runs in a dedicated Flex Consumption Function App with its own

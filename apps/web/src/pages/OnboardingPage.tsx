@@ -1,3 +1,4 @@
+import {PortalAccountHeader} from '../components/PortalAccountHeader';
 import { useMemo, useState } from "react";
 import type { AuditAccount } from "../auth";
 import { checkTenantAccess, startStarterScan, type AccessCheckResult, type TenantBootstrap } from "../api";
@@ -97,11 +98,7 @@ export function OnboardingPage({ account, bootstrap, bootstrapError, onSignOut }
           <span className="brand-name">NSO Audit</span>
         </a>
         <div className="account-menu">
-          <div className="account-details">
-            <strong>{account.name ?? "Microsoft user"}</strong>
-            <span>{account.username}</span>
-            <span>Tenant ID: {tenantId}</span>
-          </div>
+          <PortalAccountHeader username={account.username} role={'kind' in account?account.role:'microsoft'}/>
           <ThemeToggle />
           <button className="text-button" type="button" onClick={onSignOut}>Sign out</button>
         </div>

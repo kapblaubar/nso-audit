@@ -32,6 +32,36 @@ async function mockManagement(page:Page,authorized=true){
   return{saved:()=>saved,requests:()=>customerRequests};
 }
 
+test('partner sees their role and switches between assigned clients and tenants',async({page})=>{
+  await mockManagement(page);
+  const clientA='00000000-0000-4000-8000-000000000001';
+  const clientB='00000000-0000-4000-8000-000000000002';
+  const tenant1='00000000-0000-4000-8000-000000000011';
+  const tenant2='00000000-0000-4000-8000-000000000012';
+  const tenant3='00000000-0000-4000-8000-000000000013';
+  await page.route('**/api/me/portal-workspaces',route=>route.fulfill({json:{role:'partnerAdmin',workspaces:[
+    {organizationId:clientA,name:'First client',tenantId:tenant1},
+    {organizationId:clientA,name:'First client',tenantId:tenant2},
+    {organizationId:clientB,name:'Second client',tenantId:tenant3},
+  ]}}));
+  const scopes:string[][]=[];
+  await page.route('**/api/me/scans',route=>{
+    const headers=route.request().headers();
+    scopes.push([headers['x-nso-organization-id']!,headers['x-nso-tenant-id']!]);
+    return route.fulfill({json:{scans:[]}});
+  });
+  await page.goto('/audit-data');
+  await expect(page.getByLabel('Signed-in account')).toContainText('staff@example.test');
+  await expect(page.getByLabel('Signed-in account')).toContainText('Partner Admin');
+  await page.getByRole('combobox',{name:'Client',exact:true}).selectOption(clientA);
+  await expect.poll(()=>scopes.at(-1)).toEqual([clientA,tenant1]);
+  await page.getByRole('combobox',{name:'Tenant',exact:true}).selectOption(tenant2);
+  await expect.poll(()=>scopes.at(-1)).toEqual([clientA,tenant2]);
+  await page.getByRole('combobox',{name:'Client',exact:true}).selectOption(clientB);
+  await expect.poll(()=>scopes.at(-1)).toEqual([clientB,tenant3]);
+  await expect(page.getByRole('button',{name:'Run audit',exact:true})).toHaveCount(0);
+});
+
 test('staff can create and edit a non-Microsoft customer with a pending owner',async({page})=>{
   const state=await mockManagement(page);
   await page.setViewportSize({width:1440,height:1000});

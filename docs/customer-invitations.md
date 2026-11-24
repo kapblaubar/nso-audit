@@ -1,5 +1,8 @@
 # Customer workspace invitations
 
+This page describes the current staff invitation workflow. For the target Partner Admin
+and Client Admin grant limits, see [portal roles and organization boundaries](product-direction-v2.md#42-organization-boundaries).
+
 Approved 2026-10-20. Client contacts are saved by Chris at `/clientmanagement`. Saving customer
 edits never sends mail automatically. After saving a contact, **Send invitation** sends an email
 through the existing Azure Communication Services Email sender. Pending invitations offer

@@ -2,6 +2,14 @@ import type {ComparedRecord} from '../../api/src/compareApp/compareEvidence';
 import type { AuditAccount } from "./auth";
 import { getApiAccessToken } from "./auth";
 import { appConfig } from "./config";
+import type {PortalWorkspace} from './components/PortalAccountHeader';
+
+export async function loadPortalWorkspaces(account:AuditAccount){
+  const token=await getApiAccessToken(account);
+  const response=await fetch(`${appConfig.apiBaseUrl}/me/portal-workspaces`,{headers:{Authorization:`Bearer ${token}`}});
+  if(!response.ok)throw new Error('Assigned client workspaces could not be loaded.');
+  return await response.json() as {role:'partnerAdmin'|'partnerUser'|null;workspaces:PortalWorkspace[]};
+}
 
 export interface TenantBootstrap {
   tenantId: string;
@@ -109,7 +117,7 @@ export async function loadScanHistory(account: AuditAccount): Promise<ScanHistor
 }
 
 function workspaceHeader(account:AuditAccount):Record<string,string>{
-  return 'kind' in account&&account.kind==='email'?{'X-Nso-Organization-Id':account.organizationId}:{};
+  return 'kind' in account?{'X-Nso-Organization-Id':account.organizationId,'X-Nso-Tenant-Id':account.tenantId}:{};
 }
 
 export interface DataAudit {

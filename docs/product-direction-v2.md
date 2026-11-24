@@ -90,7 +90,7 @@ Prioritize hybrid/on-premises evidence and selected MSP tools. Other candidate m
 | Microsoft 365 / Azure | Existing connectors, corrected and extended | Identity, endpoint configuration, cloud posture |
 | Hybrid / on-premises | Questionnaire and reviewed export upload first | AD administration, remote access, patching, backup and restore |
 | Google Workspace | Questionnaire initially; separately scoped connector later | Administrative access, MFA enforcement, email protection |
-| AWS and other clouds | Questionnaire initially; provider-native read-only connectors later | Identity, exposed services, logging, protection and recovery |
+| Google Cloud (GCP), AWS and other clouds | Questionnaire initially; provider-native read-only connectors later | Identity, exposed services, logging, protection and recovery |
 | MSP/security products | Selected EDR, RMM, backup, firewall and awareness integrations | Coverage, exclusions, freshness, operational ownership |
 
 No invasive scanning or on-premises agent is included by implication. Those require their own
@@ -146,15 +146,12 @@ reuse rights.
 
 ### 4.1 Portal registration and administrator setup
 
-Initial Dev identities: `chris@newsommer.com` remains the NewSommer Entra management user.
-`kapblaubar@gmail.com` is the nominated customer owner for the existing NewSommer assessment
-workspace, including its historical reports. This is an ownership change within the existing
-workspace, not a change to the audited Microsoft tenant or its application consent. Preserve
-all organization, tenant and scan IDs. Do not merge the two identities or infer ownership from
-matching email text. The customer nomination grants no access until the Gmail client account
-is created and its email verified. Chris's management role is not revoked by a customer-role
-handover. Client sign-in, verification and an authorized ownership-completion workflow are
-required before declaring the handover complete.
+The target Dev assignments are **Partner Admin** for `chris@newsommer.com` within the
+NewSommer partner organization, and **Client Admin** for `kapblaubar@gmail.com` within
+the existing NewSommer client workspace, including its historical reports. During rollout,
+verify both stable identities and migrate their grants explicitly. Preserve the client
+workspace, provider connections and saved audit IDs. Keep the two accounts independent.
+The separate Global Admin account will be created later.
 
 Users register through the portal using an email address and an app-specific password.
 Both work and personal addresses are supported, including `chris@newsommer.com` and
@@ -171,34 +168,31 @@ do not belong in Key Vault. Administrators never see or choose another user's pa
 Include rate limiting, secure reset tokens, session revocation and mandatory MFA for privileged
 roles. Password reset is the recovery mechanism; password retrieval is not supported.
 
-NewSommer staff and other platform management users must authenticate with Microsoft Entra
-organizational sign-in. Validate tokens for the configured management application and approved
-NewSommer Entra tenant; grant management access only through explicitly assigned roles.
+Global Admin uses Microsoft Entra organizational sign-in. Validate tokens for the
+configured management application and require the deployment's configured issuer/tenant
+and immutable subject/object ID. Keep the identity binding server-side in environment-specific
+deployment configuration. Missing configuration disables this access. Require MFA and
+bootstrap the account outside public registration.
 An email ending in `newsommer.com` or a valid Microsoft sign-in alone is insufficient. Identify
 management principals by issuer/tenant and subject/object ID, not email address alone.
 
-Provide distinct client and management sign-in entry points and server-enforced authorization
-policies. Client credentials and sessions can never authorize management endpoints, even when
-the email matches a staff account. Management authentication does not automatically grant
-unrestricted customer evidence access; retain explicit role and customer-scope checks.
-There is no local-password fallback for platform management access. A customer workspace
-administrator is a client role and uses client authentication; it is not a platform administrator.
+Provide distinct portal and Global Admin sign-in entry points and server-enforced authorization.
+Verified external partner identities can sign in without membership in the NewSommer Entra
+tenant. Partner and client admins use scoped portal user management. Global Admin endpoints
+require the separate privileged identity, with no local-password fallback. Keep explicit
+customer-scope checks for evidence access.
 Customer Microsoft connector consent remains separate from both login paths. Never automatically
 merge a client account with an Entra management identity based on a matching email address.
 
-Proposed initial flow:
+Target onboarding flow:
 
 1. User creates an account, verifies their email, and supplies a short registration profile.
 2. The account enters pending workspace setup. It can view its own setup status but cannot
    browse customer workspaces or run scans.
-3. An authorized NewSommer setup administrator reviews the request, confirms the organization/contact,
-   creates the customer workspace, and explicitly assigns its initial owner.
-4. The administrator selects the assessment purpose and initial modules, records missing
-   information, and activates the workspace. Setup authority does not automatically grant
-   unrestricted access to assessment evidence or connector credentials.
-5. The assigned owner receives access and can complete the questionnaire, invite approved
-   collaborators and configure connections according to their role. Connections require their
-   own consent and access verification.
+3. Global Admin authorizes the partner-to-client relationship and client workspace setup.
+4. Global Admin or the delegated Partner Admin invites the initial Client Admin.
+5. After acceptance and identity verification, the Client Admin can read their workspace
+   and invite Client Users. Provider connections require separate consent and access verification.
 
 Initial profile fields: contact name and verified email; organization legal/display name;
 website (optional); country/state; industry; approximate employee/device counts; whether IT
@@ -209,10 +203,8 @@ Defer sensitive business details and integration credentials until the relevant 
 Proposed setup states: email-unverified, pending-setup, needs-information, active, rejected and
 suspended. Record setup approvals and membership changes in the audit trail. Only an explicit
 invitation/approved membership grants access to an existing organization; email ownership alone
-does not prove authority over a company. Workspace provisioning and initial-owner approval
-belong to the NewSommer setup administrator role. Customer administrators manage only their
-assigned workspace after activation. The first NewSommer administrator must be provisioned
-through a controlled bootstrap; public registration cannot grant this role.
+does not prove authority over a company. Global Admin provisions client workspaces and
+authorizes partner relationships. Client administrators manage only their own workspace.
 
 ### 4.2 Organization boundaries
 
@@ -220,10 +212,26 @@ Use an internal customer organization ID, not an Entra tenant ID, as the data se
 An organization may have multiple Entra tenants, subscriptions, vendors and sites. An MSP is an
 organization with explicitly granted management relationships to customer organizations.
 
-Proposed roles: customer owner, customer administrator, assessor, contributor and viewer;
-MSP access is scoped to individual customer organizations. Optional reviewer access is explicit,
-time-limited where appropriate, and audited. Connector administration can be separated from
-assessment review. Platform operators do not receive routine customer-data access by default.
+| Portal role | Can grant | Data and management scope |
+|---|---|---|
+| Global Admin | Partner Admin, Partner User, Client Admin and Client User | Platform administration, including partner and client setup, delegation, revocation and platform settings. Routine customer evidence access requires explicit authorization. |
+| Partner Admin | Partner User in their own partner organization, and Client Admin or Client User in a delegated client workspace | View and manage user access for client workspaces explicitly delegated to the partner. Assign their Partner Users only to those workspaces. |
+| Partner User | None | Read only in explicitly assigned tenants. Access requires an active partner-to-client delegation and an active assignment to the individual tenant. |
+| Client Admin | Client User in their own client workspace | View their own workspace and manage its Client User access. |
+| Client User | None | Read only in their own client workspace. |
+
+A partner organization may represent an external partner, MSP or audit firm. Partner membership
+alone grants no access to a client. Enforce these grant limits at invitation, acceptance,
+assignment, role change and revocation. Log the actor, recipient, scope, action and time.
+An expired or revoked delegation or membership must deny access on subsequent requests,
+including requests from an existing session. Scope workspace listings, saved audits,
+Audit Compare, reports and exports to the same effective permissions.
+
+Use the same authorization model for Azure/Microsoft, Google Cloud and AWS. Keep provider
+identity and scope identifiers on each connection under the client organization. A portal
+role grants neither provider IAM privileges nor access to connector credentials. Viewing a
+client workspace does not grant access to another client's provider connection, even where
+partner relationships or provider identifiers overlap.
 
 Each API call and background job resolves its customer organization against server-side
 membership or delegation records. Sign-in proves identity; customer consent authorizes a
@@ -233,6 +241,24 @@ Microsoft connections continue to use the deployment's multitenant App Registrat
 consent grants the application permissions approved in the customer tenant. Azure RBAC and
 other workloads' roles remain separate. Added permissions require actual grants and capability
 verification; storing a credential in Key Vault does not grant permissions.
+
+### 4.3 Current implementation and rollout checks
+
+The signed-in portal header shows the account email and its effective role. The audit
+workspace shows separate Client and Tenant selectors. Partner audit access uses explicit
+operator-provisioned client and tenant assignments for verified Entra principals and supports read-only
+saved audit access. The API and Audit Compare recheck assignments on every request.
+The staff console continues to use `setupAdmin` or `platformAdmin`. The client portal
+uses `owner`, `admin`, `contributor` and `viewer` memberships, presented as Client Admin,
+Client Contributor or Client User according to their existing grants. Partner organization
+administration, delegated invitations, Client Admin self-service invitations and the
+distinct Global Admin account remain rollout work.
+
+Review existing staff and client grants before mapping them to the target roles. Test each
+allowed and denied invitation, explicit Partner User assignment, direct access to an
+unassigned workspace, access after revocation, and isolation between provider connections.
+Verify both initial Dev accounts by signing in after migration. Keep Global Admin disabled
+until its separate identity has been provisioned and verified.
 
 ## 5. Connector credentials
 

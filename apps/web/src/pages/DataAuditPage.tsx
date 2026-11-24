@@ -1,7 +1,9 @@
+import {PortalAccountHeader,PortalWorkspaceSelectors} from '../components/PortalAccountHeader';
 import {Recommendations} from '../components/Recommendations';
 import {DirectoryAccess} from '../components/DirectoryAccess';
 import {useEffect,useState,useRef} from 'react';
 import type {AuditAccount} from '../auth';
+import {canRunAudits} from '../portalRoles';
 import {loadDataAudit,loadLicenseEvidence,loadScanHistory,loadCompareHistory,loadStarterScan,startStarterScan,
   type DataAudit,type LicenseEvidencePage,type ScanHistoryItem} from '../api';
 import {AuditCompare} from '../components/AuditCompare';
@@ -34,7 +36,8 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
   const [page,setPage]=useState(1),[search,setSearch]=useState(''),[skuId,setSkuId]=useState(query.get('skuId')??'');
   const [locations,setLocations]=useState(new Map<string,string>()),[referenceError,setReferenceError]=useState('');
   const [evidence,setEvidence]=useState<LicenseEvidencePage>(),[loading,setLoading]=useState(false),[dataError,setDataError]=useState('');
-  const viewer='kind' in account&&account.role==='viewer';
+  const viewer=!canRunAudits(account);
+  const partner='kind' in account&&account.kind==='partner';
   const active=!!report&&['queued','running'].includes(report.audit.Status);
   const progress=JSON.stringify(report?.collections);
   useEffect(()=>{
@@ -120,25 +123,26 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
   const collection=report?.collections.find(c=>c.DataType===dataType);
   return <main className="report-page"><nav className="nav" aria-label="Audit navigation">
     <a className="brand" href="/"><img className="brand-mark" src="/brand/nsosquare.png" alt="" width="40" height="40"/><span className="brand-name">NSO Audit</span></a>
-    <div className="nav-actions"><ThemeToggle/><button className="text-button" onClick={onSignOut}>Sign out</button></div>
+    <div className="nav-actions"><PortalAccountHeader username={account.username} role={'kind' in account?account.role:'microsoft'}/><ThemeToggle/><button className="text-button" onClick={onSignOut}>Sign out</button></div>
   </nav><section className="report-shell audit-data-page">
+    <PortalWorkspaceSelectors/>
     <nav className="audit-workspace-menu" aria-label="Workspace menu"><a href="/audit-data" aria-current={!scanId&&!comparePage?'page':undefined}>Audits</a>
       {currentId?<a href={auditHref} aria-current={scanId&&!licensePage&&!recommendationsPage&&!directoryPage?'page':undefined}>Current audit</a>:null}<a href={compareHref} aria-current={comparePage?'page':undefined}>Audit Compare</a>
-      {currentId?<><a href={`${auditHref}/recommendations`} aria-current={recommendationsPage?'page':undefined}>Recommendations</a><a href={licensesHref} aria-current={licensePage?'page':undefined}>Licenses</a><a href={`${auditHref}/directory-access`} aria-current={directoryPage?'page':undefined}>Users, Groups &amp; Roles</a></>:<span>Licenses · run an audit first</span>}
-      <a href="/onboarding">Connection settings</a></nav>
+      {currentId?<><a href={`${auditHref}/recommendations`} aria-current={recommendationsPage?'page':undefined}>Recommendations</a><a href={licensesHref} aria-current={licensePage?'page':undefined}>Licenses</a><a href={`${auditHref}/directory-access`} aria-current={directoryPage?'page':undefined}>Users, Groups &amp; Roles</a></>:partner?<span>No saved audits</span>:<span>Licenses · run an audit first</span>}
+      {!partner&&<a href="/onboarding">Connection settings</a>}</nav>
     <p className="eyebrow">Tenant audit data</p><h1>{comparePage?'Audit Compare':directoryPage?'Users, Groups & Roles':recommendationsPage?'Recommendations':licensePage?'Licenses':scanId?'Audit snapshot':'Audit collection'}</h1>
     <p>Tenant ID: {account.tenantId}</p>
     {comparePage?<>{error?<p role="alert" className="auth-error">{error}</p>:<AuditCompare account={account} history={history} loadingHistory={loadingHistory} {...(anchorId?{anchorId}:{})}/>}</>:<>
-    {!scanId?<section aria-labelledby="run-audit-title"><h2 id="run-audit-title">Run tenant audit</h2>
+    {!scanId?<section>{!partner&&<div aria-labelledby="run-audit-title"><h2 id="run-audit-title">Run tenant audit</h2>
       <p>Collect the currently supported identity, Conditional Access, MFA, Intune, Microsoft Secure Score, Azure inventory, Defender for Cloud evidence, and Recovery Services backup settings. Save the results and open the audit report.</p>
       <label className="management-field">Azure subscription ID<input value={subscriptionId} onChange={event=>setSubscriptionId(event.target.value)} autoComplete="off" placeholder="Subscription used for Azure audit collection"/></label>
       <div className="report-actions"><button className="step-action" disabled={viewer||auditRunning||!(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(subscriptionId.trim()))} onClick={()=>void startAudit()}>{auditRunning?'Running audit…':'Run audit'}</button>
         <button className="detail-button" onClick={()=>setRefresh(n=>n+1)}>Refresh</button><a className="detail-button" href="/onboarding">Connection settings</a></div>
       {auditError?<p role="alert" className="auth-error">{auditError}</p>:null}
-      <h2>Audit data</h2><p>Each run collects timestamped configuration, scores, recommendations, licenses and user assignments into the audit database. Collection progress and missing access are reported separately for each dataset.</p>
+      </div>}<h2>Audit data</h2><p>Each run collects timestamped configuration, scores, recommendations, licenses and user assignments into the audit database. Collection progress and missing access are reported separately for each dataset.</p>
       <p>DLP, labels, retention, insider risk, threat and alert policies, and Sentinel connectors are not collected yet.</p>
     </section>:<><p>Saved tenant audit evidence. Every dataset below belongs to this audit and retains its collection timestamp.</p>
-      <div className="report-actions">{licensePage?<a className="detail-button" href={auditHref}>Back to audit</a>:null}<a className="step-action" href="/audit-data">Run tenant audit</a>
+      <div className="report-actions">{licensePage?<a className="detail-button" href={auditHref}>Back to audit</a>:null}{!partner&&<a className="step-action" href="/audit-data">Run tenant audit</a>}
         <button className="detail-button" onClick={()=>setRefresh(n=>n+1)}>Refresh</button></div></>}
     {viewer?<p>You have read-only access to saved audits.</p>:null}
     {error?<p role="alert" className="auth-error">{error}</p>:null}

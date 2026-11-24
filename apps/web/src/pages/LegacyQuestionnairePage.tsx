@@ -1,3 +1,4 @@
+import {PortalAccountHeader} from '../components/PortalAccountHeader';
 import {useEffect,useState,type FormEvent,type ChangeEvent} from 'react';
 import {appConfig} from '../config';
 
@@ -12,7 +13,7 @@ interface Answer{
 interface Assessment{id:string;scopeName:string;assetClass:string;tenantId:string|null;revision:number;status:string;questions:Question[];answers:Answer[]}
 const classes=[['END','Endpoints'],['SRV','Servers'],['DB','Databases'],['SaaS','Email / collaboration / SaaS'],['CLD','Cloud workloads / storage'],['NET','Network / security configuration']];
 const valueKeys=['booleanValue','textValue','numberValue','unit','dateValue','selectedOptionId','selections','totalInScope','totalCovered','estimatedPercentage','measurementDate','measurementSource'] as const;
-export function LegacyQuestionnairePage({organizationId,workspaceName,role,onBack,initialAssessmentId}:{organizationId:string;workspaceName:string;role:string;onBack:()=>void;initialAssessmentId:string}){
+export function LegacyQuestionnairePage({organizationId,workspaceName,role,username,onBack,initialAssessmentId}:{organizationId:string;workspaceName:string;role:string;username:string;onBack:()=>void;initialAssessmentId:string}){
   const [assessment,setAssessment]=useState<Assessment>();
   const [answers,setAnswers]=useState<Record<string,Answer>>({});
   const [busy,setBusy]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState(''),[dirty,setDirty]=useState(false);
@@ -77,7 +78,7 @@ export function LegacyQuestionnairePage({organizationId,workspaceName,role,onBac
     }
   }}
   const readOnly=!canWrite || assessment?.status!=='draft';
-  return <main className="questionnaire-page"><nav className="nav"><strong>NSO Audit · {workspaceName}</strong><button className="text-button" disabled={busy} onClick={()=>leave(onBack)}>Your workspaces</button></nav>
+  return <main className="questionnaire-page"><nav className="nav"><strong>NSO Audit · {workspaceName}</strong><PortalAccountHeader username={username} role={role}/><button className="text-button" disabled={busy} onClick={()=>leave(onBack)}>Your workspaces</button></nav>
     <h1>Client assessment questionnaire</h1><p>This earlier assessment contains backup answers only. Your saved data remains available here. Return to the client assessment list to start the complete questionnaire.</p>
     {error?<p className="management-error" role="alert">{error}</p>:null}{notice?<p className="management-success" role="status">{notice}</p>:null}
     {busy?<p role="status">Loading or saving questionnaire…</p>:null}

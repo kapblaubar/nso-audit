@@ -281,6 +281,7 @@ try{
   assert.equal(new URL(page.url()).pathname,`/audit-data/${scan}/licenses`,'Session restoration lost the requested license page.');
   role='viewer';await page.reload();
   await page.getByText('You have read-only access to saved audits.').waitFor();
+  await page.getByRole('group',{name:'Signed-in account'}).getByText('Client User',{exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Run license audit',exact:true}).count(),0,'Licenses must not replace the full audit launcher.');
   await page.setViewportSize({width:390,height:844});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth),false,'Audit page overflows the mobile viewport.');
@@ -304,6 +305,7 @@ try{
   await deepPage.getByRole('heading',{name:'Google Workspace licenses',exact:true}).waitFor();
   assert.equal(new URL(deepPage.url()).searchParams.get('provider'),'google','Workspace selection lost the license provider.');
   await deep.close();
+  role='owner';
   const login=await browser.newContext();
   await login.route('**/api/**',respondApi);
   const loginPage=await login.newPage();
@@ -313,6 +315,8 @@ try{
   await loginPage.getByRole('button',{name:'Sign in with email',exact:true}).click();
   await loginPage.getByRole('button',{name:'Open workspace',exact:true}).click();
   await loginPage.getByRole('heading',{name:'Audit collection',exact:true}).waitFor();
+  await loginPage.getByRole('group',{name:'Signed-in account'}).getByText('fixture@example.invalid',{exact:true}).waitFor();
+  await loginPage.getByRole('group',{name:'Signed-in account'}).getByText('Client Admin',{exact:true}).waitFor();
   assert.equal(new URL(loginPage.url()).pathname,'/audit-data','Normal sign-in opened an old report.');
   await loginPage.getByRole('button',{name:'Sign out',exact:true}).click();
   await loginPage.getByLabel('Email address',{exact:true}).fill('fixture@example.invalid');
@@ -332,10 +336,15 @@ try{
   await page.getByRole('heading',{name:'Audit Compare',exact:true}).waitFor();
   assert.equal(await page.getByLabel('Comparison audit').inputValue(),compareCurrent);
   assert.equal(await page.getByLabel('Baseline audit').inputValue(),compareBaseline);
+  assert.equal(await page.getByLabel('Dataset',{exact:true}).inputValue(),'*');
   await page.getByText('3 differences across 4 saved records.').waitFor();
   const changes=page.locator('.audit-compare-changed');
   assert.equal(await changes.count(),3);
   await changes.getByText('/Source/conditions/enabled',{exact:true}).waitFor();
+  const changedField=changes.getByRole('row').filter({hasText:'/Source/conditions/enabled'});
+  assert.equal(await changedField.locator('td.audit-compare-value-changed').textContent(),'true');
+  assert.equal(await changedField.locator('td').first().getAttribute('class'),null);
+  await changes.locator('.audit-compare-value-changed').getByRole('heading',{name:'Comparison',exact:true}).waitFor();
   await changes.getByText('Added',{exact:true}).waitFor();
   await changes.getByText('Removed',{exact:true}).waitFor();
   await page.getByRole('heading',{name:'Same policy Unchanged'}).waitFor();
@@ -344,10 +353,7 @@ try{
   assert.equal(await page.getByRole('heading',{name:'Same policy Unchanged'}).count(),0);
   assert.equal(await changes.getByText('Saved evidence',{exact:true}).count(),0);
   assert.equal(await changes.count(),3);
-  await page.getByLabel('Dataset',{exact:true}).selectOption({label:'All datasets'});
-  await page.getByText(/1 of 1 comparable datasets checked/).waitFor();
-  await page.getByText('3 changed out of 4 saved records.').waitFor();
-  await page.getByRole('button',{name:'Conditional Access policies',exact:true}).click();
+  await page.getByLabel('Dataset',{exact:true}).selectOption('conditionalAccess');
   await page.getByText('3 differences across 4 saved records.').waitFor();
   await page.getByLabel('Dataset',{exact:true}).selectOption('namedLocations');
   await page.getByText(/Baseline: complete. Comparison: missingAccess/).waitFor();
