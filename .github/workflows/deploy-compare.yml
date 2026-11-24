@@ -1,0 +1,40 @@
+name: Deploy Audit Compare
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-compare-development
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test --workspace @nso-audit/api
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_COMPARE_DEPLOY_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_API_DEPLOY_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_API_DEPLOY_SUBSCRIPTION_ID }}
+      - name: Publish dedicated Compare package
+        shell: pwsh
+        env:
+          COMPARE_SUBSCRIPTION: ${{ vars.AZURE_API_DEPLOY_SUBSCRIPTION_ID }}
+        run: |
+          ./scripts/Publish-NsoAuditApi.ps1 -Compare -SubscriptionId $env:COMPARE_SUBSCRIPTION -FunctionAppName nso-audit-dev-compare
+      - name: Verify Compare host and SQL identity
+        shell: bash
+        run: |
+          host=$(az functionapp show -g NSO-Audit -n nso-audit-dev-compare --query defaultHostName -o tsv)
+          curl --fail --retry 8 --retry-delay 5 --retry-all-errors "https://$host/api/health" | jq -e '.service == "audit-compare" and .status == "ok"'

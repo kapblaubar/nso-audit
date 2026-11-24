@@ -464,6 +464,16 @@ Use the status in this table to track delivery. A completed dataset confirms col
 | Current | VNets and network security groups | Address spaces, DNS, peerings, subnet attachment and endpoint settings, NSG rule priority, source, destination, ports, action and subnet/NIC attachments. | Implemented. Public IP correlation and effective reachability analysis are follow-up work. |
 | Later | Findings and changes | Compare complete, equivalent snapshots for configuration, roles, resource additions and removals. Show before and after with scan dates. Track actor attribution separately when activity-log evidence is available. | Planned |
 
+### Saved audit comparison
+
+The Audit Compare menu opens a baseline and comparison selector for finished audits in
+the authorized workspace. Each dataset requires complete collection in both audits.
+Compare highlights added, removed and changed evidence and offers a Difference Only
+view. It shows collection status when either audit lacks complete evidence. Collection
+and storage timestamps are excluded from the delta. The separate Compare runtime
+reads the saved snapshots using a read-only managed identity and the environment's
+approved SQL subnet.
+
 ## 6. Data Sources & Required Permissions
 
 ### 6.1 Microsoft Graph (application permissions, admin-consented)

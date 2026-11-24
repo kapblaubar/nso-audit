@@ -19,6 +19,11 @@ const pool = await new sql.ConnectionPool({
   requestTimeout: 60000,
 }).connect();
 
+function binarySid(id) {
+  const bytes=Buffer.from(id.replaceAll('-',''),'hex');
+  return Buffer.concat([bytes.subarray(0,4).reverse(),bytes.subarray(4,6).reverse(),bytes.subarray(6,8).reverse(),bytes.subarray(8)]).toString('hex');
+}
+
 async function migrate() {
   await pool.request().query(`IF OBJECT_ID(N'dbo.SchemaMigrations') IS NULL
     CREATE TABLE dbo.SchemaMigrations (Name nvarchar(200) PRIMARY KEY, Sha256 char(64) NOT NULL,
@@ -62,10 +67,6 @@ async function bootstrap(repair = false) {
   if (!uuid.test(clientId ?? '')) {
     throw new Error('SQL_RUNTIME_CLIENT_ID must be the managed identity application/client ID, not its object ID.');
   }
-  function binarySid(id) {
-    const bytes=Buffer.from(id.replaceAll('-',''),'hex');
-    return Buffer.concat([bytes.subarray(0,4).reverse(),bytes.subarray(4,6).reverse(),bytes.subarray(6,8).reverse(),bytes.subarray(8)]).toString('hex');
-  }
   const sid=binarySid(clientId);
   let repairSql='';
   if(repair) {
@@ -96,6 +97,43 @@ async function bootstrap(repair = false) {
     await transaction.commit();
   } catch(error) { await transaction.rollback().catch(()=>undefined);throw error; }
   console.log('Runtime identity granted nso_runtime; no schema ownership or migration rights.');
+}
+
+async function bootstrapCompare() {
+  const clientId=process.env.SQL_COMPARE_CLIENT_ID;
+  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientId??''))
+    throw new Error('Set SQL_COMPARE_CLIENT_ID to the Compare managed identity application/client ID.');
+  const sid=binarySid(clientId);
+  const transaction=new sql.Transaction(pool);
+  await transaction.begin();
+  try {
+    await new sql.Request(transaction).query(`
+      IF NOT EXISTS(SELECT 1 FROM sys.database_principals WHERE name=N'nso_compare_runtime')
+        CREATE USER [nso_compare_runtime] WITH SID=0x${sid}, TYPE=E;
+      IF NOT EXISTS(SELECT 1 FROM sys.database_principals WHERE name=N'nso_compare_runtime' AND sid=0x${sid} AND type='E')
+        THROW 51000, 'Compare identity mismatch.', 1;
+      IF NOT EXISTS(SELECT 1 FROM sys.database_role_members
+        WHERE role_principal_id=DATABASE_PRINCIPAL_ID('nso_compare_reader')
+          AND member_principal_id=USER_ID('nso_compare_runtime'))
+        ALTER ROLE nso_compare_reader ADD MEMBER [nso_compare_runtime];
+      EXECUTE AS USER=N'nso_compare_runtime';
+      DECLARE @valid bit=CASE WHEN
+        HAS_PERMS_BY_NAME('app.DataAudits','OBJECT','SELECT')=1 AND
+        HAS_PERMS_BY_NAME('security.AuthResolveAudit','OBJECT','EXECUTE')=1 AND
+        HAS_PERMS_BY_NAME('app.DataAudits','OBJECT','UPDATE')=0 AND
+        ISNULL(HAS_PERMS_BY_NAME('identitydata.Users','OBJECT','SELECT'),0)=0 AND
+        IS_ROLEMEMBER('db_owner')=0 AND
+        NOT EXISTS(SELECT TOP(1) 1 FROM app.DataAudits)
+        THEN 1 ELSE 0 END;
+      REVERT;
+      IF @valid=0 THROW 51000, 'Compare permissions or organization isolation could not be verified.', 1;`);
+    await transaction.commit();
+  } catch(error) {
+    await new sql.Request(transaction).query('IF USER_NAME()=N\'nso_compare_runtime\' REVERT;').catch(()=>undefined);
+    await transaction.rollback().catch(()=>undefined);
+    throw error;
+  }
+  console.log('Compare SQL identity verified with read-only snapshot access.');
 }
 
 async function bootstrapManagement() {
@@ -171,7 +209,8 @@ try {
   if (command === 'migrate') await migrate();
   else if (command === 'bootstrap') await bootstrap();
   else if (command === 'repair-runtime') await bootstrap(true);
+  else if (command === 'bootstrap-compare') await bootstrapCompare();
   else if (command === 'bootstrap-management') await bootstrapManagement();
   else if (command === 'verify') await verifyIsolation();
-  else throw new Error(`Usage: node ${fileURLToPath(import.meta.url)} migrate|bootstrap|repair-runtime|bootstrap-management|verify`);
+  else throw new Error(`Usage: node ${fileURLToPath(import.meta.url)} migrate|bootstrap|repair-runtime|bootstrap-compare|bootstrap-management|verify`);
 } finally { await pool.close(); }

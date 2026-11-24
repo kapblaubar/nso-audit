@@ -76,7 +76,7 @@ function LegacyApp() {
 
   if(/^\/audit-data(?:\/[^/]+(?:\/(?:licenses|recommendations|directory-access))?)?$/.test(window.location.pathname)){
     const id=window.location.pathname.split('/')[2];
-    return <DataAuditPage account={account} onSignOut={beginSignOut} {...(id?{scanId:id}:{})}/>;
+    return <DataAuditPage account={account} onSignOut={beginSignOut} {...(id&&id!=='compare'?{scanId:id}:{})}/>;
   }
 
   if (window.location.pathname.startsWith('/reports/') && bootstrap?.latestScan) {

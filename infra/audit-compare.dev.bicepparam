@@ -1,0 +1,13 @@
+﻿using './audit-compare.bicep'
+param environmentName = 'dev'
+param location = 'westus2'
+param functionAppName = 'nso-audit-dev-compare'
+param planName = 'nso-audit-dev-compare-plan'
+param identityName = 'nso-audit-dev-compare-identity'
+param storageName = 'nsoauditdevcompare257f'
+param virtualNetworkName = 'nso-audit-dev-vnet'
+param subnetName = 'api-integration'
+param sqlServerName = 'nso-audit-dev-257f10d8'
+param sqlDatabaseName = 'nso-audit-dev'
+param entraClientId = 'f293a122-bf49-44a7-bfc9-48cfae6f8376'
+param allowedOrigins = ['https://blue-mushroom-0b2666c1e.7.azurestaticapps.net', 'https://auditdev.newsommer.com']

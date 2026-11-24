@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory)][string] $SubscriptionId,
     [string] $ResourceGroupName = 'NSO-Audit',
     [Parameter(Mandatory)][ValidatePattern('^[a-zA-Z0-9-]{2,60}$')][string] $FunctionAppName,
-    [string] $PackageOutputPath
+    [string] $PackageOutputPath,
+    [switch] $Compare
 )
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
@@ -15,8 +16,12 @@ $zipPath = Join-Path $packageRoot 'api.zip'
 New-Item -ItemType Directory -Path $packagePath -Force | Out-Null
 try {
     & az functionapp show --subscription $SubscriptionId --resource-group $ResourceGroupName `
-        --name $FunctionAppName --query name -o tsv
+        --name $FunctionAppName --query '{name:name,workload:tags.workload}' -o json | Set-Variable -Name targetJson
     if ($LASTEXITCODE -ne 0) { throw 'Target Function not found or not authorized.' }
+    $target = ($targetJson -join "`n") | ConvertFrom-Json
+    if (-not $target.name -or ($Compare.IsPresent -ne ($target.workload -eq 'audit-compare'))) {
+        throw 'The release type does not match the Function App workload tag.'
+    }
     Push-Location $repositoryRoot
     try {
         & npm run build --workspace '@nso-audit/api'
@@ -24,7 +29,21 @@ try {
     } finally { Pop-Location }
     Copy-Item -LiteralPath (Join-Path $apiPath 'host.json') -Destination $packagePath
     Copy-Item -LiteralPath (Join-Path $apiPath 'package.json') -Destination $packagePath
-    Copy-Item -LiteralPath (Join-Path $apiPath 'dist') -Destination $packagePath -Recurse
+    $entryPoint = 'dist/src/functions/health.js'
+    if ($Compare) {
+        $entryPoint = 'dist/src/compareApp/index.js'
+        $manifestPath = Join-Path $packagePath 'package.json'
+        $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+        $manifest.main = $entryPoint
+        [IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json -Depth 8))
+        $compiledPath = Join-Path $packagePath 'dist/src'
+        New-Item -ItemType Directory -Path $compiledPath -Force | Out-Null
+        foreach ($directory in @('compareApp','audits','auth','storage')) {
+            Copy-Item -LiteralPath (Join-Path $apiPath "dist/src/$directory") -Destination $compiledPath -Recurse
+        }
+    } else {
+        Copy-Item -LiteralPath (Join-Path $apiPath 'dist') -Destination $packagePath -Recurse
+    }
     Push-Location $packagePath
     try {
         & npm install --omit=dev --ignore-scripts --no-audit --no-fund
@@ -43,7 +62,7 @@ try {
     } finally { $archive.Dispose() }
     $inspection=[IO.Compression.ZipFile]::OpenRead($zipPath)
     try {
-        if(-not $inspection.GetEntry('dist/src/functions/health.js') -or
+        if(-not $inspection.GetEntry($entryPoint) -or
            -not $inspection.GetEntry('host.json') -or
            @($inspection.Entries | Where-Object { $_.FullName.Contains('\') }).Count -gt 0) {
             throw 'Release archive does not have portable Function paths.'

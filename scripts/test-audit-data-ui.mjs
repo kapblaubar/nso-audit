@@ -5,16 +5,20 @@ import {chromium} from '@playwright/test';
 import {fileURLToPath} from 'node:url';
 
 process.env.VITE_API_BASE_URL='/api';
+process.env.VITE_COMPARE_API_BASE_URL='https://compare.example.invalid/api';
 const server=await createServer({root:fileURLToPath(new URL('../apps/web',import.meta.url)),
   server:{host:'127.0.0.1',port:0},configFile:false});
 await server.listen();
 const address=server.httpServer.address();
 const origin=process.env.AUDIT_UI_TEST_ORIGIN??`http://127.0.0.1:${address.port}`;
 const apiOrigin=process.env.AUDIT_UI_TEST_API_ORIGIN??origin;
+const compareOrigin=process.env.AUDIT_UI_TEST_COMPARE_ORIGIN??'https://compare.example.invalid';
+const {compareEvidence}=await server.ssrLoadModule('/@fs/'+fileURLToPath(new URL('../apps/api/src/compareApp/compareEvidence.ts',import.meta.url)));
 let browser;
 const org='00000000-0000-4000-8000-000000000001',tenant='00000000-0000-4000-8000-000000000002';
 const scan='00000000-0000-4000-8000-000000000003',sku='00000000-0000-4000-8000-000000000004';
 const at='2026-11-09T12:00:00.000Z';
+const compareBaseline='00000000-0000-4000-8000-000000000095',compareCurrent='00000000-0000-4000-8000-000000000096';
 try{
   browser=await chromium.launch({headless:true,...(process.platform==='win32'?{channel:'msedge'}:{})});
   const context=await browser.newContext();
@@ -23,7 +27,8 @@ try{
   const requests=[];
   const respondApi=async route=>{
     const request=route.request(),url=new URL(request.url());
-    assert.equal(url.origin,apiOrigin);requests.push(`${request.method()} ${url.pathname}${url.search}`);
+    assert.equal(url.origin,url.pathname.startsWith('/api/me/audit-compare')?compareOrigin:apiOrigin);
+    requests.push(`${request.method()} ${url.pathname}${url.search}`);
     const respond=(value,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(value),
       headers:{'access-control-allow-origin':origin,'access-control-allow-headers':'*','access-control-allow-methods':'GET,POST,OPTIONS'}});
     if(request.method()==='OPTIONS')return respond({});
@@ -38,6 +43,26 @@ try{
       assert.equal(request.postDataJSON().subscriptionId,tenant);
       fullStarted=true;
       return respond({scanId:'00000000-0000-4000-8000-000000000099',auditScope:'tenant',status:'queued'},202);
+    }
+    if(url.pathname==='/api/me/audit-compare/history')return respond({scans:[
+      {scanId:compareCurrent,status:'partial',createdAt:at,auditScope:'tenant'},
+      {scanId:compareBaseline,status:'complete',createdAt:'2026-11-08T12:00:00.000Z',auditScope:'tenant'},
+      {scanId:scan,status:'running',createdAt:at,auditScope:'licensing'}]});
+    if(url.pathname==='/api/me/audit-compare'){
+      assert.equal(url.searchParams.get('baseline'),compareBaseline);
+      assert.equal(url.searchParams.get('comparison'),compareCurrent);
+      if(!url.searchParams.has('dataset'))return respond([compareBaseline,compareCurrent].map(ScanId=>({audit:{ScanId,Scope:'tenant'},collections:[
+        {DataType:'conditionalAccess',Label:'Conditional Access policies',Status:'complete'},
+        {DataType:'namedLocations',Label:'Named locations',Status:ScanId===compareCurrent?'missingAccess':'complete'}]})));
+      assert.equal(url.searchParams.get('dataset'),'conditionalAccess');
+      const fixture=current=>[
+        {SourceId:'same',DisplayName:'Same policy',SourceJson:current?'{"b":2,"a":1}':'{"a":1,"b":2}',CollectedAtUtc:current?at:'2026-11-08T12:00:00.000Z'},
+        {SourceId:'edit',DisplayName:'Edited policy',SourceJson:JSON.stringify({conditions:{enabled:current}})},
+        {SourceId:current?'add':'remove',DisplayName:current?'New policy':'Old policy'},
+      ];
+      const records=compareEvidence(fixture(false),fixture(true),'conditionalAccess');
+      const differences=records.filter(row=>row.status!=='Unchanged').length;
+      return respond({records:url.searchParams.has('summary')?records.length:records,differences});
     }
     if(url.pathname==='/api/me/scans')return respond({scans:[{scanId:scan,status:'complete',createdAt:at,auditScope:'licensing'},
       {scanId:'00000000-0000-4000-8000-000000000099',status:'complete',createdAt:at}]});
@@ -300,6 +325,37 @@ try{
   await loginPage.getByRole('heading',{name:'Audit collection',exact:true}).waitFor();
   assert.equal(new URL(loginPage.url()).pathname,'/audit-data','Old workspace bookmark opened a scorecard.');
   await login.close();
+  const beforeCompare=requests.length;
+  const compareMenu=page.getByRole('navigation',{name:'Workspace menu'});
+  assert.deepEqual((await compareMenu.getByRole('link').allTextContents()).slice(1,4),['Current audit','Audit Compare','Recommendations']);
+  await compareMenu.getByRole('link',{name:'Audit Compare'}).click();
+  await page.getByRole('heading',{name:'Audit Compare',exact:true}).waitFor();
+  assert.equal(await page.getByLabel('Comparison audit').inputValue(),compareCurrent);
+  assert.equal(await page.getByLabel('Baseline audit').inputValue(),compareBaseline);
+  await page.getByText('3 differences across 4 saved records.').waitFor();
+  const changes=page.locator('.audit-compare-changed');
+  assert.equal(await changes.count(),3);
+  await changes.getByText('/Source/conditions/enabled',{exact:true}).waitFor();
+  await changes.getByText('Added',{exact:true}).waitFor();
+  await changes.getByText('Removed',{exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Same policy Unchanged'}).waitFor();
+  await changes.getByText('Saved evidence',{exact:true}).click();
+  await page.getByRole('button',{name:'Difference Only'}).click();
+  assert.equal(await page.getByRole('heading',{name:'Same policy Unchanged'}).count(),0);
+  assert.equal(await changes.getByText('Saved evidence',{exact:true}).count(),0);
+  assert.equal(await changes.count(),3);
+  await page.getByLabel('Dataset',{exact:true}).selectOption({label:'All datasets'});
+  await page.getByText(/1 of 1 comparable datasets checked/).waitFor();
+  await page.getByText('3 changed out of 4 saved records.').waitFor();
+  await page.getByRole('button',{name:'Conditional Access policies',exact:true}).click();
+  await page.getByText('3 differences across 4 saved records.').waitFor();
+  await page.getByLabel('Dataset',{exact:true}).selectOption('namedLocations');
+  await page.getByText(/Baseline: complete. Comparison: missingAccess/).waitFor();
+  assert.equal(await changes.count(),0);
+  await page.getByLabel('Baseline audit').selectOption(compareCurrent);
+  await page.getByText('Select two different audits.').waitFor();
+  assert.ok(!requests.slice(beforeCompare).some(request=>/\/api\/me\/(audits|scans)\b/.test(request)));
+  console.log('PASS: Audit Compare uses its dedicated origin, with field changes, added and removed evidence, Difference Only and collection coverage.');
   console.log('PASS: audit launch, progress polling, stored license rows, assignment drill-down/search, missing access, route restoration, viewer controls and mobile layout.');
   console.log('PASS: audit destination survives workspace selection and email sign-in.');
   console.log('PASS: main Run audit starts a unified SQL audit, restores saved subscription settings and opens stored configuration evidence; licensing is part of the same run.');

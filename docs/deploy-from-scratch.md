@@ -377,3 +377,54 @@ This validates the questionnaire catalog and feature release, not a complete cle
 deployment or a Prod rebuild.
 
 Directory role evidence collection and application-only deployment/recovery: [directory-role-evidence.md](directory-role-evidence.md).
+
+## Audit Compare
+
+Audit Compare runs in a dedicated Flex Consumption Function App with its own
+plan, deployment storage and read-only SQL managed identity. Compare uses the
+environment's approved Functions
+integration subnet and the existing SQL virtual network rule. The web app calls
+the separate Compare endpoint with its current portal session or Entra token.
+
+1. Confirm that the target environment's SQL VNet rule is Ready and points to
+   the same integration subnet as the Compare parameters. For Dev, compile and
+   preview the additive deployment with the following commands. Inspect what-if
+   for changes to existing resources before replacing `what-if` with `create`.
+
+   ```powershell
+   az bicep build-params --file infra/audit-compare.dev.bicepparam --stdout
+   az deployment group what-if --resource-group NSO-Audit --parameters infra/audit-compare.dev.bicepparam --name nso-audit-compare-dev
+   ```
+
+2. Connect as a SQL operator through the approved path or a temporary exact-IP
+   rule. Set `SQL_SERVER` and `SQL_DATABASE` for that environment. Apply
+   `node scripts/database.mjs migrate --through=030_audit_compare_reader.sql`.
+   Set `SQL_COMPARE_CLIENT_ID` to the Bicep `identityClientId` output and run
+   `node scripts/database.mjs bootstrap-compare`. It checks the identity,
+   read-only grants and default-deny organization context. Remove any temporary
+   operator firewall rule in a finally block. Migration 030 adds database permissions.
+
+3. Publish the dedicated package with
+   `scripts/Publish-NsoAuditApi.ps1 -Compare -SubscriptionId <id> -ResourceGroupName NSO-Audit -FunctionAppName nso-audit-dev-compare`.
+   For GitHub Actions, provision the app-scoped deployment identity using
+   `infra/github-compare-deployment.dev.bicepparam`, set the development environment
+   variable `AZURE_COMPARE_DEPLOY_CLIENT_ID` to that deployment's `clientId`, and
+   dispatch **Deploy Audit Compare**. The original API workflow publishes only
+   the pull application.
+
+4. Check that `<apiBaseUrl>/health` returns `service: audit-compare` and `status: ok`,
+   and unauthenticated Compare history returns HTTP 401. Set
+   `VITE_COMPARE_API_BASE_URL` in the environment's public web configuration to
+   the Bicep `apiBaseUrl` output, then publish the web app. Verify **Audit Compare**
+   with two authorized finished audits and confirm **Difference Only** and
+   incomplete dataset handling. For Dev, `CONFIRM_DEV_WRITE_TEST=yes` with the
+   explicit Dev SQL targets enables `node scripts/verify-audit-compare-dev.mjs`
+   after the API build. It uses disposable evidence and verifies that a
+   different workspace's IDs are rejected. Front Door deployments must route Compare
+   to its own origin and provide the exact public origin in the CORS parameters.
+
+For recovery, republish the previous web release and, if needed, the previous
+Compare package. For a full access rollback, remove `nso_compare_runtime` from
+`nso_compare_reader` as a SQL operator. Migration 030 is additive and saved audit
+rows are preserved. Validate the full rebuild separately in a disposable
+environment before proposing a production release.

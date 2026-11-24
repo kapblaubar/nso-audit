@@ -1,5 +1,27 @@
 # Audit pages, licenses and readable policy evidence
 
+## Audit Compare
+
+Open **Audit Compare** after **Current audit** in the workspace menu. Choose a baseline
+and comparison from the workspace's recent finished tenant or licensing audits. Opening
+the page from a saved audit preselects it when eligible.
+
+Select a dataset to see added, removed, and changed records in red. Changed records
+show baseline and comparison values for each changed field. **All datasets** checks
+every dataset completed in both audits and links to each dataset's details.
+**Difference Only** hides unchanged records or datasets. The comparison ignores local
+collection and storage timestamps and JSON object key order. Source timestamps and
+array order remain part of the saved evidence. Disabled license plans are compared
+as a list of plan IDs regardless of order. The page shows collection status
+when either audit lacks a complete dataset.
+
+The dedicated Audit Compare Function App reads authorized workspace snapshots directly
+from SQL and computes the differences with Node.js. It uses the same portal sessions
+and Entra API scope. Per dataset, Compare supports up to 20,000 combined records and
+16 MiB of stored JSON across both audits. The page reports a size error for larger
+datasets. Follow the [Audit Compare deployment procedure](deploy-from-scratch.md#audit-compare)
+to provision, publish, verify, or roll back the service.
+
 ## Audit explorer (November 10, 2026)
 
 Tenant audit snapshots now use category navigation, a searchable/paginated inventory and

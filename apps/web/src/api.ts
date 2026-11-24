@@ -1,3 +1,4 @@
+import type {ComparedRecord} from '../../api/src/compareApp/compareEvidence';
 import type { AuditAccount } from "./auth";
 import { getApiAccessToken } from "./auth";
 import { appConfig } from "./config";
@@ -153,3 +154,26 @@ export function loadAzureRoleHistory(account:AuditAccount,scanId:string,scope:st
   const query=new URLSearchParams({scope});
   return dataAuditRequest<AzureRoleHistory>(account,'/'+encodeURIComponent(scanId)+'/azure/roles?'+query);
 }
+
+async function compareRequest<T>(account:AuditAccount,path:string,signal:AbortSignal):Promise<T>{
+  if(!appConfig.compareApiBaseUrl)throw new Error('Audit Compare is unavailable in this environment.');
+  const token=await getApiAccessToken(account);
+  const response=await fetch(`${appConfig.compareApiBaseUrl}/me/audit-compare${path}`,{signal,cache:'no-store',
+    headers:{...workspaceHeader(account),Authorization:`Bearer ${token}`,Accept:'application/json'}});
+  const body=await response.json() as T&{error?:string};
+  if(!response.ok)throw new Error(body.error??'The audit comparison could not be loaded.');
+  return body;
+}
+
+export async function loadCompareHistory(account:AuditAccount,signal:AbortSignal):Promise<ScanHistoryItem[]>{
+  return (await compareRequest<{scans:ScanHistoryItem[]}>(account,'/history',signal)).scans;
+}
+
+export const loadComparePair=(account:AuditAccount,baseline:string,comparison:string,signal:AbortSignal)=>
+  compareRequest<[DataAudit,DataAudit]>(account,'?'+new URLSearchParams({baseline,comparison}),signal);
+
+export const loadComparison=(account:AuditAccount,baseline:string,comparison:string,dataset:string,signal:AbortSignal)=>
+  compareRequest<{records:ComparedRecord[]}>(account,'?'+new URLSearchParams({baseline,comparison,dataset}),signal);
+
+export const loadComparisonSummary=(account:AuditAccount,baseline:string,comparison:string,dataset:string,signal:AbortSignal)=>
+  compareRequest<{differences:number;records:number}>(account,'?'+new URLSearchParams({baseline,comparison,dataset,summary:'true'}),signal);

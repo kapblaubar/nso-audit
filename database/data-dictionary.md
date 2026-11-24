@@ -185,7 +185,7 @@ The following describes normal application access plus important operator paths.
 #### app.AuditCollections
 
 - **Stores:** Per-audit dataset status, row count, start/end timestamps and safe error code.
-- **Read by:** dataAudits.ts: readAudit -> getDataAudit; nextIntuneParent; queue procedures
+- **Read by:** dataAudits.ts: readAudit -> getDataAudit; Compare Function -> getDataAudit; nextIntuneParent; queue procedures
 - **Written by:** createDataAudit creates requested datasets; startCollection/checkpointCollection update progress
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,DataType`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
@@ -197,13 +197,13 @@ The following describes normal application access plus important operator paths.
 #### app.DataAudits
 
 - **Stores:** Typed audit header: scope, initiator, collector version, subscription, lifecycle and timestamps.
-- **Read by:** dataAudits.ts: readAudit -> getDataAudit; worker getJobSubscription
+- **Read by:** dataAudits.ts: readAudit -> getDataAudit; Compare Function -> getDataAudit; worker getJobSubscription
 - **Written by:** scans.ts: startScan and dataAudits.ts: createAudit -> createDataAudit; timer -> startCollection/checkpointCollection
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId`
 - **Parent relationships (creation DDL):** app.ScanRuns (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** One typed run; completed evidence retained as a snapshot. A complete run covers its requested datasets only.
 - **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql), [database/migrations/025_azure_resource_inventory.sql](../database/migrations/025_azure_resource_inventory.sql), [database/migrations/026_azure_resource_settings.sql](../database/migrations/026_azure_resource_settings.sql), [database/migrations/027_azure_roles.sql](../database/migrations/027_azure_roles.sql), [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql), [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql)
-- **Application implementation:** [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts), [apps/api/src/functions/scans.ts](../apps/api/src/functions/scans.ts)
+- **Application implementation:** [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/index.ts](../apps/api/src/compareApp/index.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts), [apps/api/src/functions/scans.ts](../apps/api/src/functions/scans.ts)
 
 #### app.ScanFindings
 
@@ -236,7 +236,7 @@ The following describes normal application access plus important operator paths.
 - **Parent relationships (creation DDL):** security.EntraConnections (OrganizationId,TenantId)
 - **Lifecycle / cautions:** Current setup pointer/state; not the source of all historical audits.
 - **Schema sources:** [database/migrations/003_scan_storage.sql](../database/migrations/003_scan_storage.sql)
-- **Application implementation:** [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/accessCheck.ts](../apps/api/src/functions/accessCheck.ts), [apps/api/src/storage/sqlTenantStore.ts](../apps/api/src/storage/sqlTenantStore.ts)
+- **Application implementation:** [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/accessCheck.ts](../apps/api/src/functions/accessCheck.ts), [apps/api/src/storage/sqlTenantStore.ts](../apps/api/src/storage/sqlTenantStore.ts)
 
 #### dbo.AuditCollectionJobs
 
@@ -286,563 +286,563 @@ The following describes normal application access plus important operator paths.
 #### app.AuditAppProtectionPolicies
 
 - **Stores:** App protection policies. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=appProtectionPolicies)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=appProtectionPolicies); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /v1.0/deviceAppManagement/managedAppPolicies.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAuthenticationMethods
 
 - **Stores:** Authentication-method root policy and returned method configurations; not user authentication secrets.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=authenticationMethods)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=authenticationMethods); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/policies/authenticationMethodsPolicy.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAuthenticationRegistrations
 
 - **Stores:** Authentication registration. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=registrations)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=registrations); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/reports/authenticationMethods/userRegistrationDetails.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAuthorizationPolicies
 
 - **Stores:** Authorization policy. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=authorizationPolicy)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=authorizationPolicy); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/policies/authorizationPolicy.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAzureBlobProtection
 
 - **Stores:** Blob versioning and blob/container soft-delete settings with retention days.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureBlobProtection)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureBlobProtection); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditAzureStorageSettings (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Cloud configuration. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Storage/storageAccounts/{resourceName}/blobServices/default?api-version=2023-05-01. Parent dataset: azureStorageSettings. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId. Resource details use the exact parent ARM ID. Comparison uses the previous complete dataset in the same subscription containing that parent.
 - **Schema sources:** [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAzureNsgSettings
 
 - **Stores:** NSG custom and default rule settings, with subnet and NIC attachment identifiers.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureNsgSettings)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureNsgSettings); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditAzureResources (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Cloud configuration. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Network/networkSecurityGroups/{resourceName}?api-version=2025-05-01. Parent dataset: azureResources. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId. Also supplies saved Azure configuration findings in Audit Explorer and Recommendations. Resource details use the exact parent ARM ID. Comparison uses the previous complete dataset in the same subscription containing that parent.
 - **Schema sources:** [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAzureResources
 
 - **Stores:** Per-audit Azure resource inventory: full ARM resource ID, name, resource type, kind, resource group, subscription ID, location and tags.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureResources)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureResources); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Cloud inventory. ARM GET /subscriptions/{subscriptionId}/resources?api-version=2021-04-01. SourceJson stores projected inventory metadata. The resourceGroup query filter matches the complete group name within the same audit. Historical audits without this dataset have no resource snapshot. Storage and Azure SQL settings are matched by ARM resource ID in the same audit. The inventory displays a friendly resource type derived from ARM type and kind while retaining both original values.
 - **Schema sources:** [database/migrations/025_azure_resource_inventory.sql](../database/migrations/025_azure_resource_inventory.sql), [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAzureRoleAssignments
 
 - **Stores:** Observed Azure RBAC grants per audit: assignment ID, scope, principal ID and type, role definition ID, and condition.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureRoleAssignments); readAzureRoles ? GET /api/me/audits/{scanId}/azure/roles -> getAzureRoleHistory
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureRoleAssignments); Compare Function -> readPair; readAzureRoles ? GET /api/me/audits/{scanId}/azure/roles -> getAzureRoleHistory
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Cloud access. ARM GET /subscriptions/{subscriptionId}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01. The scoped Azure role history API joins role names and available directory names within each snapshot. Comparisons use the previous complete assignment dataset within the same subscription. Management-group and tenant-root inheritance is outside the resource view. Also supplies saved Azure configuration findings in Audit Explorer and Recommendations.
 - **Schema sources:** [database/migrations/027_azure_roles.sql](../database/migrations/027_azure_roles.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAzureRoleDefinitions
 
 - **Stores:** Azure role definition GUID and display name captured with the audit.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureRoleDefinitions); readAzureRoles ? GET /api/me/audits/{scanId}/azure/roles -> getAzureRoleHistory
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureRoleDefinitions); Compare Function -> readPair; readAzureRoles ? GET /api/me/audits/{scanId}/azure/roles -> getAzureRoleHistory
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Cloud access. ARM GET /subscriptions/{subscriptionId}/providers/Microsoft.Authorization/roleDefinitions?api-version=2022-04-01. The scoped Azure role history API joins role names and available directory names within each snapshot. Comparisons use the previous complete assignment dataset within the same subscription. Management-group and tenant-root inheritance is outside the resource view.
 - **Schema sources:** [database/migrations/027_azure_roles.sql](../database/migrations/027_azure_roles.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAzureSqlAudit
 
 - **Stores:** SQL server auditing state, retention, target indicators and managed identity usage.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureSqlAudit)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureSqlAudit); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditAzureSqlSettings (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Cloud configuration. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Sql/servers/{resourceName}/auditingSettings/default?api-version=2023-08-01. Parent dataset: azureSqlSettings. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId. Also supplies saved Azure configuration findings in Audit Explorer and Recommendations. Resource details use the exact parent ARM ID. Comparison uses the previous complete dataset in the same subscription containing that parent.
 - **Schema sources:** [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAzureSqlFirewall
 
 - **Stores:** SQL server IPv4 firewall rule ranges and the Allow Azure services marker.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureSqlFirewall)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureSqlFirewall); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditAzureSqlSettings (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Cloud configuration. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Sql/servers/{resourceName}/firewallRules?api-version=2023-08-01. Parent dataset: azureSqlSettings. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId. Also supplies saved Azure configuration findings in Audit Explorer and Recommendations. Resource details use the exact parent ARM ID. Comparison uses the previous complete dataset in the same subscription containing that parent.
 - **Schema sources:** [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAzureSqlSettings
 
 - **Stores:** Allowlisted Azure SQL logical-server network, TLS and Microsoft Entra administrator settings per audit and ARM resource ID.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureSqlSettings)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureSqlSettings); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Cloud configuration. ARM GET /subscriptions/{subscriptionId}/providers/Microsoft.Sql/servers?api-version=2023-08-01&$expand=administrators/activedirectory. Resource details query uses the resourceId filter within the same tenant and scan. Null indicates Azure did not return the field. Source JSON contains projected fields only.
 - **Schema sources:** [database/migrations/026_azure_resource_settings.sql](../database/migrations/026_azure_resource_settings.sql), [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAzureSqlVnet
 
 - **Stores:** SQL server virtual network rules with subnet ID, state, and service endpoint behavior.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureSqlVnet)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureSqlVnet); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditAzureSqlSettings (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Cloud configuration. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Sql/servers/{resourceName}/virtualNetworkRules?api-version=2023-08-01. Parent dataset: azureSqlSettings. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId. Resource details use the exact parent ARM ID. Comparison uses the previous complete dataset in the same subscription containing that parent.
 - **Schema sources:** [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAzureStorageSettings
 
 - **Stores:** Allowlisted Storage account network, transport, authorization and SAS expiration settings per audit and ARM resource ID.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureStorageSettings)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureStorageSettings); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Cloud configuration. ARM GET /subscriptions/{subscriptionId}/providers/Microsoft.Storage/storageAccounts?api-version=2023-05-01. Resource details query uses the resourceId filter within the same tenant and scan. Null indicates Azure did not return the field. Source JSON contains projected fields only. Also supplies saved Azure configuration findings in Audit Explorer and Recommendations.
 - **Schema sources:** [database/migrations/026_azure_resource_settings.sql](../database/migrations/026_azure_resource_settings.sql), [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAzureVaultDiagnostics
 
 - **Stores:** Key Vault diagnostic category settings and destination identifiers.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureVaultDiagnostics)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureVaultDiagnostics); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditAzureResources (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Cloud configuration. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.KeyVault/vaults/{resourceName}/providers/Microsoft.Insights/diagnosticSettings?api-version=2021-05-01-preview. Parent dataset: azureResources. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId. Audit Explorer and Recommendations derive warnings from these saved rows. Missing diagnostics is evaluated only after successful diagnostics collection. Resource details use the exact parent ARM ID. Comparison uses the previous complete dataset in the same subscription containing that parent.
 - **Schema sources:** [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAzureVaultSecurity
 
 - **Stores:** Key Vault firewall, private endpoint approval, access model, legacy policy operation names, soft delete and purge protection.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureVaultSecurity)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureVaultSecurity); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditAzureResources (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Cloud configuration. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.KeyVault/vaults/{resourceName}?api-version=2024-11-01. Parent dataset: azureResources. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId. Audit Explorer and Recommendations derive warnings from these saved rows. Missing diagnostics is evaluated only after successful diagnostics collection. Resource details use the exact parent ARM ID. Comparison uses the previous complete dataset in the same subscription containing that parent.
 - **Schema sources:** [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditAzureVnetSettings
 
 - **Stores:** VNet address and DNS settings, peerings, subnet policies, and subnet attachment identifiers.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureVnetSettings)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=azureVnetSettings); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditAzureResources (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Cloud configuration. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Network/virtualNetworks/{resourceName}?api-version=2025-05-01. Parent dataset: azureResources. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId. Resource details use the exact parent ARM ID. Comparison uses the previous complete dataset in the same subscription containing that parent.
 - **Schema sources:** [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditCompliancePolicies
 
 - **Stores:** Device compliance policies. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=compliancePolicies)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=compliancePolicies); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /v1.0/deviceManagement/deviceCompliancePolicies.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditCompliancePolicyAssignments
 
 - **Stores:** Compliance policy assignments. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=compliancePolicyAssignments)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=compliancePolicyAssignments); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditCompliancePolicies (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /v1.0/deviceManagement/deviceCompliancePolicies/{policyId}/assignments. Parent dataset: compliancePolicies. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditCompliancePolicyDetails
 
 - **Stores:** Compliance policy settings. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=compliancePolicyDetails)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=compliancePolicyDetails); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditCompliancePolicies (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /v1.0/deviceManagement/deviceCompliancePolicies/{policyId}. Parent dataset: compliancePolicies. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditConditionalAccessPolicies
 
 - **Stores:** Conditional Access policies. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=conditionalAccess)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=conditionalAccess); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/identity/conditionalAccess/policies.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditDefenderAssessmentMetadata
 
 - **Stores:** Defender assessment definitions. Reference/control definitions captured with the audit; not evidence that each control is implemented.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=defenderMetadata)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=defenderMetadata); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Threat Protection & Security Operations. ARM GET /subscriptions/{subscriptionId}/providers/Microsoft.Security/assessmentMetadata?api-version=2021-06-01.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditDefenderCloudScores
 
 - **Stores:** Defender for Cloud scores. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=defenderScores)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=defenderScores); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Scores. ARM GET /subscriptions/{subscriptionId}/providers/Microsoft.Security/secureScores?api-version=2020-01-01.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditDefenderRecommendations
 
 - **Stores:** Defender for Cloud assessments. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=defenderRecommendations)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=defenderRecommendations); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Threat Protection & Security Operations. ARM GET /subscriptions/{subscriptionId}/providers/Microsoft.Security/assessments?api-version=2021-06-01.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditDeviceConfigurationAssignments
 
 - **Stores:** Device configuration assignments. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=deviceConfigurationAssignments)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=deviceConfigurationAssignments); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditDeviceConfigurations (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /v1.0/deviceManagement/deviceConfigurations/{policyId}/assignments. Parent dataset: deviceConfigurations. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditDeviceConfigurationDetails
 
 - **Stores:** Device configuration settings. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=deviceConfigurationDetails)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=deviceConfigurationDetails); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditDeviceConfigurations (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /v1.0/deviceManagement/deviceConfigurations/{policyId}. Parent dataset: deviceConfigurations. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditDeviceConfigurations
 
 - **Stores:** Device configuration profiles. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=deviceConfigurations)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=deviceConfigurations); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /v1.0/deviceManagement/deviceConfigurations.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditDeviceSecureScores
 
 - **Stores:** Secure Score for Devices. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=deviceSecureScores)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=deviceSecureScores); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Scores. Graph GET /api/configurationScore.
 - **Schema sources:** [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditDirectoryGroupMembers
 
 - **Stores:** Direct group membership. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=directoryGroupMembers)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=directoryGroupMembers); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditSettingsCatalogPolicies (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/groups/{groupId}/members?$select=id. Parent dataset: directoryGroups. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/022_directory_membership_parent.sql](../database/migrations/022_directory_membership_parent.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditDirectoryGroups
 
 - **Stores:** Entra groups. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=directoryGroups)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=directoryGroups); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/groups?$select=id,displayName,mail,groupTypes,securityEnabled,onPremisesSyncEnabled.
 - **Schema sources:** [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/022_directory_membership_parent.sql](../database/migrations/022_directory_membership_parent.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditDirectoryRoleDefinitions
 
 - **Stores:** Entra role definitions. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=directoryRoleDefinitions)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=directoryRoleDefinitions); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/roleManagement/directory/roleDefinitions?$select=id,displayName,description,isBuiltIn,isPrivileged,templateId.
 - **Schema sources:** [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditDirectoryRoleEligibility
 
 - **Stores:** PIM role eligibility. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=directoryRoleEligibility)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=directoryRoleEligibility); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/roleManagement/directory/roleEligibilityScheduleInstances.
 - **Schema sources:** [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditDirectoryUsers
 
 - **Stores:** Entra users. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=directoryUsers)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=directoryUsers); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/users?$select=id,displayName,userPrincipalName,mail,accountEnabled,userType.
 - **Schema sources:** [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditEndpointRecommendations
 
 - **Stores:** Defender for Endpoint recommendations. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=endpointRecommendations)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=endpointRecommendations); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Threat Protection & Security Operations. Graph GET /api/recommendations.
 - **Schema sources:** [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditExposureScores
 
 - **Stores:** Exposure Score. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=exposureScores)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=exposureScores); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Scores. Graph GET /api/exposureScore.
 - **Schema sources:** [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditLicenseAssignments
 
 - **Stores:** User-to-SKU assignment paths: direct/group, state/error and disabled plans.
-- **Read by:** readEvidence -> getLicenseRows (dataType=licenseAssignments)
+- **Read by:** readEvidence -> getLicenseRows (dataType=licenseAssignments); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via processCollection/fetchLicensePage/normalizeAssignments
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,UserId,SkuId,AssignmentSource`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot per audit; Graph GET /v1.0/users with selected licensing fields. Rows are assignment paths, not unique users.
 - **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditLicenses
 
 - **Stores:** Tenant subscribed license SKU inventory: purchased/enabled/suspended/warning units and consumed counts.
-- **Read by:** readEvidence -> getLicenseRows (dataType=licenses)
+- **Read by:** readEvidence -> getLicenseRows (dataType=licenses); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via processCollection/fetchLicensePage/normalizeLicenses
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot per audit; Graph GET /v1.0/subscribedSkus. Product names may fall back to SKU.
 - **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditMicrosoftSecureScores
 
 - **Stores:** Microsoft Secure Score source history returned during an audit; several historical source scores may belong to one NSO audit.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=secureScores)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=secureScores); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Scores. Graph GET /v1.0/security/secureScores?$top=1.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditNamedLocations
 
 - **Stores:** Named locations. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=namedLocations)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=namedLocations); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/identity/conditionalAccess/namedLocations.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditRecoveryBackupPolicies
 
 - **Stores:** Backup policies. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryBackupPolicies)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryBackupPolicies); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditRecoveryVaults (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Backups. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.RecoveryServices/vaults/{vaultName}/backupPolicies?api-version=2025-08-01. Parent dataset: recoveryVaults. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditRecoveryPolicyDetails
 
 - **Stores:** Backup policy settings. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryPolicyDetails)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryPolicyDetails); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditRecoveryBackupPolicies (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Backups. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.RecoveryServices/vaults/{vaultName}/backupPolicies/{policyName}?api-version=2025-08-01. Parent dataset: recoveryBackupPolicies. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditRecoveryVaultConfig
 
 - **Stores:** Vault backup configuration. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryVaultConfig)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryVaultConfig); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditRecoveryVaults (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Backups. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.RecoveryServices/vaults/{vaultName}/backupconfig/vaultconfig?api-version=2025-08-01. Parent dataset: recoveryVaults. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditRecoveryVaultDetails
 
 - **Stores:** Recovery Services vault settings. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryVaultDetails)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryVaultDetails); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditRecoveryVaults (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Backups. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.RecoveryServices/vaults/{vaultName}?api-version=2025-08-01. Parent dataset: recoveryVaults. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditRecoveryVaultStorage
 
 - **Stores:** Vault backup storage. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryVaultStorage)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryVaultStorage); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditRecoveryVaults (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Backups. ARM GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.RecoveryServices/vaults/{vaultName}/backupstorageconfig/vaultstorageconfig?api-version=2025-08-01. Parent dataset: recoveryVaults. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditRecoveryVaults
 
 - **Stores:** Recovery Services vaults. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryVaults)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=recoveryVaults); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Backups. ARM GET /subscriptions/{subscriptionId}/providers/Microsoft.RecoveryServices/vaults?api-version=2025-08-01.
 - **Schema sources:** [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditResourceGroups
 
 - **Stores:** Azure resource groups. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=resourceGroups)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=resourceGroups); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Cloud inventory. ARM GET /subscriptions/{subscriptionId}/resourcegroups?api-version=2021-04-01.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditRoleAssignments
 
 - **Stores:** Entra directory role assignments with expanded principal. The roleDefinitionId links to the separately captured role catalog in the same audit. Earlier snapshots may include inline role definitions.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=roleAssignments)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=roleAssignments); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/roleManagement/directory/roleAssignments?$expand=principal.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditSecureScoreProfiles
 
 - **Stores:** Secure Score control profiles. Reference/control definitions captured with the audit; not evidence that each control is implemented.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=secureScoreProfiles)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=secureScoreProfiles); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Scores. Graph GET /v1.0/security/secureScoreControlProfiles?$top=200.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditSettingsCatalogAssignments
 
 - **Stores:** Settings catalog assignments. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=settingsCatalogAssignments)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=settingsCatalogAssignments); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditSettingsCatalogPolicies (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /beta/deviceManagement/configurationPolicies/{policyId}/assignments. Parent dataset: settingsCatalogPolicies. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditSettingsCatalogPolicies
 
 - **Stores:** Settings catalog policies. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=settingsCatalogPolicies)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=settingsCatalogPolicies); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via collectSnapshot/fetchSnapshotPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /beta/deviceManagement/configurationPolicies.
 - **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditSettingsCatalogSettings
 
 - **Stores:** Settings catalog settings and definitions. Saved source evidence, not an automatically evaluated compliance finding.
-- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=settingsCatalogSettings)
+- **Read by:** dataAudits.ts: readEvidence â€” GET /api/me/audits/{scanId}/{dataType} -> audits/store.ts: getSnapshotRows (dataType=settingsCatalogSettings); Compare Function -> readPair
 - **Written by:** dataAudits.ts: collectAuditData timer -> audits/store.ts: checkpointCollection (insertPage) via nextIntuneParent/fetchIntuneChildPage
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
 - **Parent relationships (creation DDL):** app.AuditSettingsCatalogPolicies (OrganizationId,TenantId,ScanId,SourceId); app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Device & Endpoint Management. Graph GET /beta/deviceManagement/configurationPolicies/{policyId}/settings?$expand=settingDefinitions. Parent dataset: settingsCatalogPolicies. Child IDs are scoped to the parent; ParentSourceId links within the same organization, tenant and ScanId.
 - **Schema sources:** [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql)
-- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 ### Customers
 

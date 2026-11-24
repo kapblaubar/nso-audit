@@ -10,7 +10,12 @@ $repoRoot=Split-Path -Parent $PSScriptRoot
 $previousToken=[Environment]::GetEnvironmentVariable('SWA_CLI_DEPLOYMENT_TOKEN','Process')
 $publicConfiguration=Get-Content -Raw -LiteralPath $PublicConfigurationFile | ConvertFrom-Json
 $previousPublic=@{}
-foreach($key in @('VITE_ENTRA_CLIENT_ID','VITE_AUTH_REDIRECT_URI','VITE_API_BASE_URL','VITE_API_SCOPE')){
+$publicKeys=@('VITE_ENTRA_CLIENT_ID','VITE_AUTH_REDIRECT_URI','VITE_API_BASE_URL','VITE_API_SCOPE')
+if($publicConfiguration.PSObject.Properties.Name -contains 'VITE_COMPARE_API_BASE_URL'){
+    if(([Uri]$publicConfiguration.VITE_COMPARE_API_BASE_URL).Scheme -ne 'https'){throw 'Use HTTPS for the Compare API.'}
+    $publicKeys+='VITE_COMPARE_API_BASE_URL'
+}
+foreach($key in $publicKeys){
     $value=[string]$publicConfiguration.$key
     if(-not $value -or $value -match '[\r\n]'){throw "Invalid public setting $key"}
     $previousPublic[$key]=[Environment]::GetEnvironmentVariable($key,'Process')
@@ -21,6 +26,10 @@ if(([Uri]$publicConfiguration.VITE_AUTH_REDIRECT_URI).Scheme -ne 'https'){throw 
 Push-Location $repoRoot
 try{
     foreach($key in $previousPublic.Keys){[Environment]::SetEnvironmentVariable($key,[string]$publicConfiguration.$key,'Process')}
+    if($publicKeys -notcontains 'VITE_COMPARE_API_BASE_URL'){
+        $previousPublic['VITE_COMPARE_API_BASE_URL']=[Environment]::GetEnvironmentVariable('VITE_COMPARE_API_BASE_URL','Process')
+        [Environment]::SetEnvironmentVariable('VITE_COMPARE_API_BASE_URL',$null,'Process')
+    }
     & npm run build --workspace '@nso-audit/web'
     if($LASTEXITCODE -ne 0){throw 'Frontend build failed.'}
     $deploymentToken=& az staticwebapp secrets list --subscription $SubscriptionId --resource-group $ResourceGroupName `

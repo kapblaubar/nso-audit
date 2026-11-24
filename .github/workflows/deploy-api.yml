@@ -21,6 +21,7 @@ on:
       - main
     paths:
       - "apps/api/**"
+      - "!apps/api/src/compareApp/**"
       - ".github/workflows/deploy-api.yml"
       - "package.json"
       - "package-lock.json"

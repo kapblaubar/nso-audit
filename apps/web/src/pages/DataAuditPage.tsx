@@ -2,11 +2,12 @@ import {Recommendations} from '../components/Recommendations';
 import {DirectoryAccess} from '../components/DirectoryAccess';
 import {useEffect,useState,useRef} from 'react';
 import type {AuditAccount} from '../auth';
-import {loadDataAudit,loadLicenseEvidence,loadScanHistory,loadStarterScan,startStarterScan,
+import {loadDataAudit,loadLicenseEvidence,loadScanHistory,loadCompareHistory,loadStarterScan,startStarterScan,
   type DataAudit,type LicenseEvidencePage,type ScanHistoryItem} from '../api';
+import {AuditCompare} from '../components/AuditCompare';
 import {AuditExplorer} from '../components/AuditExplorer';
 import {ThemeToggle} from '../components/ThemeToggle';
-import {clearAuditDestination} from '../auditNavigation';
+import {auditComparePath,clearAuditDestination} from '../auditNavigation';
 import {ConditionalAccessDetails,NamedLocationDetails,sourceRecord} from '../components/AuditPolicyDetails';
 
 const date=(value:string|null|undefined)=>value?new Date(value).toLocaleString():'—';
@@ -16,6 +17,7 @@ const reason:Record<string,string>={parentCollectionIncomplete:'The parent polic
   invalidPagingLink:'The source returned an invalid paging link.',workerInterrupted:'Collection was interrupted repeatedly.'};
 
 export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;onSignOut:()=>void;scanId?:string}){
+  const comparePage=window.location.pathname===auditComparePath;
   const recommendationsPage=window.location.pathname.endsWith('/recommendations');
   const directoryPage=window.location.pathname.endsWith('/directory-access');
   const licensePage=window.location.pathname.endsWith('/licenses');
@@ -24,6 +26,7 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
   const requestedDataset=query.get('dataset');
   useEffect(()=>{clearAuditDestination();},[]);
   const [report,setReport]=useState<DataAudit>(),[history,setHistory]=useState<ScanHistoryItem[]>([]);
+  const [loadingHistory,setLoadingHistory]=useState(true);
   const initialized=useRef(false);
   const [error,setError]=useState(''),[refresh,setRefresh]=useState(0);
   const [subscriptionId,setSubscriptionId]=useState(''),[auditRunning,setAuditRunning]=useState(false),[auditError,setAuditError]=useState('');
@@ -35,18 +38,26 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
   const active=!!report&&['queued','running'].includes(report.audit.Status);
   const progress=JSON.stringify(report?.collections);
   useEffect(()=>{
+    const controller=new AbortController();
     let cancelled=false;
-    void loadScanHistory(account).then(async rows=>{
+    setLoadingHistory(true);
+    void (comparePage?loadCompareHistory(account,controller.signal):loadScanHistory(account)).then(async rows=>{
       if(cancelled)return;
       setHistory(rows);
+      setLoadingHistory(false);
+      if(comparePage)return;
       const prior=rows.find(row=>row.auditScope!=='licensing');
       if(prior){
         const scan=await loadStarterScan(account,prior.scanId);
         if(!cancelled&&scan.subscriptionId)setSubscriptionId(current=>current||scan.subscriptionId!);
       }
-    }).catch(()=>{if(!cancelled)setError('Audit history or the previous audit settings could not be loaded.');});
-    return()=>{cancelled=true;};
-  },[account,refresh,active]);
+    }).catch(err=>{if(!cancelled){
+      setLoadingHistory(false);
+      setError(comparePage?(err instanceof Error?err.message:'Audit comparison history could not be loaded.'):
+        'Audit history or the previous audit settings could not be loaded.');
+    }});
+    return()=>{cancelled=true;controller.abort();};
+  },[account,refresh,active,comparePage]);
   useEffect(()=>{
     if(!scanId)return;
     let cancelled=false,timer:ReturnType<typeof setTimeout>;
@@ -98,8 +109,10 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
       window.location.assign(`/${result.auditScope?'audit-data':'reports'}/${encodeURIComponent(result.scanId)}`);
     }catch(err){setAuditError(err instanceof Error?err.message:'The audit could not be started.');setAuditRunning(false);}
   };
-  const currentId=scanId??history.find(item=>item.auditScope==='tenant'||item.auditScope==='licensing')?.scanId;
+  const anchorId=history.find(item=>item.scanId===query.get('audit')&&item.auditScope)?.scanId;
+  const currentId=scanId??(comparePage?anchorId:undefined)??history.find(item=>item.auditScope==='tenant'||item.auditScope==='licensing')?.scanId;
   const auditHref=currentId?`/audit-data/${encodeURIComponent(currentId)}`:'/audit-data';
+  const compareHref=currentId?`${auditComparePath}?audit=${encodeURIComponent(currentId)}`:auditComparePath;
   const licensesHref=`${auditHref}/licenses`;
   const licenseLink=(type:string,sku?:string)=>`${licensesHref}?${new URLSearchParams({provider:'microsoft',view:type==='licenseAssignments'?'assigned':'summary',...(sku?{skuId:sku}:{})})}`;
   const datasetLink=(type:string)=>type==='licenses'||type==='licenseAssignments'?licenseLink(type):`${auditHref}?${new URLSearchParams({dataset:type})}`;
@@ -109,11 +122,13 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
     <a className="brand" href="/"><img className="brand-mark" src="/brand/nsosquare.png" alt="" width="40" height="40"/><span className="brand-name">NSO Audit</span></a>
     <div className="nav-actions"><ThemeToggle/><button className="text-button" onClick={onSignOut}>Sign out</button></div>
   </nav><section className="report-shell audit-data-page">
-    <nav className="audit-workspace-menu" aria-label="Workspace menu"><a href="/audit-data" aria-current={!scanId?'page':undefined}>Audits</a>
-      {currentId?<><a href={auditHref} aria-current={scanId&&!licensePage&&!recommendationsPage&&!directoryPage?'page':undefined}>Current audit</a><a href={`${auditHref}/recommendations`} aria-current={recommendationsPage?'page':undefined}>Recommendations</a><a href={licensesHref} aria-current={licensePage?'page':undefined}>Licenses</a><a href={`${auditHref}/directory-access`} aria-current={directoryPage?'page':undefined}>Users, Groups &amp; Roles</a></>:<span>Licenses · run an audit first</span>}
+    <nav className="audit-workspace-menu" aria-label="Workspace menu"><a href="/audit-data" aria-current={!scanId&&!comparePage?'page':undefined}>Audits</a>
+      {currentId?<a href={auditHref} aria-current={scanId&&!licensePage&&!recommendationsPage&&!directoryPage?'page':undefined}>Current audit</a>:null}<a href={compareHref} aria-current={comparePage?'page':undefined}>Audit Compare</a>
+      {currentId?<><a href={`${auditHref}/recommendations`} aria-current={recommendationsPage?'page':undefined}>Recommendations</a><a href={licensesHref} aria-current={licensePage?'page':undefined}>Licenses</a><a href={`${auditHref}/directory-access`} aria-current={directoryPage?'page':undefined}>Users, Groups &amp; Roles</a></>:<span>Licenses · run an audit first</span>}
       <a href="/onboarding">Connection settings</a></nav>
-    <p className="eyebrow">Tenant audit data</p><h1>{directoryPage?'Users, Groups & Roles':recommendationsPage?'Recommendations':licensePage?'Licenses':scanId?'Audit snapshot':'Audit collection'}</h1>
+    <p className="eyebrow">Tenant audit data</p><h1>{comparePage?'Audit Compare':directoryPage?'Users, Groups & Roles':recommendationsPage?'Recommendations':licensePage?'Licenses':scanId?'Audit snapshot':'Audit collection'}</h1>
     <p>Tenant ID: {account.tenantId}</p>
+    {comparePage?<>{error?<p role="alert" className="auth-error">{error}</p>:<AuditCompare account={account} history={history} loadingHistory={loadingHistory} {...(anchorId?{anchorId}:{})}/>}</>:<>
     {!scanId?<section aria-labelledby="run-audit-title"><h2 id="run-audit-title">Run tenant audit</h2>
       <p>Collect the currently supported identity, Conditional Access, MFA, Intune, Microsoft Secure Score, Azure inventory, Defender for Cloud evidence, and Recovery Services backup settings. Save the results and open the audit report.</p>
       <label className="management-field">Azure subscription ID<input value={subscriptionId} onChange={event=>setSubscriptionId(event.target.value)} autoComplete="off" placeholder="Subscription used for Azure audit collection"/></label>
@@ -168,6 +183,6 @@ export function DataAuditPage({account,onSignOut,scanId}:{account:AuditAccount;o
     </section>:null}</>:null}
     <details className="scan-history snapshot-history" open={!report||licensePage||directoryPage||recommendationsPage||report.audit.Scope!=='tenant'}><summary><h2>Audit history</h2><span className="history-count">{history.length} recent runs</span></summary>
       <div>{history.map(item=><a href={`/${item.auditScope?'audit-data':'reports'}/${encodeURIComponent(item.scanId)}${item.auditScope==='licensing'?'/licenses':''}`} key={item.scanId}><span>{date(item.createdAt)}</span><small>{item.status}</small></a>)}</div>
-    </details>
+    </details></>}
   </section></main>;
 }

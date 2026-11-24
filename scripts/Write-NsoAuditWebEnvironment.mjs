@@ -2,6 +2,10 @@
 import {readFileSync,appendFileSync} from 'node:fs';
 const config=JSON.parse(readFileSync(process.argv[2]??'config/environments/dev.public.json','utf8'));
 const keys=['VITE_ENTRA_CLIENT_ID','VITE_AUTH_REDIRECT_URI','VITE_API_BASE_URL','VITE_API_SCOPE'];
+if(config.VITE_COMPARE_API_BASE_URL!==undefined){
+  keys.push('VITE_COMPARE_API_BASE_URL');
+  if(new URL(config.VITE_COMPARE_API_BASE_URL).protocol!=='https:')throw new Error('Use HTTPS for the Compare API');
+}
 for(const key of keys){
   const value=config[key];
   if(typeof value!=='string'||!value||/[\r\n]/.test(value))throw new Error(`Invalid public setting ${key}`);

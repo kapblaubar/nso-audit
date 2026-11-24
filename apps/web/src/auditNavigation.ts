@@ -1,9 +1,10 @@
 const key='nso.auditDataDestination';
-const valid=(path:string)=>/^\/audit-data(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:licenses|recommendations|directory-access))?)?$/i.test(path);
+export const auditComparePath='/audit-data/compare';
+const valid=(path:string)=>path===auditComparePath||/^\/audit-data(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:licenses|recommendations|directory-access))?)?$/i.test(path);
 export function rememberAuditDestination(){
   if(valid(window.location.pathname)){
     const params=new URLSearchParams(window.location.search),saved=new URLSearchParams();
-    for(const name of ['provider','view','dataset','skuId','source']){const value=params.get(name);if(value&&value.length<=200)saved.set(name,value);}
+    for(const name of ['provider','view','dataset','skuId','source','audit']){const value=params.get(name);if(value&&value.length<=200)saved.set(name,value);}
     sessionStorage.setItem(key,window.location.pathname+(saved.size?`?${saved}`:''));
   }
 }

@@ -17,6 +17,9 @@ management-role checks, organization membership or row-level security.
   always-ready instances for this Dev migration; instance memory and scale limits are parameters.
 - Integrate a dedicated delegated subnet with Microsoft.Sql service endpoints. Azure SQL must
   admit that specific subnet through a virtual network rule, rather than mutable worker public IPs.
+- Audit Compare runs on its own Flex plan and uses the approved Functions integration subnet
+  and SQL virtual network rule for the same environment. Its managed identity has read-only
+  snapshot access. If a future Front Door exposes it, configure a separate origin for Compare.
 - Retain SQL Entra-only authentication, TLS verification and the existing restricted runtime role.
   No db_owner grant, SQL password, broad Azure-wide firewall bypass or browser SQL access.
 - SQL publicNetworkAccess remains Enabled for service endpoints, but public IP firewall rules
