@@ -94,3 +94,13 @@ jobs:
 
       - name: Check deployed runtime health
         run: curl --fail --retry 8 --retry-delay 5 --retry-all-errors https://nso-audit-dev-api-flex.azurewebsites.net/api/health
+
+      - name: Verify the portal workspace route requires authentication
+        run: |
+          for attempt in {1..12}; do
+            status=$(curl --silent --show-error --max-time 15 --output /dev/null --write-out '%{http_code}' https://nso-audit-dev-api-flex.azurewebsites.net/api/me/portal-workspaces) || status=000
+            if [ "$status" = 401 ]; then exit 0; fi
+            sleep 5
+          done
+          echo "Portal workspace route returned HTTP $status instead of 401."
+          exit 1

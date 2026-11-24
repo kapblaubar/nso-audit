@@ -1,6 +1,8 @@
 name: Deploy web
 # Audit data UI requires the corresponding API and migration 017; collection remains disabled
 # until explicit runtime activation. See database/audit-licensing.md.
+# Partner workspace selection requires migrations 031/032 and both API releases.
+# See docs/deploy-from-scratch.md#partner-audit-workspace-access.
 
 on:
   push:
