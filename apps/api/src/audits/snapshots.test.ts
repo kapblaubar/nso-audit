@@ -1,11 +1,22 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {datasetCatalog,allDataTypes,isDataType} from './catalog.js';
+import {purviewRecords} from './purview.js';
 import {CollectionError} from './licensing.js';
 import {sourceScope,sourceJson,fetchSnapshotPage,normalizeSnapshots,sanitizeEvidence,sourceUrl,validateSnapshotUrl} from './snapshots.js';
+
+test('Purview evidence is scoped to the request and keeps approved settings only',()=>{
+  const job={TenantId:'tenant',ScanId:'scan',DataType:'purviewDlpPolicies' as const};
+  const result={tenantId:'tenant',scanId:'scan',schemaVersion:'purview-evidence-v1',module:'dlp',status:'complete',
+    collectedAt:'2026-11-24T00:00:00Z',
+    evidence:{policyCount:1,policies:[{id:'policy',name:'Test',mode:'Test',enabled:false,recipient:'private'}]}};
+  assert.deepEqual(JSON.parse(purviewRecords(result,job)[0]!.sourceJson),{id:'policy',name:'Test',mode:'Test',enabled:false});
+  assert.throws(()=>purviewRecords({...result,tenantId:'another'},job),/invalidResponse/);
+  assert.throws(()=>purviewRecords({...result,evidence:{...result.evidence,policyCount:2}},job),/invalidResponse/);
+});
 const sub='00000000-0000-4000-8000-000000000001';
 test('unified scope includes dedicated configuration, security and license datasets',()=>{
-  assert.equal(allDataTypes.length,51);assert.equal(new Set(Object.values(datasetCatalog).map(d=>d.table)).size,49);
+  assert.equal(allDataTypes.length,53);assert.equal(new Set(Object.values(datasetCatalog).map(d=>d.table)).size,51);
   for(const type of ['conditionalAccess','namedLocations','compliancePolicies','licenses','licenseAssignments'])assert.equal(isDataType(type),true);
   assert.equal(isDataType('__proto__'),false);assert.equal(isDataType('DROP TABLE'),false);
 });

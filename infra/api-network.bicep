@@ -26,6 +26,8 @@ param emailSender string
 param invitationLifetimeHours int = 72
 @description('Enable unified SQL audit collection after migration 018 and source access review. Source access failures are recorded per dataset.')
 param dataAuditsEnabled bool = false
+param purviewCollectorUrl string = ''
+param purviewTenantIds array = []
 param entraClientSecretName string = 'nso-audit-app-client-secret'
 param entraClientCertificateName string = 'nso-audit-dlp-certificate'
 @allowed([512,2048,4096])
@@ -179,6 +181,8 @@ resource api 'Microsoft.Web/sites@2024-04-01' = {
       SQL_AUTH_MODE: 'managedidentity'
       TENANT_STORE: 'sql'
       DATA_AUDITS_ENABLED: string(dataAuditsEnabled)
+      PURVIEW_COLLECTOR_URL: purviewCollectorUrl
+      PURVIEW_TENANT_IDS: join(purviewTenantIds, ',')
       PORTAL_ORIGIN: portalOrigin
       ACCOUNT_EMAIL_ENDPOINT: emailEndpoint
       ACCOUNT_EMAIL_SENDER: emailSender

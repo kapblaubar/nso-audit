@@ -1,5 +1,7 @@
 // Static, reviewed sources and table identifiers. Never accept a URL or SQL table from a request.
 export const datasetCatalog = {
+  purviewDlpPolicies:{table:'AuditPurviewDlpPolicies',label:'DLP policies',category:'Data protection',path:'',purview:true},
+  purviewDlpRules:{table:'AuditPurviewDlpRules',label:'DLP rules',category:'Data protection',path:'',purview:true},
   settingsCatalogPolicies:{table:'AuditSettingsCatalogPolicies',label:'Settings catalog policies',category:'Device & Endpoint Management',path:'/beta/deviceManagement/configurationPolicies'},
   settingsCatalogSettings:{table:'AuditSettingsCatalogSettings',label:'Settings catalog settings and definitions',category:'Device & Endpoint Management',path:'/beta/deviceManagement/configurationPolicies',parent:'settingsCatalogPolicies',relationship:'settings',expandDefinitions:true},
   settingsCatalogAssignments:{table:'AuditSettingsCatalogAssignments',label:'Settings catalog assignments',category:'Device & Endpoint Management',path:'/beta/deviceManagement/configurationPolicies',parent:'settingsCatalogPolicies',relationship:'assignments'},

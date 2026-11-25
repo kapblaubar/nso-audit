@@ -4,6 +4,7 @@ import { assertSqlCutoverActivated, withTenant } from '../storage/sqlTenantStore
 import type { AssignmentRecord, LicenseDataType, LicenseRecord } from './licensing.js';
 import {allDataTypes,datasetCatalog,isSnapshotType,type DataType,type SnapshotRecord,type SnapshotDataType} from './catalog.js';
 import type {IntuneCursor,ParentSnapshot} from './intune.js';
+import {purviewEnabledFor} from './purview.js';
 
 export interface CollectionJob {
   OrganizationId:string; TenantId:string; ScanId:string; DataType:DataType;
@@ -38,6 +39,7 @@ export async function createDataAudit(tenantId:string, initiatedBy:string,subscr
       IF @@ROWCOUNT=0 INSERT app.TenantRegistrations(OrganizationId,TenantId,EntityJson)
         VALUES(@OrganizationId,@TenantId,JSON_MODIFY(N'{}','$.lastScanId',CONVERT(varchar(36),@ScanId)));`);
     for (const dataType of subscriptionId?allDataTypes:['licenses','licenseAssignments']) {
+      if(isSnapshotType(dataType)&&'purview' in datasetCatalog[dataType]&&!purviewEnabledFor(tenantId))continue;
       await scoped(transaction,organizationId,tenantId,scanId).input('DataType',sql.VarChar(32),dataType)
         .query(`INSERT app.AuditCollections(OrganizationId,TenantId,ScanId,DataType,Status) VALUES(@OrganizationId,@TenantId,@ScanId,@DataType,'queued');`);
       await scoped(transaction,organizationId,tenantId,scanId).input('DataType',sql.VarChar(32),dataType)

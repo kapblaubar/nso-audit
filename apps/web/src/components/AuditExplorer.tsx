@@ -11,7 +11,7 @@ type Collection=DataAudit['collections'][number];
 const groups=[
   {name:'Identity & access',types:['conditionalAccess','namedLocations','authenticationMethods','registrations','authorizationPolicy','roleAssignments']},
   {name:'Devices',types:['settingsCatalogPolicies','deviceConfigurations','compliancePolicies','appProtectionPolicies']},
-  {name:'Data protection',types:[]},
+  {name:'Data protection',types:['purviewDlpPolicies','purviewDlpRules']},
   {name:'Threat protection',types:['defenderRecommendations','defenderMetadata','endpointRecommendations']},
   {name:'Azure',types:['azureResources','resourceGroups']},
   {name:'Scores',types:['secureScores','secureScoreProfiles','defenderScores','exposureScores','deviceSecureScores']},

@@ -133,6 +133,8 @@ The following describes normal application access plus important operator paths.
 | [app.AuditLicenses](#appauditlicenses) | Collected evidence | Tenant subscribed license SKU inventory: purchased/enabled/suspended/warning units and consumed counts. |
 | [app.AuditMicrosoftSecureScores](#appauditmicrosoftsecurescores) | Collected evidence | Microsoft Secure Score source history returned during an audit; several historical source scores may belong to one NSO audit. |
 | [app.AuditNamedLocations](#appauditnamedlocations) | Collected evidence | Named locations. Saved source evidence, not an automatically evaluated compliance finding. |
+| [app.AuditPurviewDlpPolicies](#appauditpurviewdlppolicies) | Collected evidence | Purview data loss prevention policy settings and location counts. |
+| [app.AuditPurviewDlpRules](#appauditpurviewdlprules) | Collected evidence | Purview data loss prevention rule state, priority and control flags. |
 | [app.AuditRecoveryBackupPolicies](#appauditrecoverybackuppolicies) | Collected evidence | Backup policies. Saved source evidence, not an automatically evaluated compliance finding. |
 | [app.AuditRecoveryPolicyDetails](#appauditrecoverypolicydetails) | Collected evidence | Backup policy settings. Saved source evidence, not an automatically evaluated compliance finding. |
 | [app.AuditRecoveryVaultConfig](#appauditrecoveryvaultconfig) | Collected evidence | Vault backup configuration. Saved source evidence, not an automatically evaluated compliance finding. |
@@ -193,7 +195,7 @@ The following describes normal application access plus important operator paths.
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,DataType`
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Distinguish empty complete, missingAccess, failed and partial. This is dataset status, not individual evidence.
-- **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql), [database/migrations/025_azure_resource_inventory.sql](../database/migrations/025_azure_resource_inventory.sql), [database/migrations/026_azure_resource_settings.sql](../database/migrations/026_azure_resource_settings.sql), [database/migrations/027_azure_roles.sql](../database/migrations/027_azure_roles.sql), [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql), [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql)
+- **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql), [database/migrations/025_azure_resource_inventory.sql](../database/migrations/025_azure_resource_inventory.sql), [database/migrations/026_azure_resource_settings.sql](../database/migrations/026_azure_resource_settings.sql), [database/migrations/027_azure_roles.sql](../database/migrations/027_azure_roles.sql), [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql), [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql), [database/migrations/033_purview_dlp_evidence.sql](../database/migrations/033_purview_dlp_evidence.sql)
 - **Application implementation:** [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 - **SQL procedures referencing this table:** `security.EnqueueAuditCollection (017_audit_licensing.sql)`
 
@@ -205,7 +207,7 @@ The following describes normal application access plus important operator paths.
 - **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId`
 - **Parent relationships (creation DDL):** app.ScanRuns (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** One typed run; completed evidence retained as a snapshot. A complete run covers its requested datasets only.
-- **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql), [database/migrations/025_azure_resource_inventory.sql](../database/migrations/025_azure_resource_inventory.sql), [database/migrations/026_azure_resource_settings.sql](../database/migrations/026_azure_resource_settings.sql), [database/migrations/027_azure_roles.sql](../database/migrations/027_azure_roles.sql), [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql), [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql)
+- **Schema sources:** [database/migrations/017_audit_licensing.sql](../database/migrations/017_audit_licensing.sql), [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql), [database/migrations/019_intune_policy_details.sql](../database/migrations/019_intune_policy_details.sql), [database/migrations/020_endpoint_scores.sql](../database/migrations/020_endpoint_scores.sql), [database/migrations/021_directory_access.sql](../database/migrations/021_directory_access.sql), [database/migrations/023_recovery_services_backups.sql](../database/migrations/023_recovery_services_backups.sql), [database/migrations/024_recovery_services_details.sql](../database/migrations/024_recovery_services_details.sql), [database/migrations/025_azure_resource_inventory.sql](../database/migrations/025_azure_resource_inventory.sql), [database/migrations/026_azure_resource_settings.sql](../database/migrations/026_azure_resource_settings.sql), [database/migrations/027_azure_roles.sql](../database/migrations/027_azure_roles.sql), [database/migrations/028_azure_sql_storage_protection.sql](../database/migrations/028_azure_sql_storage_protection.sql), [database/migrations/029_azure_vault_network_settings.sql](../database/migrations/029_azure_vault_network_settings.sql), [database/migrations/033_purview_dlp_evidence.sql](../database/migrations/033_purview_dlp_evidence.sql)
 - **Application implementation:** [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/index.ts](../apps/api/src/compareApp/index.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts), [apps/api/src/functions/scans.ts](../apps/api/src/functions/scans.ts)
 
 #### app.ScanFindings
@@ -713,6 +715,28 @@ The following describes normal application access plus important operator paths.
 - **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
 - **Lifecycle / cautions:** Snapshot; Identity & Access. Graph GET /v1.0/identity/conditionalAccess/namedLocations.
 - **Schema sources:** [database/migrations/018_tenant_audit_datasets.sql](../database/migrations/018_tenant_audit_datasets.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditPurviewDlpPolicies
+
+- **Stores:** Purview data loss prevention policy settings and location counts.
+- **Read by:** Audit evidence API and Compare Function.
+- **Written by:** Main API audit worker, via the Windows Purview collector.
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Restricted to enabled tenants. Contains normalized configuration metadata.
+- **Schema sources:** [database/migrations/033_purview_dlp_evidence.sql](../database/migrations/033_purview_dlp_evidence.sql)
+- **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
+
+#### app.AuditPurviewDlpRules
+
+- **Stores:** Purview data loss prevention rule state, priority and control flags.
+- **Read by:** Audit evidence API and Compare Function.
+- **Written by:** Main API audit worker, via the Windows Purview collector.
+- **Primary key (creation DDL):** `OrganizationId,TenantId,ScanId,SourceId`
+- **Parent relationships (creation DDL):** app.DataAudits (OrganizationId,TenantId,ScanId)
+- **Lifecycle / cautions:** Contains control flags with matched content and recipients excluded.
+- **Schema sources:** [database/migrations/033_purview_dlp_evidence.sql](../database/migrations/033_purview_dlp_evidence.sql)
 - **Application implementation:** [apps/api/src/audits/catalog.ts](../apps/api/src/audits/catalog.ts), [apps/api/src/audits/store.ts](../apps/api/src/audits/store.ts), [apps/api/src/compareApp/store.ts](../apps/api/src/compareApp/store.ts), [apps/api/src/functions/dataAudits.ts](../apps/api/src/functions/dataAudits.ts)
 
 #### app.AuditRecoveryBackupPolicies

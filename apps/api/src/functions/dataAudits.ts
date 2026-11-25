@@ -8,6 +8,7 @@ import {fetchIntuneChildPage,parseIntuneCursor} from '../audits/intune.js';
 import { graphPage, processCollection } from '../audits/worker.js';
 import {datasetCatalog,isDataType,isSnapshotType} from '../audits/catalog.js';
 import {fetchSnapshotPage,sourceJson,sourceScope} from '../audits/snapshots.js';
+import {fetchPurviewRecords} from '../audits/purview.js';
 import {CollectionError} from '../audits/licensing.js';
 import type {CollectionJob} from '../audits/store.js';
 import type {SnapshotRecord} from '../audits/catalog.js';
@@ -72,26 +73,30 @@ async function collectSnapshot(job:CollectionJob):Promise<void>{
   let page:{records:SnapshotRecord[];nextLink:string|null};
   try{
     if(job.Attempts>3)throw new CollectionError('workerInterrupted');
-    const subscriptionId=await getJobSubscription(job);
     const source=datasetCatalog[job.DataType];
-    const credential=await customerCredential(job.TenantId);
-    let token:string;
-    try{token=(await credential.getToken(sourceScope(job.DataType))).token;}
-    catch{throw new CollectionError('authenticationUnavailable');}
-    if('arm' in source){
-      if(!subscriptionId)throw new CollectionError('missingSubscription');
-      const subscription=await sourceJson(`https://management.azure.com/subscriptions/${subscriptionId}?api-version=2022-12-01`,token);
-      if(String(subscription.tenantId??'').toLowerCase()!==job.TenantId.toLowerCase())throw new CollectionError('subscriptionTenantMismatch');
+    if('purview' in source){
+      page={records:await fetchPurviewRecords(job),nextLink:null};
+    }else{
+      const subscriptionId=await getJobSubscription(job);
+      const credential=await customerCredential(job.TenantId);
+      let token:string;
+      try{token=(await credential.getToken(sourceScope(job.DataType))).token;}
+      catch{throw new CollectionError('authenticationUnavailable');}
+      if('arm' in source){
+        if(!subscriptionId)throw new CollectionError('missingSubscription');
+        const subscription=await sourceJson(`https://management.azure.com/subscriptions/${subscriptionId}?api-version=2022-12-01`,token);
+        if(String(subscription.tenantId??'').toLowerCase()!==job.TenantId.toLowerCase())throw new CollectionError('subscriptionTenantMismatch');
+      }
+      if('parent' in source){
+        const cursor=parseIntuneCursor(job.NextLink),{parent,status}=await nextIntuneParent(job,cursor);
+        if(status==='queued'||status==='running')throw new CollectionError('parentCollectionIncomplete');
+        if(!parent){
+          if(cursor.page)throw new CollectionError('invalidPagingLink');
+          if(status!=='complete')throw new CollectionError('parentCollectionIncomplete',status==='missingAccess');
+          page={records:[],nextLink:null};
+        }else page=await fetchIntuneChildPage(job.DataType,parent,cursor,token,fetch,subscriptionId??undefined);
+      }else page=await fetchSnapshotPage(job.DataType,subscriptionId,job.NextLink,token);
     }
-    if('parent' in source){
-      const cursor=parseIntuneCursor(job.NextLink),{parent,status}=await nextIntuneParent(job,cursor);
-      if(status==='queued'||status==='running')throw new CollectionError('parentCollectionIncomplete');
-      if(!parent){
-        if(cursor.page)throw new CollectionError('invalidPagingLink');
-        if(status!=='complete')throw new CollectionError('parentCollectionIncomplete',status==='missingAccess');
-        page={records:[],nextLink:null};
-      }else page=await fetchIntuneChildPage(job.DataType,parent,cursor,token,fetch,subscriptionId??undefined);
-    }else page=await fetchSnapshotPage(job.DataType,subscriptionId,job.NextLink,token);
   }catch(error){
     const safe=error instanceof CollectionError?error:new CollectionError('sourceUnavailable');
     await checkpointCollection(job,[],null,{code:safe.code,missingAccess:safe.missingAccess});

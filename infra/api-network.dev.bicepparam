@@ -2,6 +2,9 @@ using './api-network.bicep'
 param environmentName = 'dev'
 // Unified SQL datasets (migration 018). Source access is reported per dataset.
 param dataAuditsEnabled = true
+param purviewCollectorUrl = 'https://nso-audit-dev-pur-api.azurewebsites.net/api/dlp'
+// Opt in NewSommer after its Purview PowerShell read authorization is verified.
+param purviewTenantIds = []
 param location = 'westus2'
 // Planned migration: preserve the legacy API as rollback; migrate website to this candidate after validation.
 param functionAppName = 'nso-audit-dev-api-flex'

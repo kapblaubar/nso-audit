@@ -77,6 +77,42 @@ function Get-PropertyValue {
     return $property.Value
 }
 
+function ConvertTo-Base64Url {
+    param([byte[]] $Bytes)
+    [Convert]::ToBase64String($Bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+}
+
+function Get-PurviewAccessToken {
+    param([guid] $TenantId, [string] $ClientId, [X509Certificate2] $Certificate)
+
+    $endpoint = "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token"
+    $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    $thumbprint = $Certificate.GetCertHash([System.Security.Cryptography.HashAlgorithmName]::SHA256)
+    $header = @{ alg = 'PS256'; typ = 'JWT'; 'x5t#S256' = (ConvertTo-Base64Url $thumbprint) }
+    $claims = @{ aud = $endpoint; iss = $ClientId; sub = $ClientId; jti = [guid]::NewGuid().ToString()
+        nbf = $now - 15; exp = $now + 300 }
+    $parts = @($header, $claims | ForEach-Object {
+        ConvertTo-Base64Url ([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $_ -Compress)))
+    })
+    $assertion = $parts -join '.'
+    $key = [RSACertificateExtensions]::GetRSAPrivateKey($Certificate)
+    if ($null -eq $key) { throw 'The Purview certificate has no RSA private key.' }
+    try {
+        $signature = $key.SignData([Text.Encoding]::ASCII.GetBytes($assertion),
+            [System.Security.Cryptography.HashAlgorithmName]::SHA256,
+            [System.Security.Cryptography.RSASignaturePadding]::Pss)
+    } finally { $key.Dispose() }
+    $response = Invoke-RestMethod -Method Post -Uri $endpoint -ContentType 'application/x-www-form-urlencoded' -Body @{
+        client_id = $ClientId
+        grant_type = 'client_credentials'
+        scope = '00000007-0000-0ff1-ce00-000000000000/.default'
+        client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
+        client_assertion = "$assertion.$(ConvertTo-Base64Url $signature)"
+    }
+    if ([string]::IsNullOrWhiteSpace($response.access_token)) { throw 'Entra did not return a Purview access token.' }
+    return $response.access_token
+}
+
 function Get-ValueCount {
     param($Value)
 
@@ -130,7 +166,7 @@ function ConvertTo-SafeRule {
 }
 
 function Invoke-PurviewDlpCollection {
-    param([guid] $ScanId, [guid] $TenantId, [string] $Organization)
+    param([guid] $ScanId, [guid] $TenantId, [string] $Organization, [string] $Dataset)
 
     $certificate = $null
     $connected = $false
@@ -146,19 +182,32 @@ function Invoke-PurviewDlpCollection {
             -CertificateName $certificateName `
             -ManagedIdentityClientId $managedIdentityClientId
     
-        $stage = 'connect'
+        $stage = 'token'
+        $accessToken = Get-PurviewAccessToken -TenantId $TenantId -ClientId $clientId -Certificate $certificate
+        $stage = 'module'
         Import-Module ExchangeOnlineManagement -RequiredVersion 3.10.1
+        $stage = 'connect'
+        # Import only the requested read commands for each independently retried job.
+        $commands = @(
+            if ($Dataset -ne 'purviewDlpRules') { 'Get-DlpCompliancePolicy' }
+            if ($Dataset -ne 'purviewDlpPolicies') { 'Get-DlpComplianceRule' }
+        )
         Connect-IPPSSession `
-            -Certificate $certificate `
-            -AppId $clientId `
+            -AccessToken $accessToken `
             -Organization $organization `
-            -ShowBanner:$false -CommandName Get-DlpCompliancePolicy,Get-DlpComplianceRule | Out-Null
+            -ShowBanner:$false -CommandName $commands | Out-Null
         $connected = $true
-    
-        $stage = 'readPolicies'
-        $policies = @(Get-DlpCompliancePolicy -ErrorAction Stop)
-        $stage = 'readRules'
-        $rules = @(Get-DlpComplianceRule -ErrorAction Stop)
+
+        $policies = @()
+        $rules = @()
+        if ($commands -contains 'Get-DlpCompliancePolicy') {
+            $stage = 'readPolicies'
+            $policies = @(Get-DlpCompliancePolicy -ErrorAction Stop)
+        }
+        if ($commands -contains 'Get-DlpComplianceRule') {
+            $stage = 'readRules'
+            $rules = @(Get-DlpComplianceRule -ErrorAction Stop)
+        }
     
         return [ordered]@{
             schemaVersion = 'purview-evidence-v1'
@@ -177,7 +226,12 @@ function Invoke-PurviewDlpCollection {
         }
     }
     catch {
-        Write-Warning "Purview collection failed at ${stage}: $($_.Exception.GetType().Name)"
+        $errorId = $_.FullyQualifiedErrorId
+        if ($errorId -notmatch '^[a-zA-Z0-9_,.]{1,150}$') { $errorId = 'unclassified' }
+        $signature = [regex]::Match($_.Exception.Message,
+            'AADSTS[0-9]+|(?i:Keyset does not exist|Could not load file or assembly|Unauthorized|Forbidden|CNG|No certificate|Access is denied|already been imported|Unable to find|HTTP 401|HTTP 403|PowerShellGet|format.ps1xml|ConnectionUri|Cannot process command)').Value
+        Write-Warning "Purview collection failed at ${stage}: $($_.Exception.GetType().Name) [$errorId] [$signature]"
+        $_.Exception.Data['PurviewStage'] = $stage
         throw
     }
     finally {

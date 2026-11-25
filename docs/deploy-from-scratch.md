@@ -427,7 +427,28 @@ enabling the collector from the main audit workflow. Keep SQL writes in the main
 
 For recovery, disable the calling workflow and redeploy the prior collector package,
 or stop the new Dev worker. Revoke its certificate secret role if retiring it.
-The collector deployment has no SQL migration or evidence backfill.
+The collector itself has no SQL access. Before enabling the main API integration,
+apply migration 033, deploy the Compare and main API packages, and run
+`scripts/Set-NsoAuditPurviewCaller.ps1` with the environment's API parameters.
+This updates the two Purview settings without redeploying the full Dev network
+template. The settings enable configured tenants only. The main audit worker
+sends one request per DLP dataset and saves the validated results in SQL. No
+historical backfill is required.
+
+The NewSommer trial loaded the Key Vault certificate and obtained an Entra token
+for Microsoft Exchange Online Protection. Security & Compliance PowerShell
+returned Unauthorized at connection. Keep automatic DLP collection disabled
+until an authorized Purview administrator verifies the service principal's
+effective read roles. Validate `View-Only DLP Compliance Management` in a custom
+Purview role group for the existing enterprise application. Enable the verified
+tenant in the Dev parameters and reapply the caller settings for a signed test.
+
+In Dev, `scripts/verify-purview-dev.mjs` creates an identifiable DLP-only audit,
+using temporary exact-IP operator SQL access. It leaves the latest-audit pointer
+and the source tenant configuration intact. Verify both collections finish and
+that Compare can read their saved records. For rollback, clear the configured
+tenant list, then roll back the application packages if needed. Retain the
+additive SQL tables and saved audit history.
 
 ## Audit Compare
 

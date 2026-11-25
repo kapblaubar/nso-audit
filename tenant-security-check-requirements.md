@@ -468,6 +468,11 @@ Use the status in this table to track delivery. A completed dataset confirms col
 
 ### Saved audit comparison
 
+For enabled tenants, full audits request Purview DLP policy and rule snapshots from
+the Windows collector. The main API saves normalized settings and status in the
+existing organization-scoped SQL audit pipeline. Compare includes complete DLP
+datasets when both selected audits collected them.
+
 The Audit Compare menu opens a baseline and comparison selector for finished audits in
 the authorized workspace. Each dataset requires complete collection in both audits.
 Compare opens across all datasets and highlights added evidence and changed values in
@@ -561,7 +566,7 @@ given role-management permission and cannot authorize itself in a customer tenan
 DLP will eventually be scored through versioned atomic controls such as applicable workload
 coverage, enabled/enforced mode, appropriate sensitive-information rules, alert configuration,
 override auditing, and absence of distribution errors. No DLP weight is added to the production
-baseline while collection is parked; missing DLP evidence remains `NotCollected` or
+baseline while the initial evidence integration is validated; missing DLP evidence remains `NotCollected` or
 `NotApplicable`, never zero.
 
 ### 6.3.1 Additional Purview and AI posture candidates
@@ -621,7 +626,7 @@ content to those APIs merely to calculate a posture score.
   are prohibited.
 - Missing Sentinel, Defender, Purview, licensing, permissions, or expected tables produces
   `NotApplicable` or `Incomplete`, not a score of zero.
-- Until their collectors ship, DLP, alerts, alert settings, and Sentinel data connectors are
+- Until their collectors ship, alerts, alert settings, and Sentinel data connectors are
   visible in the report hierarchy as `NotCollected`/`NotEnabled`; they carry no score or baseline
   weight and the UI must not imply that evidence was evaluated.
 
