@@ -5,6 +5,7 @@ param(
     [Parameter(Mandatory)][string]$ParametersFile,
     [Parameter(Mandatory)][string]$Repository,
     [Parameter(Mandatory)][string]$GitHubEnvironment,
+    [ValidateSet('Api','Purview')][string]$Workload = 'Api',
     [switch]$Apply
 )
 $ErrorActionPreference='Stop'
@@ -18,12 +19,13 @@ $arguments=@('--subscription',$SubscriptionId,'--resource-group',$ResourceGroupN
 & az deployment group what-if @arguments
 if($LASTEXITCODE -ne 0){throw 'Deployment identity what-if failed.'}
 if($Apply){
-    $result=& az deployment group create @arguments --name nso-audit-api-deployment-identity --query properties.outputs -o json | ConvertFrom-Json
+    $result=& az deployment group create @arguments --name "nso-audit-$($Workload.ToLowerInvariant())-deployment-identity" --query properties.outputs -o json | ConvertFrom-Json
     if($LASTEXITCODE -ne 0){throw 'Deployment identity provisioning failed.'}
-    $mapping=@{AZURE_API_DEPLOY_CLIENT_ID=$result.clientId.value;AZURE_API_DEPLOY_TENANT_ID=$result.tenantId.value;AZURE_API_DEPLOY_SUBSCRIPTION_ID=$result.subscriptionId.value}
+    $prefix="AZURE_$($Workload.ToUpperInvariant())_DEPLOY"
+    $mapping=@{"${prefix}_CLIENT_ID"=$result.clientId.value;"${prefix}_TENANT_ID"=$result.tenantId.value;"${prefix}_SUBSCRIPTION_ID"=$result.subscriptionId.value}
     foreach($key in $mapping.Keys){
         & gh variable set $key --body $mapping[$key] --repo $Repository --env $GitHubEnvironment
         if($LASTEXITCODE -ne 0){throw "GitHub public variable configuration failed: $key"}
     }
-    Write-Host 'Secretless API deployment identity and public GitHub variables configured.'
+    Write-Host "Secretless $Workload deployment identity and public GitHub variables configured."
 }

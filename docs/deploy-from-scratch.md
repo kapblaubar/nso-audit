@@ -425,6 +425,14 @@ the tenant GUID to a configured, verified domain. Each enabled tenant needs Secu
 Check health, an unsigned POST returning 401, and a signed test collection before
 enabling the collector from the main audit workflow. Keep SQL writes in the main API.
 
+For GitHub deployment, preview and provision the dedicated Purview deployment
+identity using `scripts/Set-NsoAuditGitHubApiDeployment.ps1 -Workload Purview`
+with `infra/github-purview-deployment.dev.bicepparam`, the Dev subscription,
+resource group, repository and GitHub environment. Run it without `-Apply` to
+review what-if, then run it with `-Apply` to provision app-scoped deployment
+access and set the public GitHub OIDC variables. The workflow publishes the
+DLP collector package and checks its health endpoint.
+
 For recovery, disable the calling workflow and redeploy the prior collector package,
 or stop the new Dev worker. Revoke its certificate secret role if retiring it.
 The collector itself has no SQL access. Before enabling the main API integration,

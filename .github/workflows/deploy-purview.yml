@@ -6,11 +6,13 @@ on:
       - main
     paths:
       - "apps/purview/**"
+      - "scripts/Publish-NsoAuditPurview.ps1"
       - ".github/workflows/deploy-purview.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: deploy-purview-development
@@ -24,16 +26,17 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Assemble deployment package
-        shell: bash
-        run: |
-          mkdir purview-package
-          cp apps/purview/host.json apps/purview/profile.ps1 apps/purview/requirements.psd1 purview-package/
-          cp -R apps/purview/PurviewCollector purview-package/PurviewCollector
-
-      - name: Deploy Azure Function App
-        uses: Azure/functions-action@v1
+      - uses: azure/login@v2
         with:
-          app-name: nso-audit-dev-purview
-          package: purview-package
-          publish-profile: ${{ secrets.AZURE_PURVIEW_FUNCTIONAPP_PUBLISH_PROFILE }}
+          client-id: ${{ vars.AZURE_PURVIEW_DEPLOY_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_PURVIEW_DEPLOY_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_PURVIEW_DEPLOY_SUBSCRIPTION_ID }}
+      - name: Publish DLP collector
+        shell: pwsh
+        env:
+          PURVIEW_SUBSCRIPTION: ${{ vars.AZURE_PURVIEW_DEPLOY_SUBSCRIPTION_ID }}
+        run: |
+          ./scripts/Publish-NsoAuditPurview.ps1 -SubscriptionId $env:PURVIEW_SUBSCRIPTION -ResourceGroupName NSO-Audit -FunctionAppName nso-audit-dev-pur-api
+      - name: Verify Purview collector health
+        run: |
+          curl --fail --retry 8 --retry-delay 5 --retry-all-errors https://nso-audit-dev-pur-api.azurewebsites.net/api/health | jq -e '.service == "purview-collector" and .status == "ok"'
