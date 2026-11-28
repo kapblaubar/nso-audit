@@ -451,6 +451,11 @@ effective read roles. Validate `View-Only DLP Compliance Management` in a custom
 Purview role group for the existing enterprise application. Enable the verified
 tenant in the Dev parameters and reapply the caller settings for a signed test.
 
+During a test, filter the main API and collector function logs for `Purview DLP`
+and the same `scanId`. The API logs the attempt, collector HTTP status and saved
+record count. The collector logs its progress and the failure stage, including
+certificate loading, token acquisition, session connection and policy or rule reads.
+
 In Dev, `scripts/verify-purview-dev.mjs` creates an identifiable DLP-only audit,
 using temporary exact-IP operator SQL access. It leaves the latest-audit pointer
 and the source tenant configuration intact. Verify both collections finish and

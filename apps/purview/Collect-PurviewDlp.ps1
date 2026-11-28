@@ -171,6 +171,10 @@ function Invoke-PurviewDlpCollection {
     $certificate = $null
     $connected = $false
     $stage = 'certificate'
+    $timer = [System.Diagnostics.Stopwatch]::StartNew()
+    $datasetName = if ($Dataset) { $Dataset } else { 'all' }
+    $logContext = "scanId=$ScanId tenantId=$TenantId dataset=$datasetName"
+    Write-Information "Purview DLP collection started $logContext" -InformationAction Continue
     try {
         $clientId = Get-RequiredSetting -Name 'ENTRA_CLIENT_ID'
         $managedIdentityClientId = Get-RequiredSetting -Name 'AZURE_CLIENT_ID'
@@ -182,8 +186,10 @@ function Invoke-PurviewDlpCollection {
             -CertificateName $certificateName `
             -ManagedIdentityClientId $managedIdentityClientId
     
+        Write-Information "Purview DLP certificate loaded $logContext" -InformationAction Continue
         $stage = 'token'
         $accessToken = Get-PurviewAccessToken -TenantId $TenantId -ClientId $clientId -Certificate $certificate
+        Write-Information "Purview DLP token acquired $logContext" -InformationAction Continue
         $stage = 'module'
         Import-Module ExchangeOnlineManagement -RequiredVersion 3.10.1
         $stage = 'connect'
@@ -197,6 +203,7 @@ function Invoke-PurviewDlpCollection {
             -Organization $organization `
             -ShowBanner:$false -CommandName $commands | Out-Null
         $connected = $true
+        Write-Information "Purview DLP session connected $logContext" -InformationAction Continue
 
         $policies = @()
         $rules = @()
@@ -209,7 +216,8 @@ function Invoke-PurviewDlpCollection {
             $rules = @(Get-DlpComplianceRule -ErrorAction Stop)
         }
     
-        return [ordered]@{
+        $stage = 'normalize'
+        $result = [ordered]@{
             schemaVersion = 'purview-evidence-v1'
             module = 'dlp'
             scanId = $scanId
@@ -224,13 +232,15 @@ function Invoke-PurviewDlpCollection {
                 rules = @($rules | ForEach-Object { ConvertTo-SafeRule $_ })
             }
         }
+        Write-Information "Purview DLP collection completed $logContext policyCount=$($policies.Count) ruleCount=$($rules.Count) elapsedMs=$($timer.ElapsedMilliseconds)" -InformationAction Continue
+        return $result
     }
     catch {
         $errorId = $_.FullyQualifiedErrorId
         if ($errorId -notmatch '^[a-zA-Z0-9_,.]{1,150}$') { $errorId = 'unclassified' }
         $signature = [regex]::Match($_.Exception.Message,
             'AADSTS[0-9]+|(?i:Keyset does not exist|Could not load file or assembly|Unauthorized|Forbidden|CNG|No certificate|Access is denied|already been imported|Unable to find|HTTP 401|HTTP 403|PowerShellGet|format.ps1xml|ConnectionUri|Cannot process command)').Value
-        Write-Warning "Purview collection failed at ${stage}: $($_.Exception.GetType().Name) [$errorId] [$signature]"
+        Write-Warning "Purview DLP collection failed $logContext stage=$stage elapsedMs=$($timer.ElapsedMilliseconds) exception=$($_.Exception.GetType().Name) errorId=$errorId signature=[$signature]"
         $_.Exception.Data['PurviewStage'] = $stage
         throw
     }

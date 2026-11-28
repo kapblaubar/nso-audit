@@ -26,17 +26,23 @@ if ($dataset -and $dataset -cnotin @('purviewDlpPolicies', 'purviewDlpRules')) {
     return
 }
 
+$endpointStage = 'tenantConfiguration'
 try {
     $tenants = Get-RequiredSetting -Name 'PURVIEW_TENANT_DOMAINS' | ConvertFrom-Json -AsHashtable
     $domain = $tenants[$tenantId.ToString()]
     if ([string]::IsNullOrWhiteSpace($domain)) {
+        Write-Warning "Purview DLP tenant denied scanId=$scanId tenantId=$tenantId dataset=$dataset"
         Send-Response 403 @{ error = 'Purview collection is not enabled for this tenant.' }
         return
     }
+    $endpointStage = 'collection'
     $result = Invoke-PurviewDlpCollection -ScanId $scanId -TenantId $tenantId -Organization $domain -Dataset $dataset
+    $endpointStage = 'response'
     Send-Response 200 $result
 } catch {
-    Write-Warning "Purview endpoint returned an upstream error: $($_.Exception.GetType().Name)"
     $stage = $_.Exception.Data['PurviewStage']
+    if (-not $stage) {
+        Write-Warning "Purview DLP endpoint failed scanId=$scanId tenantId=$tenantId dataset=$dataset stage=$endpointStage exception=$($_.Exception.GetType().Name)"
+    }
     Send-Response 502 @{ status = 'incomplete'; error = 'Purview collection could not complete.'; stage = $stage; scanId = $scanId; tenantId = $tenantId }
 }

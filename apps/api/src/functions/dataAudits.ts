@@ -67,15 +67,18 @@ export async function readAzureRoles(request:HttpRequest,context:InvocationConte
     return result?{status:200,jsonBody:result}:{status:404,jsonBody:{error:'Audit or Azure scope not found.'}};
   });
 }
-async function collectSnapshot(job:CollectionJob):Promise<void>{
+async function collectSnapshot(job:CollectionJob,context:InvocationContext):Promise<void>{
   if(!isSnapshotType(job.DataType))throw new Error('Invalid snapshot type.');
+  const source=datasetCatalog[job.DataType];
+  const dlp='purview' in source;
+  const details={scanId:job.ScanId,tenantId:job.TenantId,dataset:job.DataType,attempt:job.Attempts};
+  if(dlp)context.log('Purview DLP audit job started',details);
   await startCollection(job);
   let page:{records:SnapshotRecord[];nextLink:string|null};
   try{
     if(job.Attempts>3)throw new CollectionError('workerInterrupted');
-    const source=datasetCatalog[job.DataType];
     if('purview' in source){
-      page={records:await fetchPurviewRecords(job),nextLink:null};
+      page={records:await fetchPurviewRecords(job,context),nextLink:null};
     }else{
       const subscriptionId=await getJobSubscription(job);
       const credential=await customerCredential(job.TenantId);
@@ -99,10 +102,12 @@ async function collectSnapshot(job:CollectionJob):Promise<void>{
     }
   }catch(error){
     const safe=error instanceof CollectionError?error:new CollectionError('sourceUnavailable');
+    if(dlp)context.warn('Purview DLP audit job failed',{...details,code:safe.code});
     await checkpointCollection(job,[],null,{code:safe.code,missingAccess:safe.missingAccess});
     return;
   }
   await checkpointCollection(job,page.records,page.nextLink);
+  if(dlp)context.log('Purview DLP audit evidence saved',{...details,recordCount:page.records.length});
 }
 export async function collectAuditData(_timer:unknown,context:InvocationContext):Promise<void>{
   if(!enabled())return;
@@ -112,7 +117,7 @@ export async function collectAuditData(_timer:unknown,context:InvocationContext)
     const job=await claimCollection();
     if(!job)return;
     try{
-      if(isSnapshotType(job.DataType)){await collectSnapshot(job);continue;}
+      if(isSnapshotType(job.DataType)){await collectSnapshot(job,context);continue;}
       await processCollection(job,{start:startCollection,checkpoint:checkpointCollection,page:graphPage,
         token:async tenantId=>(await (await customerCredential(tenantId)).getToken('https://graph.microsoft.com/.default')).token});
     }catch{

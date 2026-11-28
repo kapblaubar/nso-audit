@@ -1,4 +1,5 @@
 import {ManagedIdentityCredential} from '@azure/identity';
+import type {InvocationContext} from '@azure/functions';
 import type {SnapshotRecord} from './catalog.js';
 import {CollectionError} from './licensing.js';
 import type {CollectionJob} from './store.js';
@@ -43,7 +44,7 @@ export function purviewRecords(payload:unknown,job:Pick<CollectionJob,'TenantId'
   });
 }
 
-export async function fetchPurviewRecords(job:CollectionJob):Promise<SnapshotRecord[]>{
+export async function fetchPurviewRecords(job:CollectionJob,context:InvocationContext):Promise<SnapshotRecord[]>{
   if(!purviewEnabledFor(job.TenantId))throw new CollectionError('purviewNotEnabled',true);
   const url=new URL(process.env.PURVIEW_COLLECTOR_URL!);
   const audience=process.env.ENTRA_CLIENT_ID;
@@ -53,9 +54,13 @@ export async function fetchPurviewRecords(job:CollectionJob):Promise<SnapshotRec
   let token:string;
   try{token=(await credential.getToken(`api://${audience}/.default`)).token;}
   catch{throw new CollectionError('purviewAuthentication');}
+  const details={scanId:job.ScanId,tenantId:job.TenantId,dataset:job.DataType,attempt:job.Attempts};
+  const started=Date.now();
+  context.log('Purview DLP collector request sent',details);
   const response=await fetch(url,{method:'POST',redirect:'error',signal:AbortSignal.timeout(110_000),
     headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
     body:JSON.stringify({tenantId:job.TenantId,scanId:job.ScanId,dataset:job.DataType})});
+  context.log('Purview DLP collector response',{...details,httpStatus:response.status,elapsedMs:Date.now()-started});
   if(response.status===401||response.status===403)throw new CollectionError('purviewAccessDenied',true);
   const raw=await response.text();
   if(Buffer.byteLength(raw)>4*1024*1024)throw new CollectionError('invalidResponse');
